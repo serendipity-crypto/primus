@@ -1,0 +1,17 @@
+[package]
+name = "integer"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+gcd = { path = "../gcd" }
+num-traits = { workspace = true }
+rand = { workspace = true }
+serde = { workspace = true }
+
+[dev-dependencies]
+
+[features]
+default = ["nightly", "simd"]
+nightly = []
+simd = ["rand/simd_support"]

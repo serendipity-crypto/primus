@@ -1,0 +1,18 @@
+[package]
+name = "barrett"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+integer = { path = "../integer" }
+reduce = { path = "../reduce" }
+uint_modulus = { path = "../uint_modulus" }
+num-traits = { workspace = true }
+
+[dev-dependencies]
+rand = { workspace = true }
+
+[features]
+default = ["nightly", "simd"]
+nightly = ["integer/nightly"]
+simd = ["integer/simd"]

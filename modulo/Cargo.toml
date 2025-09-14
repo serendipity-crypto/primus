@@ -1,0 +1,9 @@
+[package]
+name = "modulo"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+integer = { path = "../integer" }
+reduce = { path = "../reduce" }
+thiserror = { workspace = true }
