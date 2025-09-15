@@ -1,0 +1,76 @@
+use quote::ToTokens;
+
+#[derive(Clone, Copy)]
+pub(crate) enum Modulus {
+    U8(u8),
+    U16(u16),
+    U32(u32),
+    U64(u64),
+}
+
+impl Modulus {
+    pub(crate) fn from_syn(value: &syn::LitInt, ty: &syn::Path) -> syn::Result<Self> {
+        let ty = ty.get_ident().ok_or_else(|| {
+            syn::Error::new_spanned(
+                ty,
+                "The type for modulus is invalid. It can only be u8, u16, u32 or u64.",
+            )
+        })?;
+        match ty.to_string().as_str() {
+            "u8" => {
+                let value = value.base10_parse::<u8>()?;
+                Ok(Self::U8(value))
+            }
+            "u16" => {
+                let value = value.base10_parse::<u16>()?;
+                Ok(Self::U16(value))
+            }
+            "u32" => {
+                let value = value.base10_parse::<u32>()?;
+                Ok(Self::U32(value))
+            }
+            "u64" => {
+                let value = value.base10_parse::<u64>()?;
+                Ok(Self::U64(value))
+            }
+            _ => Err(syn::Error::new_spanned(
+                ty,
+                "The type for modulus is invalid. It can only be u8, u16, u32 or u64.",
+            )),
+        }
+    }
+
+    pub(crate) fn ty(&self) -> syn::Type {
+        match self {
+            Modulus::U8(_) => syn::parse_str("u8").unwrap(),
+            Modulus::U16(_) => syn::parse_str("u16").unwrap(),
+            Modulus::U32(_) => syn::parse_str("u32").unwrap(),
+            Modulus::U64(_) => syn::parse_str("u64").unwrap(),
+        }
+    }
+
+    pub(crate) fn check_leading_zeros(&self, value: &syn::LitInt) -> syn::Result<u32> {
+        let n = match self {
+            Modulus::U8(v) => v.leading_zeros(),
+            Modulus::U16(v) => v.leading_zeros(),
+            Modulus::U32(v) => v.leading_zeros(),
+            Modulus::U64(v) => v.leading_zeros(),
+        };
+        if n < 2 {
+            return Err(syn::Error::new_spanned(
+                value,
+                "The modulus must have at least two leading zeros.",
+            ));
+        }
+        Ok(n)
+    }
+
+    pub(crate) fn into_token_stream(&self) -> proc_macro2::TokenStream {
+        match self {
+            Modulus::U8(v) => v.into_token_stream(),
+            Modulus::U16(v) => v.into_token_stream(),
+            Modulus::U32(v) => v.into_token_stream(),
+            Modulus::U64(v) => v.into_token_stream(),
+        }
+    }
+}

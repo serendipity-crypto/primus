@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "barrett",
+    "barrett_derive",
     "gcd",
     "integer",
     "modulo",
