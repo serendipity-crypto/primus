@@ -2,6 +2,10 @@
 
 use core::fmt::Display;
 
+pub use integer;
+pub use reduce;
+pub use uint_modulus;
+
 use integer::DivRemScalar;
 use integer::UnsignedInteger;
 

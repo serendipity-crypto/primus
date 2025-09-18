@@ -40,15 +40,6 @@ impl Modulus {
         }
     }
 
-    pub(crate) fn ty(&self) -> syn::Type {
-        match self {
-            Modulus::U8(_) => syn::parse_str("u8").unwrap(),
-            Modulus::U16(_) => syn::parse_str("u16").unwrap(),
-            Modulus::U32(_) => syn::parse_str("u32").unwrap(),
-            Modulus::U64(_) => syn::parse_str("u64").unwrap(),
-        }
-    }
-
     pub(crate) fn check_leading_zeros(&self, value: &syn::LitInt) -> syn::Result<u32> {
         let n = match self {
             Modulus::U8(v) => v.leading_zeros(),
@@ -67,10 +58,10 @@ impl Modulus {
 
     pub(crate) fn into_token_stream(&self) -> proc_macro2::TokenStream {
         match self {
-            Modulus::U8(v) => v.into_token_stream(),
-            Modulus::U16(v) => v.into_token_stream(),
-            Modulus::U32(v) => v.into_token_stream(),
-            Modulus::U64(v) => v.into_token_stream(),
+            Modulus::U8(v) => v.to_token_stream(),
+            Modulus::U16(v) => v.to_token_stream(),
+            Modulus::U32(v) => v.to_token_stream(),
+            Modulus::U64(v) => v.to_token_stream(),
         }
     }
 }

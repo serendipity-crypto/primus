@@ -2,13 +2,13 @@ use syn::{DeriveInput, Meta, Token, punctuated::Punctuated};
 
 use crate::Modulus;
 
-pub(crate) struct BarrettModulusDeriveData {
+pub(crate) struct BarrettModulusData {
     pub(crate) ident: syn::Ident,
     pub(crate) ty: syn::Type,
     pub(crate) modulus: Modulus,
 }
 
-impl BarrettModulusDeriveData {
+impl BarrettModulusData {
     pub(crate) fn from_syn(input: &DeriveInput) -> syn::Result<Self> {
         let mut ty = None;
         let mut modulus_lit = None;
@@ -34,7 +34,12 @@ impl BarrettModulusDeriveData {
         if let (Some(modulus_lit), Some(ty)) = (modulus_lit, ty) {
             let modulus = Modulus::from_syn(&modulus_lit, &ty)?;
             modulus.check_leading_zeros(&modulus_lit)?;
-            let ty = modulus.ty();
+
+            let ty = syn::Type::Path(syn::TypePath {
+                qself: None,
+                path: ty,
+            });
+
             return Ok(Self {
                 ident: input.ident.clone(),
                 modulus,

@@ -2,21 +2,26 @@ use proc_macro2::TokenStream;
 use quote::ToTokens;
 use syn::{DeriveInput, Result};
 
-use crate::{BarrettModulusDeriveData, Modulus};
+use crate::{BarrettModulusData, Modulus};
+
+mod ratio;
 
 mod basic;
+
+mod lazy_ops;
 mod ops;
-mod ratio;
 
 #[inline]
 pub(super) fn derive(input: &DeriveInput) -> Result<TokenStream> {
-    let barrett_modulus_derive_data = BarrettModulusDeriveData::from_syn(input)?;
+    let barrett_modulus_derive_data = BarrettModulusData::from_syn(input)?;
 
     Ok(impl_barrett(barrett_modulus_derive_data))
 }
 
-fn impl_barrett(data: BarrettModulusDeriveData) -> TokenStream {
+fn impl_barrett(data: BarrettModulusData) -> TokenStream {
     let name = &data.ident;
+
+    let ty = data.ty;
 
     let modulus = data.modulus.into_token_stream();
 
@@ -27,19 +32,17 @@ fn impl_barrett(data: BarrettModulusDeriveData) -> TokenStream {
         Modulus::U64(m) => ratio::gen_ratio_u64(m).map(|v| v.into_token_stream()),
     };
 
-    let ty = data.ty;
-
     let impl_basic = basic::basic(name, &modulus);
 
-    let impl_lazy_reduce_ops = ops::impl_lazy_reduce_ops(name, &modulus, &ty, &ratio);
+    let lazy_reduce_ops = lazy_ops::impl_lazy_reduce_ops(name, &modulus, &ty, &ratio);
 
-    let impl_add_ops = ops::impl_reduce_add_ops(name, &modulus, &ty);
+    let reduce_ops = ops::impl_reduce_ops(name, &modulus, &ty);
 
     quote::quote! {
         #impl_basic
 
-        #impl_lazy_reduce_ops
+        #lazy_reduce_ops
 
-        #impl_add_ops
+        #reduce_ops
     }
 }

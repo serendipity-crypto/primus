@@ -10,8 +10,13 @@ rand = { workspace = true }
 serde = { workspace = true }
 
 [dev-dependencies]
+criterion = { workspace = true }
 
 [features]
-default = ["nightly", "simd"]
+default = []
 nightly = []
 simd = ["rand/simd_support"]
+
+[[bench]]
+name = "ops"
+harness = false

@@ -1,7 +1,8 @@
 use gcd::Xgcd;
 use integer::UnsignedInteger;
 
-use reduce::{ReduceError, ops::*};
+use primus_factor::{LazyMulFactor, MulFactor};
+use reduce::{ReduceError, lazy_ops::LazyReduceMul, ops::*};
 
 use super::UintModulus;
 
@@ -151,5 +152,29 @@ impl<T: UnsignedInteger> TryReduceInv<T> for UintModulus<T> {
                 modulus: self.0,
             })
         }
+    }
+}
+
+impl<T: UnsignedInteger, F> LazyReduceMul<T, F> for UintModulus<T>
+where
+    F: LazyMulFactor<T, T>,
+{
+    type Output = T;
+
+    #[inline(always)]
+    fn lazy_reduce_mul(self, a: T, b: F) -> Self::Output {
+        b.lazy_mul_modulo(a, self.0)
+    }
+}
+
+impl<T: UnsignedInteger, F> ReduceMul<T, F> for UintModulus<T>
+where
+    F: MulFactor<T, T>,
+{
+    type Output = T;
+
+    #[inline(always)]
+    fn reduce_mul(self, a: T, b: F) -> Self::Output {
+        b.mul_modulo(a, self.0)
     }
 }

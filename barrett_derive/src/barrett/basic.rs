@@ -4,14 +4,14 @@ use syn::Ident;
 
 pub(crate) fn basic(name: &Ident, modulus: &TokenStream) -> TokenStream {
     quote! {
+        impl ::std::marker::Copy for #name {}
+
         impl ::std::clone::Clone for #name {
             #[inline]
             fn clone(&self) -> Self {
                 *self
             }
         }
-
-        impl ::std::marker::Copy for #name {}
 
         impl ::std::fmt::Debug for #name {
             #[inline]

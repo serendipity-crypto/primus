@@ -1,0 +1,15 @@
+[package]
+name = "primus_factor"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+integer = { path = "../integer" }
+
+[dev-dependencies]
+rand = { workspace = true }
+
+[features]
+default = ["nightly", "simd"]
+nightly = ["integer/nightly"]
+simd = ["integer/simd"]

@@ -1,14 +1,17 @@
 [workspace]
 members = [
-    "barrett",
-    "barrett_derive",
     "gcd",
     "integer",
-    "modulo",
-    "native_modulus",
-    "powof2_modulus",
     "reduce",
+    "modulo",
     "uint_modulus",
+    "powof2_modulus",
+    "native_modulus",
+    "barrett",
+    "barrett_derive",
+    "primus_factor",
+    "primus_ntt",
+    # "mytest",
 ]
 resolver = "3"
 

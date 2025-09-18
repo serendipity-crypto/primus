@@ -7,3 +7,4 @@ edition = "2024"
 gcd = { path = "../gcd" }
 integer = { path = "../integer" }
 reduce = { path = "../reduce" }
+primus_factor = { path = "../primus_factor" }

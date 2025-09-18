@@ -5,7 +5,7 @@ mod ast;
 mod barrett;
 mod modulus;
 
-pub(crate) use ast::BarrettModulusDeriveData;
+pub(crate) use ast::BarrettModulusData;
 pub(crate) use modulus::Modulus;
 
 #[proc_macro_derive(Barrett, attributes(modulus, value_type))]
