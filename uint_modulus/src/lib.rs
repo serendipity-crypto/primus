@@ -15,3 +15,17 @@ impl<T: UnsignedInteger> UintModulus<T> {
         Self(value)
     }
 }
+
+impl<T: UnsignedInteger> reduce::Modulus for UintModulus<T> {
+    type ValueT = T;
+
+    #[inline(always)]
+    fn value(self) -> Option<Self::ValueT> {
+        Some(self.0)
+    }
+
+    #[inline(always)]
+    fn minus_one(self) -> Self::ValueT {
+        self.0 - T::ONE
+    }
+}

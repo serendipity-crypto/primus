@@ -1,6 +1,6 @@
 use integer::{DivRemScalar, UnsignedInteger};
 
-use crate::{LazyMulFactor, MulFactor};
+use crate::{FactorMul, LazyFactorMul};
 
 #[cfg(all(feature = "nightly", feature = "simd"))]
 mod simd;
@@ -72,7 +72,7 @@ impl<T: UnsignedInteger> ShoupFactor<T> {
     }
 }
 
-impl<T: UnsignedInteger> LazyMulFactor<T, T> for ShoupFactor<T> {
+impl<T: UnsignedInteger> LazyFactorMul<T, T> for ShoupFactor<T> {
     /// Calculates `a * b mod modulus`.
     ///
     /// The result is in [0, 2 * `modulus`).
@@ -89,7 +89,7 @@ impl<T: UnsignedInteger> LazyMulFactor<T, T> for ShoupFactor<T> {
     ///
     /// `0 ≤ wx - qp < xp/β + p < 2p < β`
     #[inline]
-    fn lazy_mul_modulo(self, b: T, modulus: T) -> T {
+    fn lazy_factor_mul_modulo(self, b: T, modulus: T) -> T {
         let hw = self.quotient.widening_mul_hw(b);
         self.value
             .wrapping_mul(b)
@@ -97,13 +97,13 @@ impl<T: UnsignedInteger> LazyMulFactor<T, T> for ShoupFactor<T> {
     }
 }
 
-impl<T: UnsignedInteger> MulFactor<T, T> for ShoupFactor<T> {
+impl<T: UnsignedInteger> FactorMul<T, T> for ShoupFactor<T> {
     /// Calculates `self * b mod modulus`.
     ///
     /// The result is in [0, `modulus`).
     #[inline]
-    fn mul_modulo(self, b: T, modulus: T) -> T {
-        let t = self.lazy_mul_modulo(b, modulus);
+    fn factor_mul_modulo(self, b: T, modulus: T) -> T {
+        let t = self.lazy_factor_mul_modulo(b, modulus);
         if t >= modulus { t - modulus } else { t }
     }
 }
@@ -132,7 +132,10 @@ mod tests {
         let shoup = ShoupFactor::new(rng.sample(distr), modulus);
         let data: Vec<ValueT> = distr.sample_iter(&mut rng).take(N).collect();
 
-        let shoup_res: Vec<ValueT> = data.iter().map(|&v| shoup.mul_modulo(v, modulus)).collect();
+        let shoup_res: Vec<ValueT> = data
+            .iter()
+            .map(|&v| shoup.factor_mul_modulo(v, modulus))
+            .collect();
         let normal_res: Vec<ValueT> = data
             .iter()
             .map(|&v| (v as WideT) * (shoup.value as WideT) % (modulus as WideT))

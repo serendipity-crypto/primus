@@ -2,7 +2,7 @@ use core::simd::{LaneCount, Simd, SupportedLaneCount, cmp::SimdPartialOrd};
 
 use integer::{DivRemScalar, SimdArray, SimdMaskArray, SimdUnsignedInteger, WideningMul};
 
-use crate::{LazyMulFactor, MulFactor};
+use crate::{FactorMul, LazyFactorMul};
 
 use super::ShoupFactor;
 
@@ -106,28 +106,28 @@ where
     }
 }
 
-impl<T: SimdUnsignedInteger, const N: usize> LazyMulFactor<Simd<T, N>, Simd<T, N>>
+impl<T: SimdUnsignedInteger, const N: usize> LazyFactorMul<Simd<T, N>, Simd<T, N>>
     for SimdShoupFactor<T, N>
 where
     LaneCount<N>: SupportedLaneCount,
     Simd<T, N>: SimdArray<T, N>,
 {
     #[inline]
-    fn lazy_mul_modulo(self, b: Simd<T, N>, modulus: Simd<T, N>) -> Simd<T, N> {
+    fn lazy_factor_mul_modulo(self, b: Simd<T, N>, modulus: Simd<T, N>) -> Simd<T, N> {
         let hw = self.quotient.widening_mul_hw(b);
         self.value * b - (modulus * hw)
     }
 }
 
-impl<T: SimdUnsignedInteger, const N: usize> MulFactor<Simd<T, N>, Simd<T, N>>
+impl<T: SimdUnsignedInteger, const N: usize> FactorMul<Simd<T, N>, Simd<T, N>>
     for SimdShoupFactor<T, N>
 where
     LaneCount<N>: SupportedLaneCount,
     Simd<T, N>: SimdArray<T, N>,
 {
     #[inline]
-    fn mul_modulo(self, b: Simd<T, N>, modulus: Simd<T, N>) -> Simd<T, N> {
-        let t = self.lazy_mul_modulo(b, modulus);
+    fn factor_mul_modulo(self, b: Simd<T, N>, modulus: Simd<T, N>) -> Simd<T, N> {
+        let t = self.lazy_factor_mul_modulo(b, modulus);
         t.simd_ge(modulus).select(t - modulus, t)
     }
 }

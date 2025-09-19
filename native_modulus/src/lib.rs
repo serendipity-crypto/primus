@@ -33,3 +33,17 @@ impl<T: UnsignedInteger> NativeModulus<T> {
         }
     }
 }
+
+impl<T: UnsignedInteger> reduce::Modulus for NativeModulus<T> {
+    type ValueT = T;
+
+    #[inline(always)]
+    fn value(self) -> Option<Self::ValueT> {
+        None
+    }
+
+    #[inline(always)]
+    fn minus_one(self) -> Self::ValueT {
+        T::MAX
+    }
+}

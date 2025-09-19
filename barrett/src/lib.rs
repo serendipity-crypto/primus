@@ -69,3 +69,17 @@ impl<T: UnsignedInteger> Display for BarrettModulus<T> {
         write!(f, "{}", self.value)
     }
 }
+
+impl<T: UnsignedInteger> reduce::Modulus for BarrettModulus<T> {
+    type ValueT = T;
+
+    #[inline]
+    fn value(self) -> Option<Self::ValueT> {
+        Some(self.value)
+    }
+
+    #[inline(always)]
+    fn minus_one(self) -> Self::ValueT {
+        self.value - T::ONE
+    }
+}

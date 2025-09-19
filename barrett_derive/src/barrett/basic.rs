@@ -23,6 +23,20 @@ pub(crate) fn basic(
             }
         }
 
+        impl ::barrett::reduce::Modulus for #name {
+            type ValueT = #ty;
+
+            #[inline(always)]
+            fn value(self) -> Option<Self::ValueT> {
+                Some(#modulus)
+            }
+
+            #[inline(always)]
+            fn minus_one(self) -> Self::ValueT {
+                #modulus - 1
+            }
+        }
+
         impl ::std::marker::Copy for #name {}
 
         impl ::std::clone::Clone for #name {

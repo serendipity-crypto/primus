@@ -316,7 +316,7 @@ pub trait SquareModulo<M> {
     /// # Correctness
     ///
     /// - `self < modulus`
-    fn reduce_square(self, modulus: M) -> Self::Output;
+    fn square_modulo(self, modulus: M) -> Self::Output;
 }
 
 impl<T, M> SquareModulo<M> for T
@@ -326,7 +326,7 @@ where
     type Output = <M as ReduceSquare<T>>::Output;
 
     #[inline(always)]
-    fn reduce_square(self, modulus: M) -> Self::Output {
+    fn square_modulo(self, modulus: M) -> Self::Output {
         modulus.reduce_square(self)
     }
 }
@@ -338,7 +338,7 @@ pub trait SquareModuloAssign<M> {
     /// # Correctness
     ///
     /// - `self < modulus`
-    fn reduce_square_assign(&mut self, modulus: M);
+    fn square_modulo_assign(&mut self, modulus: M);
 }
 
 impl<T, M> SquareModuloAssign<M> for T
@@ -346,7 +346,7 @@ where
     M: ReduceSquareAssign<T>,
 {
     #[inline(always)]
-    fn reduce_square_assign(&mut self, modulus: M) {
+    fn square_modulo_assign(&mut self, modulus: M) {
         modulus.reduce_square_assign(self)
     }
 }

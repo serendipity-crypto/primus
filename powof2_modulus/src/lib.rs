@@ -42,14 +42,28 @@ impl<T: UnsignedInteger> PowOf2Modulus<T> {
 
     /// Returns the value of this [`PowOf2Modulus<T>`].
     #[inline]
-    pub fn value(&self) -> T {
+    pub fn value(self) -> T {
         self.mask + T::ONE
     }
 
     /// Returns the mask of this [`PowOf2Modulus<T>`],
     /// which is equal to modulus value sub one.
     #[inline]
-    pub const fn mask(&self) -> T {
+    pub const fn mask(self) -> T {
+        self.mask
+    }
+}
+
+impl<T: UnsignedInteger> reduce::Modulus for PowOf2Modulus<T> {
+    type ValueT = T;
+
+    #[inline]
+    fn value(self) -> Option<Self::ValueT> {
+        Some(self.mask + T::ONE)
+    }
+
+    #[inline(always)]
+    fn minus_one(self) -> Self::ValueT {
         self.mask
     }
 }
