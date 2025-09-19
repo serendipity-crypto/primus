@@ -1,0 +1,11 @@
+[package]
+name = "primus_poly"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+integer = { path = "../integer" }
+reduce = { path = "../reduce" }
+modulo = { path = "../modulo" }
+
+serde = { workspace = true }

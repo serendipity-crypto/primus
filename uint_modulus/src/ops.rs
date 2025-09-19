@@ -157,7 +157,7 @@ impl<T: UnsignedInteger> TryReduceInv<T> for UintModulus<T> {
 
 impl<T: UnsignedInteger, F> LazyReduceMul<T, F> for UintModulus<T>
 where
-    F: LazyFactorMul<T, T>,
+    F: LazyFactorMul<T>,
 {
     type Output = T;
 
@@ -169,7 +169,7 @@ where
 
 impl<T: UnsignedInteger, F> ReduceMul<T, F> for UintModulus<T>
 where
-    F: FactorMul<T, T>,
+    F: FactorMul<T>,
 {
     type Output = T;
 

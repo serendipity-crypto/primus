@@ -72,7 +72,7 @@ impl<T: UnsignedInteger> ShoupFactor<T> {
     }
 }
 
-impl<T: UnsignedInteger> LazyFactorMul<T, T> for ShoupFactor<T> {
+impl<T: UnsignedInteger> LazyFactorMul<T> for ShoupFactor<T> {
     /// Calculates `a * b mod modulus`.
     ///
     /// The result is in [0, 2 * `modulus`).
@@ -97,7 +97,7 @@ impl<T: UnsignedInteger> LazyFactorMul<T, T> for ShoupFactor<T> {
     }
 }
 
-impl<T: UnsignedInteger> FactorMul<T, T> for ShoupFactor<T> {
+impl<T: UnsignedInteger> FactorMul<T> for ShoupFactor<T> {
     /// Calculates `self * b mod modulus`.
     ///
     /// The result is in [0, `modulus`).

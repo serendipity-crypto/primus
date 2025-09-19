@@ -106,8 +106,7 @@ where
     }
 }
 
-impl<T: SimdUnsignedInteger, const N: usize> LazyFactorMul<Simd<T, N>, Simd<T, N>>
-    for SimdShoupFactor<T, N>
+impl<T: SimdUnsignedInteger, const N: usize> LazyFactorMul<Simd<T, N>> for SimdShoupFactor<T, N>
 where
     LaneCount<N>: SupportedLaneCount,
     Simd<T, N>: SimdArray<T, N>,
@@ -119,8 +118,7 @@ where
     }
 }
 
-impl<T: SimdUnsignedInteger, const N: usize> FactorMul<Simd<T, N>, Simd<T, N>>
-    for SimdShoupFactor<T, N>
+impl<T: SimdUnsignedInteger, const N: usize> FactorMul<Simd<T, N>> for SimdShoupFactor<T, N>
 where
     LaneCount<N>: SupportedLaneCount,
     Simd<T, N>: SimdArray<T, N>,

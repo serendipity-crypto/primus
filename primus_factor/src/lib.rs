@@ -2,14 +2,14 @@
 
 mod shoup_factor;
 
-pub trait LazyFactorMul<T, M> {
+pub trait LazyFactorMul<T> {
     /// Calculates `self * b (mod modulus)`.
-    fn lazy_factor_mul_modulo(self, b: T, modulus: M) -> T;
+    fn lazy_factor_mul_modulo(self, b: T, modulus: T) -> T;
 }
 
-pub trait FactorMul<T, M> {
+pub trait FactorMul<T>: LazyFactorMul<T> {
     /// Calculates `self * b (mod modulus)`.
-    fn factor_mul_modulo(self, b: T, modulus: M) -> T;
+    fn factor_mul_modulo(self, b: T, modulus: T) -> T;
 }
 
 pub use shoup_factor::ShoupFactor;

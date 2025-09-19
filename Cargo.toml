@@ -10,7 +10,7 @@ members = [
     "barrett",
     "barrett_derive",
     "primus_factor",
-    "primus_ntt",
+    "primus_ntt", "primus_poly", "primus_rns",
 ]
 resolver = "3"
 
@@ -21,6 +21,7 @@ rand = "0.9"
 rayon = "1.11"
 bytemuck = "1.23"
 serde = { version = "1.0", features = ["derive"] }
+itertools = "0.14.0"
 
 criterion = "0.7"
 

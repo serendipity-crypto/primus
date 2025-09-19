@@ -1,0 +1,14 @@
+[package]
+name = "primus_rns"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+gcd = { path = "../gcd" }
+integer = { path = "../integer" }
+reduce = { path = "../reduce" }
+modulo = { path = "../modulo" }
+primus_factor = { path = "../primus_factor" }
+
+thiserror = { workspace = true }
+itertools = { workspace = true }
