@@ -8,11 +8,13 @@ integer = { path = "../integer" }
 reduce = { path = "../reduce" }
 uint_modulus = { path = "../uint_modulus" }
 num-traits = { workspace = true }
+barrett_derive = { path = "../barrett_derive", optional = true }
 
 [dev-dependencies]
 rand = { workspace = true }
 
 [features]
-default = ["nightly", "simd"]
+default = ["nightly", "simd", "derive"]
 nightly = ["integer/nightly"]
 simd = ["integer/simd"]
+derive = ["dep:barrett_derive"]

@@ -32,7 +32,7 @@ fn impl_barrett(data: BarrettModulusData) -> TokenStream {
         Modulus::U64(m) => ratio::gen_ratio_u64(m).map(|v| v.into_token_stream()),
     };
 
-    let impl_basic = basic::basic(name, &modulus);
+    let impl_basic = basic::basic(name, &modulus, &ty, &ratio);
 
     let lazy_reduce_ops = lazy_ops::impl_lazy_reduce_ops(name, &modulus, &ty, &ratio);
 

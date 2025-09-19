@@ -9,6 +9,9 @@ pub use uint_modulus;
 use integer::DivRemScalar;
 use integer::UnsignedInteger;
 
+#[cfg(feature = "derive")]
+pub use barrett_derive::Barrett;
+
 mod ops;
 #[cfg(all(feature = "nightly", feature = "simd"))]
 mod simd;

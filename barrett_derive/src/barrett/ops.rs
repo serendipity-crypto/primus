@@ -301,7 +301,7 @@ pub(crate) fn impl_reduce_ops(name: &Ident, modulus: &TokenStream, ty: &syn::Typ
                 /// `c += a * b`
                 fn multiply_add(c: &mut [#ty; 2], a: #ty, b: #ty) {
                     use ::barrett::integer::WideningMul;
-                    let (lw, hw) = a.widening_mul(b);
+                    let (lw, hw) = WideningMul::widening_mul(a, b);
                     let carry;
                     (c[0], carry) = c[0].overflowing_add(lw);
                     (c[1], _) = c[1].carrying_add(hw, carry);
@@ -347,7 +347,7 @@ pub(crate) fn impl_reduce_ops(name: &Ident, modulus: &TokenStream, ty: &syn::Typ
                 /// `c += a * b`
                 fn multiply_add(c: &mut [#ty; 2], a: #ty, b: #ty) {
                     use ::barrett::integer::WideningMul;
-                    let (lw, hw) = a.widening_mul(b);
+                    let (lw, hw) = WideningMul::widening_mul(a, b);
                     let carry;
                     (c[0], carry) = c[0].overflowing_add(lw);
                     (c[1], _) = c[1].carrying_add(hw, carry);
