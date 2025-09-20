@@ -12,3 +12,6 @@ primus_factor = { path = "../primus_factor" }
 
 thiserror = { workspace = true }
 itertools = { workspace = true }
+
+[dev-dependencies]
+barrett = { path = "../barrett" }

@@ -202,6 +202,15 @@ pub(crate) fn impl_reduce_ops(name: &Ident, modulus: &TokenStream, ty: &syn::Typ
             }
         }
 
+        impl ::barrett::reduce::ops::TryReduceInv<#ty> for #name {
+            type Output = #ty;
+
+            #[inline(always)]
+            fn try_reduce_inv(self, value: #ty) -> Result<Self::Output, ::barrett::reduce::ReduceError<#ty>> {
+                ::barrett::uint_modulus::UintModulus(#modulus).try_reduce_inv(value)
+            }
+        }
+
         impl ::barrett::reduce::ops::ReduceInv<#ty> for #name {
             type Output = #ty;
 

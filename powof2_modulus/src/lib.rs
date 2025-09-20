@@ -63,6 +63,11 @@ impl<T: UnsignedInteger> reduce::Modulus for PowOf2Modulus<T> {
     }
 
     #[inline(always)]
+    fn value_unchecked(self) -> Self::ValueT {
+        self.mask + T::ONE
+    }
+
+    #[inline(always)]
     fn minus_one(self) -> Self::ValueT {
         self.mask
     }

@@ -1,5 +1,7 @@
 #![cfg_attr(all(feature = "nightly", feature = "simd"), feature(portable_simd))]
 
+pub mod utils;
+
 mod integer_traits;
 
 mod integer;

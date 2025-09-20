@@ -79,6 +79,11 @@ impl<T: UnsignedInteger> reduce::Modulus for BarrettModulus<T> {
     }
 
     #[inline(always)]
+    fn value_unchecked(self) -> Self::ValueT {
+        self.value
+    }
+
+    #[inline(always)]
     fn minus_one(self) -> Self::ValueT {
         self.value - T::ONE
     }

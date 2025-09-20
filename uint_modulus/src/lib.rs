@@ -25,6 +25,11 @@ impl<T: UnsignedInteger> reduce::Modulus for UintModulus<T> {
     }
 
     #[inline(always)]
+    fn value_unchecked(self) -> Self::ValueT {
+        self.0
+    }
+
+    #[inline(always)]
     fn minus_one(self) -> Self::ValueT {
         self.0 - T::ONE
     }

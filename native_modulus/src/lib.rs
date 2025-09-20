@@ -1,4 +1,4 @@
-use core::marker::PhantomData;
+use core::{marker::PhantomData, panic};
 
 use integer::UnsignedInteger;
 
@@ -40,6 +40,11 @@ impl<T: UnsignedInteger> reduce::Modulus for NativeModulus<T> {
     #[inline(always)]
     fn value(self) -> Option<Self::ValueT> {
         None
+    }
+
+    #[inline(always)]
+    fn value_unchecked(self) -> Self::ValueT {
+        panic!("The value of theNative Modulus can not be represented.");
     }
 
     #[inline(always)]

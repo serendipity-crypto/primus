@@ -22,6 +22,9 @@ where
     /// Returns the modulus value.
     fn value(self) -> Option<Self::ValueT>;
 
+    /// Returns the modulus value without checking.
+    fn value_unchecked(self) -> Self::ValueT;
+
     /// Returns the value of the modulus minus one.
     fn minus_one(self) -> Self::ValueT;
 }
@@ -54,6 +57,7 @@ pub trait RingAdapter<T>:
     + ReduceExp<T>
     + ReduceExpPowOf2<T>
     + ReduceDotProduct<T>
+    + TryReduceInv<T, Output = T>
 {
 }
 
@@ -84,6 +88,7 @@ impl<T: UnsignedInteger, M> RingAdapter<T> for M where
         + ReduceExp<T>
         + ReduceExpPowOf2<T>
         + ReduceDotProduct<T>
+        + TryReduceInv<T, Output = T>
 {
 }
 
@@ -96,6 +101,8 @@ pub trait FieldAdapter<T>:
     + LazyReduceMulAssign<T>
     + LazyReduceMulAdd<T, Output = T>
     + LazyReduceMulAddAssign<T>
+    + for<'a> LazyReduce<&'a [T], Output = T>
+    + for<'a> Reduce<&'a [T], Output = T>
     + ReduceInv<T, Output = T>
     + ReduceInvAssign<T>
     + ReduceDiv<T, Output = T>
@@ -111,6 +118,8 @@ impl<T: UnsignedInteger, M> FieldAdapter<T> for M where
         + LazyReduceMulAssign<T>
         + LazyReduceMulAdd<T, Output = T>
         + LazyReduceMulAddAssign<T>
+        + for<'a> LazyReduce<&'a [T], Output = T>
+        + for<'a> Reduce<&'a [T], Output = T>
         + ReduceInv<T, Output = T>
         + ReduceInvAssign<T>
         + ReduceDiv<T, Output = T>

@@ -32,6 +32,11 @@ pub(crate) fn basic(
             }
 
             #[inline(always)]
+            fn value_unchecked(self) -> Self::ValueT {
+                #modulus
+            }
+
+            #[inline(always)]
             fn minus_one(self) -> Self::ValueT {
                 #modulus - 1
             }

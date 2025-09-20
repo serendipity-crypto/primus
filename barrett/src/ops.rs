@@ -355,6 +355,15 @@ impl<T: UnsignedInteger> ReduceMulAddAssign<T> for BarrettModulus<T> {
     }
 }
 
+impl<T: UnsignedInteger> TryReduceInv<T> for BarrettModulus<T> {
+    type Output = T;
+
+    #[inline(always)]
+    fn try_reduce_inv(self, value: T) -> Result<T, reduce::ReduceError<T>> {
+        UintModulus(self.value).try_reduce_inv(value)
+    }
+}
+
 impl<T: UnsignedInteger> ReduceInv<T> for BarrettModulus<T> {
     type Output = T;
 
