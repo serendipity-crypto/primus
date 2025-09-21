@@ -1,26 +1,57 @@
 use core::cmp::Ordering;
 
-use integer::UnsignedInteger;
+use crate::UnsignedInteger;
 
-pub trait BigIntOps {
+/// A trait for big integer types represented as slices of smaller unsigned integer types.
+pub trait BigInteger: AsRef<[Self::ValueT]> + AsMut<[Self::ValueT]> {
+    /// The underlying unsigned integer type used in the slice representation.
     type ValueT;
+}
+
+/// Implement BigInteger for slices of any UnsignedInteger type.
+impl<T: UnsignedInteger> BigInteger for [T] {
+    type ValueT = T;
+}
+
+/// A trait providing various operations on big integers represented as slices of unsigned integers.
+pub trait BigIntegerOps: BigInteger {
+    /// Adds a value to the big integer slice, returning true if there was a carry.
+    #[must_use]
     fn slice_add_value_assign(&mut self, value: Self::ValueT) -> bool;
+
+    /// Subtracts a value from the big integer slice, returning true if there was a borrow.
+    #[must_use]
     fn slice_sub_value_assign(&mut self, value: Self::ValueT) -> bool;
+
+    /// Multiplies the big integer slice by a value, returning any carry that results.
+    #[must_use]
     fn slice_mul_value_assign(&mut self, value: Self::ValueT) -> Self::ValueT;
 
+    /// Multiplies the big integer slice by a value, storing the result in another slice.
+    #[must_use]
     fn slice_mul_value_inplace(&self, value: Self::ValueT, result: &mut Self) -> Self::ValueT;
 
+    /// Multiplies the big integer slice by a value, then add to another slice.
+    #[must_use]
+    fn slice_mul_value_add_inplace(&self, value: Self::ValueT, result: &mut Self) -> Self::ValueT;
+
+    /// Adds another big integer slice to this one, returning true if there was a carry.
+    #[must_use]
     fn slice_add_assign(&mut self, other: &Self) -> bool;
+
+    /// Subtracts another big integer slice from this one, returning true if there was a borrow.
+    #[must_use]
     fn slice_sub_assign(&mut self, other: &Self) -> bool;
 
+    /// Compares this big integer slice with another, returning an Ordering.
+    #[must_use]
     fn slice_cmp(&self, other: &Self) -> Ordering;
 
+    /// Adds another big integer slice to this one modulo a given modulus.
     fn slice_add_modulo_assign(&mut self, other: &Self, modulus: &Self);
 }
 
-impl<T: UnsignedInteger> BigIntOps for [T] {
-    type ValueT = T;
-
+impl<T: UnsignedInteger> BigIntegerOps for [T] {
     fn slice_add_value_assign(&mut self, value: Self::ValueT) -> bool {
         let mut carry;
         match self {
@@ -63,16 +94,14 @@ impl<T: UnsignedInteger> BigIntOps for [T] {
 
         let mut carry = T::ZERO;
         for ele in self.iter_mut() {
-            let (low, high) = value.carrying_mul(*ele, carry);
-            *ele = low;
-            carry = high;
+            (*ele, carry) = value.carrying_mul(*ele, carry);
         }
 
         carry
     }
 
     fn slice_mul_value_inplace(&self, value: Self::ValueT, result: &mut Self) -> Self::ValueT {
-        debug_assert!(result.len() >= self.len());
+        debug_assert_eq!(result.len(), self.len());
 
         if value.is_zero() {
             result.fill(T::ZERO);
@@ -81,22 +110,29 @@ impl<T: UnsignedInteger> BigIntOps for [T] {
 
         let mut carry = T::ZERO;
         for (ele, res) in self.iter().zip(result.iter_mut()) {
-            let (low, high) = value.carrying_mul(*ele, carry);
-            *res = low;
-            carry = high;
+            (*res, carry) = value.carrying_mul(*ele, carry);
         }
 
-        if result.len() > self.len() {
-            result[self.len()..].fill(T::ZERO);
-            result[self.len()] = carry;
-            T::ZERO
-        } else {
-            carry
+        carry
+    }
+
+    fn slice_mul_value_add_inplace(&self, value: Self::ValueT, result: &mut Self) -> Self::ValueT {
+        debug_assert_eq!(result.len(), self.len());
+
+        if value.is_zero() {
+            return T::ZERO;
         }
+
+        let mut carry = T::ZERO;
+        for (ele, res) in self.iter().zip(result.iter_mut()) {
+            (*res, carry) = value.carrying_mul_add(*ele, *res, carry);
+        }
+
+        carry
     }
 
     fn slice_add_assign(&mut self, other: &Self) -> bool {
-        debug_assert!(self.len() >= other.len());
+        debug_assert_eq!(self.len(), other.len());
 
         let mut carry = false;
 
@@ -104,41 +140,23 @@ impl<T: UnsignedInteger> BigIntOps for [T] {
             (*xs, carry) = xs.carrying_add(*ys, carry);
         }
 
-        if carry && self.len() > other.len() {
-            for xs in self[other.len()..].iter_mut() {
-                (*xs, carry) = xs.overflowing_add(T::ONE);
-                if !carry {
-                    return false;
-                }
-            }
-        }
-
         carry
     }
 
     fn slice_sub_assign(&mut self, other: &Self) -> bool {
-        debug_assert!(self.len() >= other.len());
+        debug_assert_eq!(self.len(), other.len());
 
         let mut borrow = false;
 
-        for (xs, ys) in self[..other.len()].iter_mut().zip(other) {
+        for (xs, ys) in self.iter_mut().zip(other) {
             (*xs, borrow) = xs.borrowing_sub(*ys, borrow);
-        }
-
-        if borrow && self.len() > other.len() {
-            for xs in self[other.len()..].iter_mut() {
-                (*xs, borrow) = xs.overflowing_sub(T::ONE);
-                if !borrow {
-                    return false;
-                }
-            }
         }
 
         borrow
     }
 
     fn slice_cmp(&self, other: &Self) -> Ordering {
-        assert_eq!(self.len(), other.len());
+        debug_assert_eq!(self.len(), other.len());
 
         for (a, b) in self.iter().rev().zip(other.iter().rev()) {
             match a.cmp(b) {
@@ -157,16 +175,17 @@ impl<T: UnsignedInteger> BigIntOps for [T] {
 
         let carry = self.slice_add_assign(other);
         if carry || self.slice_cmp(modulus).is_ge() {
-            self.slice_sub_assign(modulus);
+            let _ = self.slice_sub_assign(modulus);
         }
     }
 }
 
+/// Multiplies many values together, returning the result as a big integer slice.
 pub fn multiply_many_values<T: UnsignedInteger>(values: &[T]) -> Vec<T> {
     let mut result = Vec::with_capacity(values.len());
     result.push(values[0]);
     for &v in values.iter().skip(1) {
-        let carry = result.as_mut_slice().slice_mul_value_assign(v);
+        let carry = result.slice_mul_value_assign(v);
         if !carry.is_zero() {
             result.push(carry);
         }
@@ -175,6 +194,7 @@ pub fn multiply_many_values<T: UnsignedInteger>(values: &[T]) -> Vec<T> {
     result
 }
 
+/// Multiplies many values together, except for one specified by index, returning the result as a big integer slice.
 pub fn multiply_many_values_except<T: UnsignedInteger>(values: &[T], except: usize) -> Vec<T> {
     let mut result = Vec::with_capacity(values.len() - 1);
     result.push(T::ONE);
@@ -191,4 +211,23 @@ pub fn multiply_many_values_except<T: UnsignedInteger>(values: &[T], except: usi
 
     result.shrink_to_fit();
     result
+}
+
+/// Multiplies many values together, except for one specified by index, returning the result as a big integer slice.
+pub fn multiply_many_values_except_inplace<T: UnsignedInteger>(
+    values: &[T],
+    except: usize,
+    result: &mut [T],
+) {
+    result.fill(T::ZERO);
+    result[0] = T::ONE;
+    let mut len = 1;
+
+    for (_, &v) in values.iter().enumerate().filter(|(i, _)| *i != except) {
+        let carry = result[0..len].slice_mul_value_assign(v);
+        if !carry.is_zero() {
+            result[len] = carry;
+            len += 1;
+        }
+    }
 }

@@ -15,8 +15,22 @@ macro_rules! simd_uint_carrying_mul_impl {
             }
 
             #[inline]
+            fn carrying_mul_add(self, rhs: Self, carry: Self, add: Self) -> (Self, Self) {
+                let wide =
+                    self.cast::<$W>() * rhs.cast::<$W>() + carry.cast::<$W>() + add.cast::<$W>();
+                (wide.cast(), (wide >> $Bits).cast())
+            }
+
+            #[inline]
             fn carrying_mul_hw(self, rhs: Self, carry: Self) -> Self {
                 let wide = self.cast::<$W>() * rhs.cast::<$W>() + carry.cast::<$W>();
+                (wide >> $Bits).cast()
+            }
+
+            #[inline]
+            fn carrying_mul_add_hw(self, rhs: Self, carry: Self, add: Self) -> Self {
+                let wide =
+                    self.cast::<$W>() * rhs.cast::<$W>() + carry.cast::<$W>() + add.cast::<$W>();
                 (wide >> $Bits).cast()
             }
         }
@@ -69,6 +83,43 @@ macro_rules! simd_uint_carrying_mul_large {
             }
 
             #[inline]
+            fn carrying_mul_add(self, rhs: Self, carry: Self, add: Self) -> (Self, Self) {
+                let lower_mask = Self::splat(!0 >> $Half);
+                let half = Self::splat($Half);
+
+                let a_low = self & lower_mask;
+                let a_high = self >> half;
+                let b_low = rhs & lower_mask;
+                let b_high = rhs >> half;
+                let carry_low = carry & lower_mask;
+                let carry_high = carry >> half;
+                let add_low = add & lower_mask;
+                let add_high = add >> half;
+
+                let w0 = a_low * b_low + carry_low + add_low;
+                let w1 = a_low * b_high + carry_high;
+                let w2 = a_high * b_low + add_high;
+                let w3 = a_high * b_high;
+
+                let w0l = w0 & lower_mask;
+                let w0h = w0 >> half;
+
+                let s1 = w1 + w0h;
+                let s1l = s1 & lower_mask;
+                let s1h = s1 >> half;
+
+                let s2 = s1l + w2;
+                let s2l = s2 << half;
+                let s2h = s2 >> half;
+
+                let hi1 = w3 + s1h + s2h;
+
+                let lo1 = s2l + w0l;
+
+                (lo1, hi1)
+            }
+
+            #[inline]
             fn carrying_mul_hw(self, rhs: Self, carry: Self) -> Self {
                 let lower_mask = Self::splat(!0 >> $Half);
                 let half = Self::splat($Half);
@@ -83,6 +134,39 @@ macro_rules! simd_uint_carrying_mul_large {
                 let w0 = a_low * b_low + carry_low;
                 let w1 = a_low * b_high + carry_high;
                 let w2 = a_high * b_low;
+                let w3 = a_high * b_high;
+
+                let w0h = w0 >> half;
+
+                let s1 = w1 + w0h;
+                let s1l = s1 & lower_mask;
+                let s1h = s1 >> half;
+
+                let s2 = s1l + w2;
+                let s2h = s2 >> half;
+
+                let hi1 = w3 + s1h + s2h;
+
+                hi1
+            }
+
+            #[inline]
+            fn carrying_mul_add_hw(self, rhs: Self, carry: Self, add: Self) -> Self {
+                let lower_mask = Self::splat(!0 >> $Half);
+                let half = Self::splat($Half);
+
+                let a_low = self & lower_mask;
+                let a_high = self >> half;
+                let b_low = rhs & lower_mask;
+                let b_high = rhs >> half;
+                let carry_low = carry & lower_mask;
+                let carry_high = carry >> half;
+                let add_low = add & lower_mask;
+                let add_high = add >> half;
+
+                let w0 = a_low * b_low + carry_low + add_low;
+                let w1 = a_low * b_high + carry_high;
+                let w2 = a_high * b_low + add_high;
                 let w3 = a_high * b_high;
 
                 let w0h = w0 >> half;

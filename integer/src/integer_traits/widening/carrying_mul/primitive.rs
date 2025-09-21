@@ -10,8 +10,20 @@ macro_rules! uint_carrying_mul_impl {
             }
 
             #[inline]
+            fn carrying_mul_add(self, rhs: Self, carry: Self, add: Self) -> (Self, Self) {
+                let wide = (self as $W) * (rhs as $W) + (carry as $W) + (add as $W);
+                (wide as Self, (wide >> Self::BITS) as Self)
+            }
+
+            #[inline]
             fn carrying_mul_hw(self, rhs: Self, carry: Self) -> Self {
                 let wide = (self as $W) * (rhs as $W) + (carry as $W);
+                (wide >> Self::BITS) as Self
+            }
+
+            #[inline]
+            fn carrying_mul_add_hw(self, rhs: Self, carry: Self, add: Self) -> Self {
+                let wide = (self as $W) * (rhs as $W) + (carry as $W) + (add as $W);
                 (wide >> Self::BITS) as Self
             }
         }
@@ -59,6 +71,39 @@ impl CarryingMul for u128 {
     }
 
     #[inline]
+    fn carrying_mul_add(self, rhs: Self, carry: Self, add: Self) -> (Self, Self) {
+        const HALF: u32 = 64;
+        const LOWER_MASK: u128 = !0 >> HALF;
+
+        let a_low = self & LOWER_MASK;
+        let a_high = self >> HALF;
+        let b_low = rhs & LOWER_MASK;
+        let b_high = rhs >> HALF;
+        let carry_low = carry & LOWER_MASK;
+        let carry_high = carry >> HALF;
+        let add_low = add & LOWER_MASK;
+        let add_high = add >> HALF;
+
+        let mut low = a_low
+            .wrapping_mul(b_low)
+            .wrapping_add(carry_low)
+            .wrapping_add(add_low);
+        let mut t = low >> HALF;
+        low &= LOWER_MASK;
+
+        t += a_high.wrapping_mul(b_low).wrapping_add(carry_high);
+        let mut high = t >> HALF;
+        t &= LOWER_MASK;
+
+        t += a_low.wrapping_mul(b_high).wrapping_add(add_high);
+        low |= (t & LOWER_MASK) << HALF;
+
+        high += a_high.wrapping_mul(b_high).wrapping_add(t >> HALF);
+
+        (low, high)
+    }
+
+    #[inline]
     fn carrying_mul_hw(self, rhs: Self, carry: Self) -> Self {
         const HALF: u32 = 64;
         const LOWER_MASK: u128 = !0 >> HALF;
@@ -81,6 +126,37 @@ impl CarryingMul for u128 {
 
         high += t >> HALF;
         high += a_high.wrapping_mul(b_high);
+
+        high
+    }
+
+    #[inline]
+    fn carrying_mul_add_hw(self, rhs: Self, carry: Self, add: Self) -> Self {
+        const HALF: u32 = 64;
+        const LOWER_MASK: u128 = !0 >> HALF;
+
+        let a_low = self & LOWER_MASK;
+        let a_high = self >> HALF;
+        let b_low = rhs & LOWER_MASK;
+        let b_high = rhs >> HALF;
+        let carry_low = carry & LOWER_MASK;
+        let carry_high = carry >> HALF;
+        let add_low = add & LOWER_MASK;
+        let add_high = add >> HALF;
+
+        let low = a_low
+            .wrapping_mul(b_low)
+            .wrapping_add(carry_low)
+            .wrapping_add(add_low);
+        let mut t = low >> HALF;
+
+        t += a_high.wrapping_mul(b_low).wrapping_add(carry_high);
+        let mut high = t >> HALF;
+        t &= LOWER_MASK;
+
+        t += a_low.wrapping_mul(b_high).wrapping_add(add_high);
+
+        high += a_high.wrapping_mul(b_high).wrapping_add(t >> HALF);
 
         high
     }

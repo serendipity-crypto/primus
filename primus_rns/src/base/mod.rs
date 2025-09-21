@@ -1,32 +1,58 @@
-use crate::slice::BigIntOps;
-use integer::UnsignedInteger;
-use integer::izip;
-use itertools::Itertools;
-use modulo::ops::*;
-use primus_factor::FactorMul;
-use primus_factor::ShoupFactor;
-use reduce::FieldAdapter;
-
-use crate::{
-    RNSError,
-    slice::{multiply_many_values, multiply_many_values_except},
+use std::{
+    ops::{Index, IndexMut},
+    slice::SliceIndex,
 };
 
+use integer::{
+    BigIntegerOps, UnsignedInteger, izip, multiply_many_values, multiply_many_values_except_inplace,
+};
+use itertools::Itertools;
+use modulo::ops::*;
+use primus_factor::{FactorMul, ShoupFactor};
+use reduce::FieldAdapter;
+
+use crate::RNSError;
+
+#[derive(Clone)]
 pub struct RNSBase<T: UnsignedInteger, M: FieldAdapter<T>> {
-    pub moduli: Vec<M>,
-    pub moduli_product: Vec<T>,
-    pub punctured_moduli: Vec<Vec<T>>,
-    pub inv_punctured_moduli: Vec<ShoupFactor<T>>,
+    pub base: Vec<M>,
+    pub base_product: Vec<T>,
+    pub punctured_product: Vec<T>,
+    pub inv_punctured_product_mod_base: Vec<ShoupFactor<T>>,
+}
+
+impl<T, M, I> Index<I> for RNSBase<T, M>
+where
+    T: UnsignedInteger,
+    M: FieldAdapter<T>,
+    I: SliceIndex<[M]>,
+{
+    type Output = I::Output;
+
+    #[inline]
+    fn index(&self, index: I) -> &Self::Output {
+        Index::index(&*self.base, index)
+    }
+}
+
+impl<T, M, I> IndexMut<I> for RNSBase<T, M>
+where
+    T: UnsignedInteger,
+    M: FieldAdapter<T>,
+    I: SliceIndex<[M]>,
+{
+    #[inline]
+    fn index_mut(&mut self, index: I) -> &mut Self::Output {
+        IndexMut::index_mut(&mut *self.base, index)
+    }
 }
 
 impl<T: UnsignedInteger, M: FieldAdapter<T>> RNSBase<T, M> {
-    pub fn new(moduli: &[M]) -> Result<Self, RNSError> {
-        let moduli_values = moduli
-            .iter()
-            .map(|m| m.value_unchecked())
-            .collect::<Vec<_>>();
+    /// Create a new RNS base from the given moduli.
+    pub fn new(base: &[M]) -> Result<Self, RNSError> {
+        let base_values = base.iter().map(|m| m.value_unchecked()).collect::<Vec<_>>();
 
-        if moduli_values
+        if base_values
             .iter()
             .tuple_combinations()
             .any(|(&a, &b)| a.not_coprime(b))
@@ -34,77 +60,112 @@ impl<T: UnsignedInteger, M: FieldAdapter<T>> RNSBase<T, M> {
             return Err(RNSError::CoPrimeError);
         }
 
-        let moduli_product = multiply_many_values(&moduli_values);
-        let punctured_moduli = (0..moduli.len())
-            .map(|i| multiply_many_values_except(&moduli_values, i))
-            .collect::<Vec<_>>();
-        let inv_punctured_moduli = punctured_moduli
-            .iter()
-            .zip(moduli.iter())
+        let base_product = multiply_many_values(&base_values);
+
+        let chunk_size = base_product.len();
+        let len = chunk_size * base.len();
+        let mut punctured_product = vec![T::ZERO; len];
+        punctured_product
+            .chunks_exact_mut(chunk_size)
+            .enumerate()
+            .for_each(|(i, chunk)| {
+                multiply_many_values_except_inplace(&base_values, i, chunk);
+            });
+
+        let inv_punctured_product_mod_base = punctured_product
+            .chunks_exact(chunk_size)
+            .zip(base.iter())
             .map(|(p, &m)| {
-                let inv = p.as_slice().modulo(m).try_inv_modulo(m).unwrap();
+                let inv = p.modulo(m).try_inv_modulo(m).unwrap();
                 ShoupFactor::new(inv, m.value_unchecked())
             })
             .collect::<Vec<ShoupFactor<T>>>();
 
         Ok(Self {
-            moduli: moduli.to_vec(),
-            moduli_product,
-            punctured_moduli,
-            inv_punctured_moduli,
+            base: base.to_vec(),
+            base_product,
+            punctured_product,
+            inv_punctured_product_mod_base,
         })
     }
 
+    pub fn base(&self) -> &[M] {
+        &self.base
+    }
+
+    pub fn base_product(&self) -> &[T] {
+        &self.base_product
+    }
+
+    pub fn punctured_product(&self) -> &[T] {
+        &self.punctured_product
+    }
+
+    pub fn punctured_product_iter(&self) -> std::slice::ChunksExact<'_, T> {
+        self.punctured_product.chunks_exact(self.base_product.len())
+    }
+
+    pub fn inv_punctured_product_mod_base(&self) -> &[ShoupFactor<T>] {
+        &self.inv_punctured_product_mod_base
+    }
+
+    /// Decomposes a value into its RNS representation.
     pub fn decompose(&self, value: &[T]) -> Vec<T> {
-        let mut result = vec![T::ZERO; self.moduli.len()];
-
-        if self.moduli.len() > 1 {
-            for (r, &b) in result.iter_mut().zip(self.moduli.iter()) {
-                *r = value.modulo(b);
-            }
-        } else {
-            result[0] = value[0];
-        }
-
-        result
+        self.base.iter().map(|&m| value.modulo(m)).collect()
     }
 
-    pub fn decompose_inplace(&self, value: &[T], result: &mut [T]) {
-        if self.moduli.len() > 1 {
-            for (r, &b) in result.iter_mut().zip(self.moduli.iter()) {
-                *r = value.modulo(b);
-            }
-        } else {
-            result[0] = value[0];
+    /// Decomposes a value into its RNS representation, writing the result into the provided slice.
+    pub fn decompose_inplace(&self, value: &[T], residues: &mut [T]) {
+        debug_assert_eq!(self.base.len(), residues.len());
+
+        for (r, &m) in residues.iter_mut().zip(self.base.iter()) {
+            *r = value.modulo(m);
         }
     }
 
+    /// Composes a value from its RNS representation.
     pub fn compose(&self, residues: &[T]) -> Vec<T> {
-        assert_eq!(residues.len(), self.moduli.len());
+        debug_assert_eq!(self.base.len(), residues.len());
 
-        match self.moduli.len() {
-            0 => unreachable!(),
-            1 => residues.to_vec(),
-            _ => {
-                let mut result = vec![T::ZERO; self.moduli_product.len()];
-                let mut inter = vec![T::ZERO; self.moduli_product.len()];
+        let mut value = vec![T::ZERO; self.base_product.len()];
 
-                izip!(
-                    residues,
-                    &self.inv_punctured_moduli,
-                    &self.punctured_moduli,
-                    &self.moduli
-                )
-                .for_each(
-                    |(&ri, &inv_mi, mi, &modulus): (&T, &ShoupFactor<T>, &Vec<T>, &M)| {
-                        let product = inv_mi.factor_mul_modulo(ri, modulus.value_unchecked());
-                        mi.slice_mul_value_inplace(product, &mut inter);
-                        result.slice_add_modulo_assign(&inter, &self.moduli_product);
-                    },
-                );
+        izip!(
+            residues,
+            &self.inv_punctured_product_mod_base,
+            self.punctured_product.chunks_exact(self.base_product.len()),
+            &self.base
+        )
+        .for_each(
+            |(&ri, &inv_mi, mi, &modulus): (&T, &ShoupFactor<T>, &[T], &M)| {
+                let product = inv_mi.factor_mul_modulo(ri, modulus.value_unchecked());
+                let carry = mi.slice_mul_value_add_inplace(product, &mut value);
+                if !carry.is_zero() || value.slice_cmp(&self.base_product).is_ge() {
+                    let _ = value.slice_sub_assign(&self.base_product);
+                }
+            },
+        );
 
-                result
-            }
-        }
+        value
+    }
+
+    pub fn compose_inplace(&self, residues: &[T], value: &mut [T]) {
+        debug_assert_eq!(self.base.len(), residues.len());
+        debug_assert_eq!(self.base.len(), value.len());
+
+        izip!(
+            residues,
+            &self.inv_punctured_product_mod_base,
+            self.punctured_product.chunks_exact(self.base_product.len()),
+            &self.base
+        )
+        .for_each(
+            |(&ri, &inv_mi, mi, &modulus): (&T, &ShoupFactor<T>, &[T], &M)| {
+                let product = inv_mi.factor_mul_modulo(ri, modulus.value_unchecked());
+                let carry = mi.slice_mul_value_add_inplace(product, value);
+                if !carry.is_zero() || value.slice_cmp(&self.base_product).is_ge() {
+                    let _ = value.slice_sub_assign(&self.base_product);
+                }
+            },
+        );
     }
 }

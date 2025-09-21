@@ -10,7 +10,9 @@ members = [
     "barrett",
     "barrett_derive",
     "primus_factor",
-    "primus_ntt", "primus_poly", "primus_rns",
+    "primus_poly",
+    "primus_ntt",
+    "primus_rns",
 ]
 resolver = "3"
 
