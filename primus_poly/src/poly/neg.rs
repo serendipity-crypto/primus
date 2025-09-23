@@ -26,14 +26,14 @@ impl<T: Copy> Polynomial<T> {
 
     /// Performs the unary `-` operation.
     #[inline]
-    pub fn neg_inplace<M>(&self, modulus: M, destination: &mut Self)
+    pub fn neg_inplace<M>(&self, result: &mut Self, modulus: M)
     where
         M: Copy + ReduceNeg<T, Output = T>,
     {
-        debug_assert_eq!(self.coeff_count(), destination.coeff_count());
-        destination
+        debug_assert_eq!(self.poly_length(), result.poly_length());
+        result
             .iter_mut()
-            .zip(self.iter())
+            .zip(self)
             .for_each(|(d, &v)| *d = modulus.reduce_neg(v));
     }
 }

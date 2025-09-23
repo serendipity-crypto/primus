@@ -47,7 +47,7 @@ impl<T> Polynomial<T> {
 
     /// Get the coefficient counts of polynomial.
     #[inline]
-    pub fn coeff_count(&self) -> usize {
+    pub fn poly_length(&self) -> usize {
         self.poly.len()
     }
 
@@ -125,11 +125,11 @@ where
         self.poly.fill(<T as ConstZero>::ZERO);
     }
 
-    /// Evaluate p(x).
+    /// Evaluate the polynomial with the value `x`.
     #[inline]
-    pub fn evaluate<Modulus>(&self, x: T, modulus: Modulus) -> T
+    pub fn evaluate<M>(&self, x: T, modulus: M) -> T
     where
-        Modulus: Copy + ReduceMulAdd<T, Output = T>,
+        M: Copy + ReduceMulAdd<T, Output = T>,
     {
         self.poly
             .iter()

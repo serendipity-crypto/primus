@@ -2,6 +2,8 @@ use reduce::FieldAdapter;
 
 use crate::{NttError, root::PrimitiveRoot};
 
+mod primitive;
+
 /// An abstract for ntt table generation.
 pub trait NttTable: Sized {
     /// The value type.
@@ -21,4 +23,9 @@ pub trait NttTable: Sized {
 
     /// Get the polynomial modulus degree.
     fn dimension(&self) -> usize;
+}
+
+pub trait CrtNttTable: Sized {
+    /// The value type.
+    type ValueT: PrimitiveRoot;
 }

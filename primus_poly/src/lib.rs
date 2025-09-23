@@ -1,4 +1,7 @@
 pub mod crt;
 pub mod dcrt;
-pub mod ntt;
-pub mod poly;
+mod ntt;
+mod poly;
+
+pub use ntt::NttPolynomial;
+pub use poly::Polynomial;

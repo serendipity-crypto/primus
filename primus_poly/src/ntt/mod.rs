@@ -1,4 +1,4 @@
-use integer::UnsignedInteger;
+use integer::{UnsignedInteger, izip};
 use num_traits::{ConstZero, Zero};
 use reduce::{lazy_ops::LazyReduceMulAdd, ops::ReduceMulAdd};
 use serde::{Deserialize, Serialize};
@@ -12,6 +12,7 @@ mod neg;
 mod sub;
 
 /// Represents a ntt polynomial where values are elements of a specified numeric `T`.
+/// It stores the values of the polynomial at some particular points.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NttPolynomial<T> {
     values: Vec<T>,
@@ -47,9 +48,9 @@ impl<T> NttPolynomial<T> {
         self.values.as_mut_slice()
     }
 
-    /// Get the coefficient counts of polynomial.
+    /// Get the `coefficient counts`/`polynomial length` of polynomial.
     #[inline]
-    pub fn coeff_count(&self) -> usize {
+    pub fn poly_length(&self) -> usize {
         self.values.len()
     }
 
@@ -135,10 +136,7 @@ impl<T: UnsignedInteger> NttPolynomial<T> {
     where
         M: Copy + ReduceMulAdd<T, Output = T>,
     {
-        self.into_iter()
-            .zip(a)
-            .zip(b)
-            .for_each(|((z, &x), &y)| *z = modulus.reduce_mul_add(x, y, *z));
+        izip!(self, a, b).for_each(|(z, &x, &y)| *z = modulus.reduce_mul_add(x, y, *z));
     }
 
     /// Performs `self = self + (a * b)`.
@@ -147,35 +145,25 @@ impl<T: UnsignedInteger> NttPolynomial<T> {
     where
         M: Copy + LazyReduceMulAdd<T, Output = T>,
     {
-        self.into_iter()
-            .zip(a)
-            .zip(b)
-            .for_each(|((z, &x), &y)| *z = modulus.lazy_reduce_mul_add(x, y, *z));
+        izip!(self, a, b).for_each(|(z, &x, &y)| *z = modulus.lazy_reduce_mul_add(x, y, *z));
     }
 
-    /// Performs `des = self * b + c`.
+    /// Performs `result = self * b + c`.
     #[inline]
-    pub fn mul_add_inplace<M>(&self, b: &Self, c: &Self, des: &mut Self, modulus: M)
+    pub fn mul_add_inplace<M>(&self, b: &Self, c: &Self, result: &mut Self, modulus: M)
     where
         M: Copy + ReduceMulAdd<T, Output = T>,
     {
-        des.into_iter()
-            .zip(self)
-            .zip(b)
-            .zip(c)
-            .for_each(|(((d, &a), &b), &c)| *d = modulus.reduce_mul_add(a, b, c));
+        izip!(result, self, b, c).for_each(|(d, &a, &b, &c)| *d = modulus.reduce_mul_add(a, b, c));
     }
 
-    /// Performs `des = self * b + c`.
+    /// Performs `result = self * b + c`.
     #[inline]
-    pub fn mul_add_inplace_fast<M>(&self, b: &Self, c: &Self, des: &mut Self, modulus: M)
+    pub fn mul_add_inplace_fast<M>(&self, b: &Self, c: &Self, result: &mut Self, modulus: M)
     where
         M: Copy + LazyReduceMulAdd<T, Output = T>,
     {
-        des.into_iter()
-            .zip(self)
-            .zip(b)
-            .zip(c)
-            .for_each(|(((d, &a), &b), &c)| *d = modulus.lazy_reduce_mul_add(a, b, c));
+        izip!(result, self, b, c)
+            .for_each(|(d, &a, &b, &c)| *d = modulus.lazy_reduce_mul_add(a, b, c));
     }
 }

@@ -7,7 +7,9 @@ edition = "2024"
 integer = { path = "../integer" }
 reduce = { path = "../reduce" }
 modulo = { path = "../modulo" }
+uint_modulus = { path = "../uint_modulus" }
 primus_factor = { path = "../primus_factor" }
+
 
 thiserror = { workspace = true }
 rand = { workspace = true }

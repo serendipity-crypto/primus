@@ -13,10 +13,7 @@ use lazy_ops::*;
 use ops::*;
 
 /// Trait for types that represent a modulus.
-pub trait Modulus
-where
-    Self: Copy,
-{
+pub trait Modulus: Copy {
     type ValueT;
 
     /// Returns the modulus value.

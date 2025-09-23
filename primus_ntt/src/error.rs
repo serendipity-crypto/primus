@@ -13,4 +13,20 @@ pub enum NttError<T> {
         /// The modulus.
         modulus: T,
     },
+    /// Error that occurs when fails to convert the degree into desired type.
+    #[error("out of range integral type conversion attempted: {degree} -> {modulus:?}")]
+    DegreeConversionErr {
+        /// degree
+        degree: usize,
+        /// modulus
+        modulus: T,
+    },
+    /// Error that occurs when the degree is too large.
+    #[error("degree should less than modulus: {degree} >= {modulus:?}")]
+    DegreeTooLarge {
+        /// degree
+        degree: usize,
+        /// modulus
+        modulus: T,
+    },
 }
