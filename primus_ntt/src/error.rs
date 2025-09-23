@@ -29,4 +29,7 @@ pub enum NttError<T> {
         /// modulus
         modulus: T,
     },
+    /// Error that occurs when fails to generate the ntt table.
+    #[error("Fail to generate the desired ntt table.")]
+    NttTableErr,
 }

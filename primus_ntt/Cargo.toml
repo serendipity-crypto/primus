@@ -13,3 +13,9 @@ primus_factor = { path = "../primus_factor" }
 
 thiserror = { workspace = true }
 rand = { workspace = true }
+concrete-ntt = { git = "https://github.com/primus-labs/concrete-ntt", branch = "dev", default-features = false, optional = true }
+
+[features]
+default = ["concrete-ntt"]
+concrete-ntt = ["dep:concrete-ntt", "concrete-ntt/std"]
+nightly = ["concrete-ntt?/nightly"]

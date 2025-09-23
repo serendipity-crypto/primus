@@ -117,14 +117,6 @@ impl<T: UnsignedInteger> NttTable for UintNttTable<T> {
 
         let modulus = modulus.value_unchecked();
 
-        Self::with_root(log_n, modulus, root)
-    }
-
-    fn with_root(
-        log_n: u32,
-        modulus: Self::ValueT,
-        root: Self::ValueT,
-    ) -> Result<Self, NttError<Self::ValueT>> {
         let n = 1usize << log_n;
         let to_root_type = |x| -> ShoupFactor<T> { <ShoupFactor<T>>::new(x, modulus) };
 
@@ -191,7 +183,7 @@ impl<T: UnsignedInteger> NttTable for UintNttTable<T> {
     }
 
     #[inline(always)]
-    fn dimension(&self) -> usize {
+    fn poly_length(&self) -> usize {
         self.n
     }
 }
