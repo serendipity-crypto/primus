@@ -9,7 +9,7 @@ reduce = { path = "../reduce" }
 modulo = { path = "../modulo" }
 uint_modulus = { path = "../uint_modulus" }
 primus_factor = { path = "../primus_factor" }
-
+primus_poly = { path = "../primus_poly" }
 
 thiserror = { workspace = true }
 rand = { workspace = true }

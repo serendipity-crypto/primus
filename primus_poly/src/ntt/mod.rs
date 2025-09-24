@@ -32,6 +32,12 @@ impl<T> NttPolynomial<T> {
         Self { values }
     }
 
+    /// Drop self, and return the data.
+    #[inline]
+    pub fn into_vec(self) -> Vec<T> {
+        self.values
+    }
+
     /// Extracts a slice containing the entire vector.
     ///
     /// Equivalent to `&s[..]`.

@@ -29,6 +29,12 @@ impl<T> Polynomial<T> {
         Self { poly }
     }
 
+    /// Drop self, and return the vector.
+    #[inline]
+    pub fn into_vec(self) -> Vec<T> {
+        self.poly
+    }
+
     /// Extracts a slice containing the entire vector.
     ///
     /// Equivalent to `&s[..]`.
