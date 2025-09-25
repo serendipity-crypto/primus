@@ -15,6 +15,13 @@ impl<T: UnsignedInteger> BigInteger for [T] {
 
 /// A trait providing various operations on big integers represented as slices of unsigned integers.
 pub trait BigIntegerOps: BigInteger {
+    /// Gets the bits count of the big integer slice.
+    #[must_use]
+    fn slice_value_bits_count(&self) -> u32;
+
+    /// Left shifts the big integer slice.
+    fn slice_left_shift_assign(&mut self, bits: u32);
+
     /// Adds a value to the big integer slice, returning true if there was a carry.
     #[must_use]
     fn slice_add_value_assign(&mut self, value: Self::ValueT) -> bool;
@@ -52,6 +59,32 @@ pub trait BigIntegerOps: BigInteger {
 }
 
 impl<T: UnsignedInteger> BigIntegerOps for [T] {
+    #[inline]
+    fn slice_value_bits_count(&self) -> u32 {
+        let mut bits_count = 0;
+        for (i, &x) in self.iter().enumerate().rev() {
+            if x.is_zero() {
+                continue;
+            }
+            bits_count = (i as u32 + 1) * T::BITS - (x.leading_zeros());
+            break;
+        }
+
+        bits_count
+    }
+
+    #[inline]
+    fn slice_left_shift_assign(&mut self, bits: u32) {
+        let mut pre = T::ZERO;
+        let mut temp = T::ZERO;
+        let right_shift_bits = T::BITS - bits;
+        self.iter_mut().for_each(|value| {
+            temp = *value;
+            *value = *value << bits | pre >> right_shift_bits;
+            pre = temp;
+        });
+    }
+
     fn slice_add_value_assign(&mut self, value: Self::ValueT) -> bool {
         let mut carry;
         match self {

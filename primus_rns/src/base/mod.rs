@@ -9,12 +9,12 @@ use integer::{
 use itertools::Itertools;
 use modulo::ops::*;
 use primus_factor::{FactorMul, ShoupFactor};
-use reduce::FieldAdapter;
+use reduce::FieldContext;
 
 use crate::RNSError;
 
 #[derive(Clone)]
-pub struct RNSBase<T: UnsignedInteger, M: FieldAdapter<T>> {
+pub struct RNSBase<T: UnsignedInteger, M: FieldContext<T>> {
     pub moduli: Vec<M>,
     pub moduli_product: Vec<T>,
     pub punctured_product: Vec<T>,
@@ -24,7 +24,7 @@ pub struct RNSBase<T: UnsignedInteger, M: FieldAdapter<T>> {
 impl<T, M, I> Index<I> for RNSBase<T, M>
 where
     T: UnsignedInteger,
-    M: FieldAdapter<T>,
+    M: FieldContext<T>,
     I: SliceIndex<[M]>,
 {
     type Output = I::Output;
@@ -38,7 +38,7 @@ where
 impl<T, M, I> IndexMut<I> for RNSBase<T, M>
 where
     T: UnsignedInteger,
-    M: FieldAdapter<T>,
+    M: FieldContext<T>,
     I: SliceIndex<[M]>,
 {
     #[inline]
@@ -47,7 +47,7 @@ where
     }
 }
 
-impl<T: UnsignedInteger, M: FieldAdapter<T>> RNSBase<T, M> {
+impl<T: UnsignedInteger, M: FieldContext<T>> RNSBase<T, M> {
     /// Create a new RNS base from the given moduli.
     pub fn new(moduli: &[M]) -> Result<Self, RNSError> {
         let modulus_values = moduli

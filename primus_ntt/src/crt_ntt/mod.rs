@@ -1,4 +1,4 @@
-use reduce::FieldAdapter;
+use reduce::FieldContext;
 
 use crate::{NttError, NttTable, PrimitiveRoot};
 
@@ -21,7 +21,7 @@ pub trait CrtNttTable: Sized {
     /// Creates a new [`CrtNttTable`].
     fn new<M>(log_n: u32, moduli: &[M]) -> Result<Self, NttError<Self::ValueT>>
     where
-        M: FieldAdapter<Self::ValueT>;
+        M: FieldContext<Self::ValueT>;
 
     /// Returns a reference to the ntt tables.
     fn ntt_tables(&self) -> &[Self::Table];

@@ -3,7 +3,7 @@ pub mod prime32 {
 
     use concrete_ntt::prime32::Plan;
     use primus_poly::{NttPolynomial, Polynomial};
-    use reduce::FieldAdapter;
+    use reduce::FieldContext;
 
     use crate::{Ntt, NttError, NttTable};
 
@@ -34,7 +34,7 @@ pub mod prime32 {
         #[inline]
         fn new<M>(log_n: u32, modulus: M) -> Result<Self, NttError<Self::ValueT>>
         where
-            M: FieldAdapter<Self::ValueT>,
+            M: FieldContext<Self::ValueT>,
         {
             let modulus = modulus.value_unchecked();
             let plan = Plan::try_new(1 << log_n, modulus).ok_or(NttError::NttTableErr)?;
@@ -155,7 +155,7 @@ pub mod prime64 {
 
         fn new<M>(log_n: u32, modulus: M) -> Result<Self, NttError<Self::ValueT>>
         where
-            M: reduce::FieldAdapter<Self::ValueT>,
+            M: reduce::FieldContext<Self::ValueT>,
         {
             let modulus = modulus.value_unchecked();
             let plan = Plan::try_new(1 << log_n, modulus).ok_or(NttError::NttTableErr)?;

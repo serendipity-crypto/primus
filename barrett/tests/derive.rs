@@ -1,7 +1,10 @@
 macro_rules! test_modulus {
     () => {
+        fn field_trait<M: FieldContext<ValueT>>(_modulus: M) {}
+
         #[test]
         fn test_modulus() {
+            field_trait(Modulus);
             let modulus_value = Modulus::value();
             let distribution = Uniform::new(0, modulus_value).unwrap();
 
@@ -50,6 +53,7 @@ macro_rules! test_modulus {
 mod u8tests {
     use barrett::Barrett;
     use rand::{distr::Uniform, prelude::*};
+    use reduce::FieldContext;
     use reduce::ops::*;
 
     #[derive(Barrett)]
@@ -66,6 +70,7 @@ mod u8tests {
 mod u16tests {
     use barrett::Barrett;
     use rand::{distr::Uniform, prelude::*};
+    use reduce::FieldContext;
     use reduce::ops::*;
 
     #[derive(Barrett)]
@@ -82,6 +87,7 @@ mod u16tests {
 mod u32tests {
     use barrett::Barrett;
     use rand::{distr::Uniform, prelude::*};
+    use reduce::FieldContext;
     use reduce::ops::*;
 
     #[derive(Barrett)]
@@ -98,6 +104,7 @@ mod u32tests {
 mod u64tests {
     use barrett::Barrett;
     use rand::{distr::Uniform, prelude::*};
+    use reduce::FieldContext;
     use reduce::ops::*;
 
     #[derive(Barrett)]

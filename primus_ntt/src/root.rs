@@ -2,7 +2,7 @@ use integer::UnsignedInteger;
 use modulo::*;
 use primus_factor::{FactorMul, ShoupFactor};
 use rand::{distr::Uniform, prelude::*};
-use reduce::FieldAdapter;
+use reduce::FieldContext;
 
 use crate::NttError;
 
@@ -12,21 +12,21 @@ where
 {
     fn is_primitive_root<M>(self, log_degree: u32, modulus: M) -> bool
     where
-        M: FieldAdapter<Self>;
+        M: FieldContext<Self>;
 
     fn try_primitive_root<M>(log_degree: u32, modulus: M) -> Result<Self, NttError<Self>>
     where
-        M: FieldAdapter<Self>;
+        M: FieldContext<Self>;
 
     fn try_minimal_primitive_root<M>(log_degree: u32, modulus: M) -> Result<Self, NttError<Self>>
     where
-        M: FieldAdapter<Self>;
+        M: FieldContext<Self>;
 }
 
 impl<T: UnsignedInteger> PrimitiveRoot for T {
     fn is_primitive_root<M>(self, log_degree: u32, modulus: M) -> bool
     where
-        M: FieldAdapter<Self>,
+        M: FieldContext<Self>,
     {
         let modulus_value = modulus.value().unwrap();
 
@@ -45,7 +45,7 @@ impl<T: UnsignedInteger> PrimitiveRoot for T {
 
     fn try_primitive_root<M>(log_degree: u32, modulus: M) -> Result<Self, NttError<Self>>
     where
-        M: FieldAdapter<Self>,
+        M: FieldContext<Self>,
     {
         assert!(log_degree < T::BITS);
 
@@ -88,7 +88,7 @@ impl<T: UnsignedInteger> PrimitiveRoot for T {
 
     fn try_minimal_primitive_root<M>(log_degree: u32, modulus: M) -> Result<Self, NttError<Self>>
     where
-        M: FieldAdapter<Self>,
+        M: FieldContext<Self>,
     {
         let mut root = T::try_primitive_root(log_degree, modulus)?;
 

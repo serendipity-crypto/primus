@@ -1,0 +1,18 @@
+[package]
+name = "primus_decompose"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+integer = { path = "../integer" }
+reduce = { path = "../reduce" }
+
+num-traits = { workspace = true }
+serde = { workspace = true }
+
+[dev-dependencies]
+powof2_modulus = { path = "../powof2_modulus" }
+barrett = { path = "../barrett" }
+
+rand = { workspace = true }
+itertools = { workspace = true }

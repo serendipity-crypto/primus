@@ -2,7 +2,7 @@ use integer::UnsignedInteger;
 use modulo::{AddModulo, ModuloOnce, ModuloOnceAssign};
 use primus_factor::{FactorMul, LazyFactorMul, ShoupFactor};
 use primus_poly::{NttPolynomial, Polynomial};
-use reduce::{FieldAdapter, ops::*};
+use reduce::{FieldContext, ops::*};
 use uint_modulus::UintModulus;
 
 use crate::{Ntt, NttError, reverse::ReverseLsbs, root::PrimitiveRoot};
@@ -113,7 +113,7 @@ impl<T: UnsignedInteger> NttTable for UintNttTable<T> {
     #[inline]
     fn new<M>(log_n: u32, modulus: M) -> Result<Self, NttError<Self::ValueT>>
     where
-        M: FieldAdapter<Self::ValueT>,
+        M: FieldContext<Self::ValueT>,
     {
         let root = <T as PrimitiveRoot>::try_minimal_primitive_root(log_n + 1, modulus)?;
 

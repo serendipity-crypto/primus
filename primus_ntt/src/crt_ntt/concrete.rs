@@ -16,7 +16,7 @@ pub mod prime32 {
         #[inline]
         fn new<M>(log_n: u32, moduli: &[M]) -> Result<Self, crate::NttError<Self::ValueT>>
         where
-            M: reduce::FieldAdapter<Self::ValueT>,
+            M: reduce::FieldContext<Self::ValueT>,
         {
             let mut tables = Vec::with_capacity(moduli.len());
             for modulus in moduli {
@@ -55,7 +55,7 @@ pub mod prime64 {
         #[inline]
         fn new<M>(log_n: u32, moduli: &[M]) -> Result<Self, crate::NttError<Self::ValueT>>
         where
-            M: reduce::FieldAdapter<Self::ValueT>,
+            M: reduce::FieldContext<Self::ValueT>,
         {
             let mut tables = Vec::with_capacity(moduli.len());
             for modulus in moduli {

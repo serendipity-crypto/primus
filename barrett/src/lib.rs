@@ -88,3 +88,20 @@ impl<T: UnsignedInteger> reduce::Modulus for BarrettModulus<T> {
         self.value - T::ONE
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use reduce::FieldContext;
+
+    use super::*;
+
+    fn field_trait<T: UnsignedInteger, M: FieldContext<T>>(_modulus: M) {}
+
+    #[test]
+    fn test_trait() {
+        field_trait(<BarrettModulus<u8>>::new(61));
+        field_trait(<BarrettModulus<u16>>::new(12289));
+        field_trait(<BarrettModulus<u32>>::new(536813569));
+        field_trait(<BarrettModulus<u64>>::new(4611686018427322369));
+    }
+}

@@ -1,5 +1,5 @@
 use integer::UnsignedInteger;
-use reduce::FieldAdapter;
+use reduce::FieldContext;
 
 use crate::{NttError, NttTable, UintNttTable};
 
@@ -19,7 +19,7 @@ impl<T: UnsignedInteger> CrtNttTable for UintCrtNttTable<T> {
     #[inline]
     fn new<M>(log_n: u32, moduli: &[M]) -> Result<Self, NttError<Self::ValueT>>
     where
-        M: FieldAdapter<Self::ValueT>,
+        M: FieldContext<Self::ValueT>,
     {
         let mut ntt_tables = Vec::with_capacity(moduli.len());
         for modulus in moduli {

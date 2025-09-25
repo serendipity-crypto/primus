@@ -1,4 +1,4 @@
-use reduce::FieldAdapter;
+use reduce::FieldContext;
 
 use crate::{NttError, root::PrimitiveRoot};
 
@@ -20,7 +20,7 @@ pub trait NttTable: Sized {
     /// Creates a new [`NttTable`].
     fn new<M>(log_n: u32, modulus: M) -> Result<Self, NttError<Self::ValueT>>
     where
-        M: FieldAdapter<Self::ValueT>;
+        M: FieldContext<Self::ValueT>;
 
     /// Get the polynomial length.
     fn poly_length(&self) -> usize;

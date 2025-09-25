@@ -10,6 +10,7 @@ members = [
     "barrett",
     "barrett_derive",
     "primus_factor",
+    "primus_decompose",
     "primus_poly",
     "primus_ntt",
     "primus_rns",
