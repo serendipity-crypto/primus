@@ -37,6 +37,18 @@ pub trait Bits {
     /// ```
     fn leading_zeros(self) -> u32;
 
+    /// Returns the number of leading ones in the binary representation
+    /// of `self`.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// let n = 0xF00Du16;
+    ///
+    /// assert_eq!(n.leading_ones(), 4);
+    /// ```
+    fn leading_ones(self) -> u32;
+
     /// Returns the number of trailing zeros in the binary representation
     /// of `self`.
     ///
@@ -48,6 +60,18 @@ pub trait Bits {
     /// assert_eq!(n.trailing_zeros(), 3);
     /// ```
     fn trailing_zeros(self) -> u32;
+
+    /// Returns the number of trailing ones in the binary representation
+    /// of `self`.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// let n = 0xBEEFu16;
+    ///
+    /// assert_eq!(n.trailing_ones(), 4);
+    /// ```
+    fn trailing_ones(self) -> u32;
 }
 
 macro_rules! impl_bits {
@@ -72,8 +96,19 @@ macro_rules! impl_bits {
                 }
 
                 #[inline]
+                fn leading_ones(self) -> u32 {
+                    <$T>::leading_ones(self)
+                }
+
+
+                #[inline]
                 fn trailing_zeros(self) -> u32 {
                     <$T>::trailing_zeros(self)
+                }
+
+                #[inline]
+                fn trailing_ones(self) -> u32 {
+                    <$T>::trailing_ones(self)
                 }
             }
         )*

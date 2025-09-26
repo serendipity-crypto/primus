@@ -3,7 +3,7 @@ mod tests {
     use barrett::BarrettModulus;
     use integer::izip;
     use itertools::Itertools;
-    use primus_decompose::ApproxSignedBasis;
+    use primus_decompose::primitive::ApproxSignedBasis;
     use rand::{Rng, distr::Uniform};
     use reduce::ops::{ReduceMulAdd, ReduceSub};
 

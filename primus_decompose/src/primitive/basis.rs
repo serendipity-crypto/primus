@@ -220,10 +220,10 @@ impl<T: UnsignedInteger> ApproxSignedBasis<T> {
     #[inline]
     pub fn init_value_carry(&self, value: T) -> (T, bool) {
         let mut adjust = value;
-        if let Some(split) = self.split_value {
-            if value >= split {
-                adjust += self.next_pow_of_2_sub_modulus;
-            }
+        if let Some(split) = self.split_value
+            && value >= split
+        {
+            adjust += self.next_pow_of_2_sub_modulus;
         }
 
         (

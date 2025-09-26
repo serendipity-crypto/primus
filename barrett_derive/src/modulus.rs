@@ -56,7 +56,7 @@ impl Modulus {
         Ok(n)
     }
 
-    pub(crate) fn into_token_stream(&self) -> proc_macro2::TokenStream {
+    pub(crate) fn into_token_stream(self) -> proc_macro2::TokenStream {
         match self {
             Modulus::U8(v) => v.to_token_stream(),
             Modulus::U16(v) => v.to_token_stream(),

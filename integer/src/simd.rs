@@ -69,6 +69,7 @@ macro_rules! impl_simd_array {
 
 impl_simd_array! {u8 u16 u32 u64 usize}
 
+#[allow(clippy::len_without_is_empty)]
 pub trait SimdMaskArray<T: MaskElement, const N: usize>
 where
     LaneCount<N>: SupportedLaneCount,

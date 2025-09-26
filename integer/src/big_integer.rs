@@ -22,9 +22,16 @@ pub trait BigIntegerOps: BigInteger {
     /// Left shifts the big integer slice.
     fn slice_left_shift_assign(&mut self, bits: u32);
 
+    /// Left shifts the big integer slice.
+    fn slice_right_shift_assign(&mut self, bits: u32);
+
     /// Adds a value to the big integer slice, returning true if there was a carry.
     #[must_use]
     fn slice_add_value_assign(&mut self, value: Self::ValueT) -> bool;
+
+    /// Adds a value to the big integer slice, returning true if there was a carry.
+    #[must_use]
+    fn slice_add_value_inplace(&self, value: Self::ValueT, result: &mut Self) -> bool;
 
     /// Subtracts a value from the big integer slice, returning true if there was a borrow.
     #[must_use]
@@ -85,6 +92,18 @@ impl<T: UnsignedInteger> BigIntegerOps for [T] {
         });
     }
 
+    #[inline]
+    fn slice_right_shift_assign(&mut self, bits: u32) {
+        let mut pre = T::ZERO;
+        let mut temp = T::ZERO;
+        let left_shift_bits = T::BITS - bits;
+        self.iter_mut().rev().for_each(|value| {
+            temp = *value;
+            *value = pre << left_shift_bits | *value >> bits;
+            pre = temp;
+        });
+    }
+
     fn slice_add_value_assign(&mut self, value: Self::ValueT) -> bool {
         let mut carry;
         match self {
@@ -100,6 +119,27 @@ impl<T: UnsignedInteger> BigIntegerOps for [T] {
             }
             _ => unreachable!(),
         }
+    }
+
+    fn slice_add_value_inplace(&self, value: Self::ValueT, result: &mut Self) -> bool {
+        let mut carry;
+
+        let mut a_iter = self.iter();
+        let mut b_iter = result.iter_mut();
+
+        let a_first = a_iter.next().unwrap();
+        let b_first = b_iter.next().unwrap();
+
+        (*b_first, carry) = a_first.overflowing_add(value);
+
+        for (a, b) in a_iter.zip(b_iter) {
+            if !carry {
+                return false;
+            }
+            (*b, carry) = a.overflowing_add(T::ONE);
+        }
+
+        carry
     }
 
     fn slice_sub_value_assign(&mut self, value: Self::ValueT) -> bool {

@@ -102,7 +102,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         })
     });
 
-    c.bench_function(&format!("DivRemScalar"), |b| {
+    c.bench_function("DivRemScalar", |b| {
         b.iter(|| {
             let mut quotient = [0; 3];
             let _ = DivRemScalar::div_rem_scalar(

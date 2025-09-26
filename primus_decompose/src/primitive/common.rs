@@ -53,14 +53,14 @@ pub struct SignedDecomposeIter<T: UnsignedInteger> {
 }
 
 impl<T: UnsignedInteger> Iterator for SignedDecomposeIter<T> {
-    type Item = SignedOnceDecompose<T>;
+    type Item = OnceSignedDecompose<T>;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         if self.length == 0 {
             None
         } else {
-            let next = SignedOnceDecompose::<T> {
+            let next = OnceSignedDecompose::<T> {
                 value_chunk_mask: self.value_chunk_mask,
                 shr_bits: self.value_shr_bits,
                 carry_mask: self.carry_mask,
@@ -83,7 +83,7 @@ impl<T: UnsignedInteger> Iterator for SignedDecomposeIter<T> {
 impl<T: UnsignedInteger> FusedIterator for SignedDecomposeIter<T> {}
 
 /// The signed decomposition operator which can execute once decomposition.
-pub struct SignedOnceDecompose<T: UnsignedInteger> {
+pub struct OnceSignedDecompose<T: UnsignedInteger> {
     value_chunk_mask: T,
     shr_bits: u32,
     carry_mask: T,
@@ -91,7 +91,7 @@ pub struct SignedOnceDecompose<T: UnsignedInteger> {
     modulus_minus_basis: T,
 }
 
-impl<T: UnsignedInteger> SignedOnceDecompose<T> {
+impl<T: UnsignedInteger> OnceSignedDecompose<T> {
     /// Execute once decomposition and return the decomposed value and carry for next decomposition.
     #[inline]
     pub fn decompose(&self, value: T, carry: bool) -> (T, bool) {

@@ -2,7 +2,7 @@
 mod tests {
     use itertools::Itertools;
     use powof2_modulus::PowOf2Modulus;
-    use primus_decompose::ApproxSignedBasis;
+    use primus_decompose::primitive::ApproxSignedBasis;
     use rand::{Rng, distr::Uniform};
     use reduce::ops::{ReduceMulAdd, ReduceSub};
 
