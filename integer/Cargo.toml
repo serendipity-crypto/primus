@@ -8,6 +8,7 @@ gcd = { path = "../gcd" }
 num-traits = { workspace = true }
 rand = { workspace = true }
 serde = { workspace = true }
+zeroize = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true }

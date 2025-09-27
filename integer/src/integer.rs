@@ -9,6 +9,7 @@ use core::{
 use num_traits::{ConstOne, ConstZero, FromBytes, MulAdd, MulAddAssign, NumAssign, Pow, ToBytes};
 use rand::distr::uniform::SampleUniform;
 use serde::{Deserialize, Serialize};
+use zeroize::Zeroize;
 
 use crate::integer_traits::*;
 
@@ -73,6 +74,7 @@ pub trait Integer:
     + SampleUniform<Sampler: Copy>
     + Serialize
     + for<'de> Deserialize<'de>
+    + Zeroize
 {
 }
 

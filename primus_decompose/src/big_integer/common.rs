@@ -1,6 +1,7 @@
 use std::iter::FusedIterator;
 
 use integer::{BigIntegerOps, UnsignedInteger, izip};
+use serde::{Deserialize, Serialize};
 
 pub struct BigUintScalar<T: UnsignedInteger>(pub Vec<T>);
 
@@ -83,7 +84,8 @@ impl<T: UnsignedInteger> Iterator for BigUintSignedDecomposeIter<T> {
 
 impl<T: UnsignedInteger> FusedIterator for BigUintSignedDecomposeIter<T> {}
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(bound(deserialize = "T: UnsignedInteger"))]
 pub struct ValueMask<T: UnsignedInteger> {
     index: usize,
     mask: [T; 2],
