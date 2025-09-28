@@ -71,16 +71,11 @@ pub trait BigIntegerOps: BigInteger {
 impl<T: UnsignedInteger> BigIntegerOps for [T] {
     #[inline]
     fn slice_value_bits_count(&self) -> u32 {
-        let mut bits_count = 0;
-        for (i, &x) in self.iter().enumerate().rev() {
-            if x.is_zero() {
-                continue;
-            }
-            bits_count = (i as u32 + 1) * T::BITS - (x.leading_zeros());
-            break;
-        }
-
-        bits_count
+        self.iter()
+            .enumerate()
+            .rev()
+            .find(|(_, v)| !v.is_zero())
+            .map_or(0, |(i, v)| T::BITS * (i as u32 + 1) - v.leading_zeros())
     }
 
     #[inline]
@@ -111,6 +106,7 @@ impl<T: UnsignedInteger> BigIntegerOps for [T] {
         }
     }
 
+    #[inline]
     fn slice_add_value_assign(&mut self, value: Self::ValueT) -> bool {
         let mut carry;
         match self {
@@ -129,6 +125,8 @@ impl<T: UnsignedInteger> BigIntegerOps for [T] {
     }
 
     fn slice_add_value_inplace(&self, value: Self::ValueT, result: &mut Self) -> bool {
+        debug_assert_eq!(self.len(), result.len());
+
         let mut carry;
 
         let mut a_iter = self.iter();
@@ -140,10 +138,13 @@ impl<T: UnsignedInteger> BigIntegerOps for [T] {
         (*b_first, carry) = a_first.overflowing_add(value);
 
         while carry {
-            let a_next = a_iter.next().unwrap();
-            let b_next = b_iter.next().unwrap();
-
-            (*b_next, carry) = a_next.overflowing_add(T::ONE);
+            if let Some(a_next) = a_iter.next()
+                && let Some(b_next) = b_iter.next()
+            {
+                (*b_next, carry) = a_next.overflowing_add(T::ONE);
+            } else {
+                return carry;
+            }
         }
 
         for (a, b) in a_iter.zip(b_iter) {
@@ -153,6 +154,7 @@ impl<T: UnsignedInteger> BigIntegerOps for [T] {
         carry
     }
 
+    #[inline]
     fn slice_sub_value_assign(&mut self, value: Self::ValueT) -> bool {
         let mut borrow;
         match self {
@@ -170,6 +172,7 @@ impl<T: UnsignedInteger> BigIntegerOps for [T] {
         }
     }
 
+    #[inline]
     fn slice_mul_value_assign(&mut self, value: Self::ValueT) -> Self::ValueT {
         if value.is_zero() {
             self.fill(T::ZERO);
@@ -184,6 +187,7 @@ impl<T: UnsignedInteger> BigIntegerOps for [T] {
         carry
     }
 
+    #[inline]
     fn slice_mul_value_inplace(&self, value: Self::ValueT, result: &mut Self) -> Self::ValueT {
         debug_assert_eq!(result.len(), self.len());
 
@@ -200,6 +204,7 @@ impl<T: UnsignedInteger> BigIntegerOps for [T] {
         carry
     }
 
+    #[inline]
     fn slice_mul_value_add_inplace(&self, value: Self::ValueT, result: &mut Self) -> Self::ValueT {
         debug_assert_eq!(result.len(), self.len());
 
@@ -215,6 +220,7 @@ impl<T: UnsignedInteger> BigIntegerOps for [T] {
         carry
     }
 
+    #[inline]
     fn slice_add_assign(&mut self, other: &Self) -> bool {
         debug_assert_eq!(self.len(), other.len());
 
@@ -227,6 +233,7 @@ impl<T: UnsignedInteger> BigIntegerOps for [T] {
         carry
     }
 
+    #[inline]
     fn slice_sub_assign(&mut self, other: &Self) -> bool {
         debug_assert_eq!(self.len(), other.len());
 
@@ -239,6 +246,7 @@ impl<T: UnsignedInteger> BigIntegerOps for [T] {
         borrow
     }
 
+    #[inline]
     fn slice_cmp(&self, other: &Self) -> Ordering {
         debug_assert_eq!(self.len(), other.len());
 
@@ -252,6 +260,7 @@ impl<T: UnsignedInteger> BigIntegerOps for [T] {
         Ordering::Equal
     }
 
+    #[inline]
     fn slice_add_modulo_assign(&mut self, other: &Self, modulus: &Self) {
         debug_assert!(self.len() == other.len() && self.len() == modulus.len());
         debug_assert!(self.slice_cmp(modulus).is_lt());
@@ -263,15 +272,13 @@ impl<T: UnsignedInteger> BigIntegerOps for [T] {
         }
     }
 
+    #[inline]
     fn slice_sub_modulo_assign(&mut self, other: &Self, modulus: &Self) {
         debug_assert!(self.len() == other.len() && self.len() == modulus.len());
         debug_assert!(self.slice_cmp(modulus).is_lt());
         debug_assert!(other.slice_cmp(modulus).is_lt());
 
-        if self.slice_cmp(other).is_ge() {
-            let _ = self.slice_sub_assign(other);
-        } else {
-            let _ = self.slice_sub_assign(other);
+        if self.slice_sub_assign(other) {
             let _ = self.slice_add_assign(modulus);
         }
     }
@@ -326,5 +333,95 @@ pub fn multiply_many_values_except_inplace<T: UnsignedInteger>(
             result[len] = carry;
             len += 1;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rand::{
+        Rng,
+        distr::{Distribution, Uniform},
+    };
+
+    use super::*;
+
+    type ValueT = u32;
+
+    fn compose(value: &[ValueT]) -> u128 {
+        assert!(value.len() <= 4);
+        let mut result = 0u128;
+        for &r in value.into_iter().rev() {
+            result <<= ValueT::BITS;
+            result |= r as u128;
+        }
+        result
+    }
+
+    #[test]
+    fn test_name() {
+        let mut rng = rand::rng();
+        let moduli: [ValueT; 3] = [134215681, 134176769, 132120577];
+        let composed_modulus = multiply_many_values(&moduli);
+        let m = compose(&composed_modulus);
+
+        let bits_count = composed_modulus.slice_value_bits_count();
+        assert_eq!(bits_count, 128 - m.leading_zeros());
+
+        let distrs = moduli.map(|m| Uniform::new(0, m).unwrap());
+
+        let a_residues = distrs.map(|distr| distr.sample(&mut rng));
+        let mut a_vec = multiply_many_values(&a_residues);
+        let mut a = compose(&a_vec);
+
+        a_vec.slice_right_shift_assign(3);
+        a >>= 3;
+        assert_eq!(a, compose(&a_vec));
+
+        a_vec.slice_left_shift_assign(3);
+        a <<= 3;
+        assert_eq!(a, compose(&a_vec));
+
+        let v: ValueT = rng.random();
+        let _r = a_vec.slice_add_value_assign(v);
+        a += v as u128;
+        assert_eq!(a, compose(&a_vec));
+
+        let _r = a_vec.slice_sub_value_assign(v);
+        a -= v as u128;
+        assert_eq!(a, compose(&a_vec));
+
+        let r = a_vec.slice_mul_value_assign(v);
+        let mut a_vecp = a_vec.clone();
+        a_vecp.push(r);
+        a *= v as u128;
+        assert_eq!(a, compose(&a_vecp));
+
+        let a_residues = distrs.map(|distr| distr.sample(&mut rng));
+        let b_residues = distrs.map(|distr| distr.sample(&mut rng));
+        let mut a_vec = multiply_many_values(&a_residues);
+        let b_vec = multiply_many_values(&b_residues);
+        let a = compose(&a_vec);
+        let b = compose(&b_vec);
+
+        let _r = a_vec.slice_add_assign(&b_vec);
+        assert_eq!(a + b, compose(&a_vec));
+
+        let _r = a_vec.slice_sub_assign(&b_vec);
+        assert_eq!(a, compose(&a_vec));
+
+        a_vec.slice_add_modulo_assign(&b_vec, &composed_modulus);
+        let r = (a + b) % m;
+        assert_eq!(r, compose(&a_vec));
+
+        let a_residues = distrs.map(|distr| distr.sample(&mut rng));
+        let b_residues = distrs.map(|distr| distr.sample(&mut rng));
+        let mut a_vec = multiply_many_values(&a_residues);
+        let b_vec = multiply_many_values(&b_residues);
+        let a = compose(&a_vec);
+        let b = compose(&b_vec);
+
+        a_vec.slice_sub_modulo_assign(&b_vec, &composed_modulus);
+        let r = (a + m - b) % m;
+        assert_eq!(r, compose(&a_vec))
     }
 }
