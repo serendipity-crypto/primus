@@ -5,7 +5,7 @@ mod tests {
     use itertools::Itertools;
     use primus_decompose::big_integer::BigUintApproxSignedBasis;
     use primus_rns::RNSBase;
-    use rand::Rng;
+    use rand::{Rng, distr::Uniform};
     use reduce::ops::ReduceMulAdd;
 
     type ValueT = u32;
@@ -15,14 +15,15 @@ mod tests {
     fn test_single_decompose() {
         let mut rng = rand::rng();
 
-        let a = BarrettModulus::new(134215681);
-        let b = BarrettModulus::new(134176769);
-        let moduli = &[a, b];
+        let moduli_value: [ValueT; 2] = [134215681, 134176769];
+        let moduli = moduli_value.map(BarrettModulus::new);
 
-        let rns_base = RNSBase::new(moduli).unwrap();
-        let composed_modulus: Vec<ValueT> = multiply_many_values(&[a.value(), b.value()]);
+        let distrs = moduli_value.map(|m| Uniform::new(0, m).unwrap());
+
+        let rns_base = RNSBase::new(&moduli).unwrap();
+        let composed_modulus: Vec<ValueT> = multiply_many_values(&moduli_value);
         let unused_bits = composed_modulus.last().unwrap().leading_zeros();
-        let basis = BigUintApproxSignedBasis::new(&composed_modulus, 2, Some(25));
+        let basis = BigUintApproxSignedBasis::new(&composed_modulus, 5, None);
 
         println!("decompose_length:{}", basis.decompose_length());
 
@@ -33,10 +34,7 @@ mod tests {
         let log_basis = basis.log_basis() as usize;
         let mut decv = Vec::with_capacity(basis.decompose_length());
 
-        let value = multiply_many_values(&[
-            rng.random_range(0..a.value()),
-            rng.random_range(0..b.value()),
-        ]);
+        let value = multiply_many_values(&distrs.map(|d| rng.sample(d)));
 
         let show = |value: &[ValueT]| {
             let mut value_str = String::new();

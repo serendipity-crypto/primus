@@ -273,8 +273,8 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
     pub fn init_value_carry_slice(
         &self,
         values: &[T],
-        carries: &mut [bool],
         adjust_values: &mut [T],
+        carries: &mut [bool],
         value_chunk_size: usize,
     ) {
         if let Some(split) = &self.split_value {

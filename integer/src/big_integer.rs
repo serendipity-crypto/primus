@@ -358,7 +358,7 @@ mod tests {
     }
 
     #[test]
-    fn test_name() {
+    fn test_big_integer_ops() {
         let mut rng = rand::rng();
         let moduli: [ValueT; 3] = [134215681, 134176769, 132120577];
         let composed_modulus = multiply_many_values(&moduli);
