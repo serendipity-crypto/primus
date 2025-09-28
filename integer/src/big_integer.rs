@@ -63,6 +63,9 @@ pub trait BigIntegerOps: BigInteger {
 
     /// Adds another big integer slice to this one modulo a given modulus.
     fn slice_add_modulo_assign(&mut self, other: &Self, modulus: &Self);
+
+    /// Subs another big integer slice to this one modulo a given modulus.
+    fn slice_sub_modulo_assign(&mut self, other: &Self, modulus: &Self);
 }
 
 impl<T: UnsignedInteger> BigIntegerOps for [T] {
@@ -82,26 +85,30 @@ impl<T: UnsignedInteger> BigIntegerOps for [T] {
 
     #[inline]
     fn slice_left_shift_assign(&mut self, bits: u32) {
-        let mut pre = T::ZERO;
-        let mut temp = T::ZERO;
-        let right_shift_bits = T::BITS - bits;
-        self.iter_mut().for_each(|value| {
-            temp = *value;
-            *value = *value << bits | pre >> right_shift_bits;
-            pre = temp;
-        });
+        if bits != 0 {
+            let mut pre = T::ZERO;
+            let mut temp = T::ZERO;
+            let right_shift_bits = T::BITS - bits;
+            self.iter_mut().for_each(|value| {
+                temp = *value;
+                *value = *value << bits | pre >> right_shift_bits;
+                pre = temp;
+            });
+        }
     }
 
     #[inline]
     fn slice_right_shift_assign(&mut self, bits: u32) {
-        let mut pre = T::ZERO;
-        let mut temp = T::ZERO;
-        let left_shift_bits = T::BITS - bits;
-        self.iter_mut().rev().for_each(|value| {
-            temp = *value;
-            *value = pre << left_shift_bits | *value >> bits;
-            pre = temp;
-        });
+        if bits != 0 {
+            let mut pre = T::ZERO;
+            let mut temp = T::ZERO;
+            let left_shift_bits = T::BITS - bits;
+            self.iter_mut().rev().for_each(|value| {
+                temp = *value;
+                *value = pre << left_shift_bits | *value >> bits;
+                pre = temp;
+            });
+        }
     }
 
     fn slice_add_value_assign(&mut self, value: Self::ValueT) -> bool {
@@ -132,11 +139,15 @@ impl<T: UnsignedInteger> BigIntegerOps for [T] {
 
         (*b_first, carry) = a_first.overflowing_add(value);
 
+        while carry {
+            let a_next = a_iter.next().unwrap();
+            let b_next = b_iter.next().unwrap();
+
+            (*b_next, carry) = a_next.overflowing_add(T::ONE);
+        }
+
         for (a, b) in a_iter.zip(b_iter) {
-            if !carry {
-                return false;
-            }
-            (*b, carry) = a.overflowing_add(T::ONE);
+            *b = *a;
         }
 
         carry
@@ -249,6 +260,19 @@ impl<T: UnsignedInteger> BigIntegerOps for [T] {
         let carry = self.slice_add_assign(other);
         if carry || self.slice_cmp(modulus).is_ge() {
             let _ = self.slice_sub_assign(modulus);
+        }
+    }
+
+    fn slice_sub_modulo_assign(&mut self, other: &Self, modulus: &Self) {
+        debug_assert!(self.len() == other.len() && self.len() == modulus.len());
+        debug_assert!(self.slice_cmp(modulus).is_lt());
+        debug_assert!(other.slice_cmp(modulus).is_lt());
+
+        if self.slice_cmp(other).is_ge() {
+            let _ = self.slice_sub_assign(other);
+        } else {
+            let _ = self.slice_sub_assign(other);
+            let _ = self.slice_add_assign(modulus);
         }
     }
 }

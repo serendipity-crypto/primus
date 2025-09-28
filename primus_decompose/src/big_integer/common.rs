@@ -3,8 +3,6 @@ use std::iter::FusedIterator;
 use integer::{BigIntegerOps, UnsignedInteger, izip};
 use serde::{Deserialize, Serialize};
 
-pub struct BigUintScalar<T: UnsignedInteger>(pub Vec<T>);
-
 /// An iterator over scalars.
 pub struct BigUintScalarIter<T: UnsignedInteger> {
     scalar: Vec<T>,
@@ -13,7 +11,7 @@ pub struct BigUintScalarIter<T: UnsignedInteger> {
 }
 
 impl<T: UnsignedInteger> BigUintScalarIter<T> {
-    /// Creates a new [`ScalarIter<T>`].
+    /// Creates a new [`BigUintScalarIter<T>`].
     #[inline]
     pub fn new(scalar: Vec<T>, length: usize, log_basis: u32) -> Self {
         Self {
@@ -25,7 +23,7 @@ impl<T: UnsignedInteger> BigUintScalarIter<T> {
 }
 
 impl<T: UnsignedInteger> Iterator for BigUintScalarIter<T> {
-    type Item = BigUintScalar<T>;
+    type Item = Vec<T>;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -37,7 +35,7 @@ impl<T: UnsignedInteger> Iterator for BigUintScalarIter<T> {
             if self.length != 0 {
                 self.scalar.slice_left_shift_assign(self.log_basis);
             }
-            Some(BigUintScalar(next))
+            Some(next)
         }
     }
 }
