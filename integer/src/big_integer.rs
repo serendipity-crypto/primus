@@ -1,24 +1,33 @@
 use core::cmp::Ordering;
 
-use crate::UnsignedInteger;
+use crate::{UnsignedInteger, izip};
 
 /// A trait for big integer types represented as slices of smaller unsigned integer types.
 pub trait BigInteger: AsRef<[Self::ValueT]> + AsMut<[Self::ValueT]> {
     /// The underlying unsigned integer type used in the slice representation.
     type ValueT;
+
+    /// Gets the bits count of the big integer slice.
+    #[must_use]
+    fn bits_count(&self) -> u32;
 }
 
 /// Implement BigInteger for slices of any UnsignedInteger type.
 impl<T: UnsignedInteger> BigInteger for [T] {
     type ValueT = T;
+
+    #[inline]
+    fn bits_count(&self) -> u32 {
+        self.iter()
+            .enumerate()
+            .rev()
+            .find(|(_, v)| !v.is_zero())
+            .map_or(0, |(i, v)| T::BITS * (i as u32 + 1) - v.leading_zeros())
+    }
 }
 
 /// A trait providing various operations on big integers represented as slices of unsigned integers.
 pub trait BigIntegerOps: BigInteger {
-    /// Gets the bits count of the big integer slice.
-    #[must_use]
-    fn slice_value_bits_count(&self) -> u32;
-
     /// Left shifts the big integer slice.
     fn slice_left_shift_assign(&mut self, bits: u32);
 
@@ -57,6 +66,14 @@ pub trait BigIntegerOps: BigInteger {
     #[must_use]
     fn slice_sub_assign(&mut self, other: &Self) -> bool;
 
+    /// Adds two big integer slices to result, returning true if there was a carry.
+    #[must_use]
+    fn slice_add_inplace(&self, other: &Self, result: &mut Self) -> bool;
+
+    /// Subtracts another big integer slice from this one, returning true if there was a borrow.
+    #[must_use]
+    fn slice_sub_inplace(&self, other: &Self, result: &mut Self) -> bool;
+
     /// Compares this big integer slice with another, returning an Ordering.
     #[must_use]
     fn slice_cmp(&self, other: &Self) -> Ordering;
@@ -66,18 +83,19 @@ pub trait BigIntegerOps: BigInteger {
 
     /// Subs another big integer slice to this one modulo a given modulus.
     fn slice_sub_modulo_assign(&mut self, other: &Self, modulus: &Self);
+
+    /// Adds two big integer slices to result modulo a given modulus.
+    fn slice_add_modulo_inplace(&self, other: &Self, result: &mut Self, modulus: &Self);
+
+    /// Subs another big integer slice to this one modulo a given modulus.
+    fn slice_sub_modulo_inplace(&self, other: &Self, result: &mut Self, modulus: &Self);
+
+    fn slice_neg_modulo_assign(&mut self, modulus: &Self);
+
+    fn slice_neg_modulo_inplace(&self, result: &mut Self, modulus: &Self);
 }
 
 impl<T: UnsignedInteger> BigIntegerOps for [T] {
-    #[inline]
-    fn slice_value_bits_count(&self) -> u32 {
-        self.iter()
-            .enumerate()
-            .rev()
-            .find(|(_, v)| !v.is_zero())
-            .map_or(0, |(i, v)| T::BITS * (i as u32 + 1) - v.leading_zeros())
-    }
-
     #[inline]
     fn slice_left_shift_assign(&mut self, bits: u32) {
         if bits != 0 {
@@ -247,6 +265,32 @@ impl<T: UnsignedInteger> BigIntegerOps for [T] {
     }
 
     #[inline]
+    fn slice_add_inplace(&self, other: &Self, result: &mut Self) -> bool {
+        debug_assert_eq!(self.len(), other.len());
+        debug_assert_eq!(self.len(), result.len());
+
+        let mut carry = false;
+        for (xs, ys, zs) in izip!(self, other, result) {
+            (*zs, carry) = xs.carrying_add(*ys, carry);
+        }
+
+        carry
+    }
+
+    #[inline]
+    fn slice_sub_inplace(&self, other: &Self, result: &mut Self) -> bool {
+        debug_assert_eq!(self.len(), other.len());
+        debug_assert_eq!(self.len(), result.len());
+
+        let mut borrow = false;
+        for (xs, ys, zs) in izip!(self, other, result) {
+            (*zs, borrow) = xs.borrowing_sub(*ys, borrow);
+        }
+
+        borrow
+    }
+
+    #[inline]
     fn slice_cmp(&self, other: &Self) -> Ordering {
         debug_assert_eq!(self.len(), other.len());
 
@@ -273,6 +317,20 @@ impl<T: UnsignedInteger> BigIntegerOps for [T] {
     }
 
     #[inline]
+    fn slice_add_modulo_inplace(&self, other: &Self, result: &mut Self, modulus: &Self) {
+        debug_assert!(
+            self.len() == other.len() && self.len() == result.len() && self.len() == modulus.len()
+        );
+        debug_assert!(self.slice_cmp(modulus).is_lt());
+        debug_assert!(other.slice_cmp(modulus).is_lt());
+
+        let carry = self.slice_add_inplace(other, result);
+        if carry || result.slice_cmp(modulus).is_ge() {
+            let _ = result.slice_sub_assign(modulus);
+        }
+    }
+
+    #[inline]
     fn slice_sub_modulo_assign(&mut self, other: &Self, modulus: &Self) {
         debug_assert!(self.len() == other.len() && self.len() == modulus.len());
         debug_assert!(self.slice_cmp(modulus).is_lt());
@@ -280,6 +338,47 @@ impl<T: UnsignedInteger> BigIntegerOps for [T] {
 
         if self.slice_sub_assign(other) {
             let _ = self.slice_add_assign(modulus);
+        }
+    }
+
+    #[inline]
+    fn slice_sub_modulo_inplace(&self, other: &Self, result: &mut Self, modulus: &Self) {
+        debug_assert!(
+            self.len() == other.len() && self.len() == result.len() && self.len() == modulus.len()
+        );
+        debug_assert!(self.slice_cmp(modulus).is_lt());
+        debug_assert!(other.slice_cmp(modulus).is_lt());
+
+        if self.slice_sub_inplace(other, result) {
+            let _ = result.slice_add_assign(modulus);
+        }
+    }
+
+    #[inline]
+    fn slice_neg_modulo_assign(&mut self, modulus: &Self) {
+        debug_assert!(self.len() == modulus.len());
+        debug_assert!(self.slice_cmp(modulus).is_lt());
+
+        if !self.iter().all(T::is_zero) {
+            let mut borrow = false;
+            for (xs, ys) in self.iter_mut().zip(modulus) {
+                (*xs, borrow) = ys.borrowing_sub(*xs, borrow);
+            }
+        }
+    }
+
+    #[inline]
+    fn slice_neg_modulo_inplace(&self, result: &mut Self, modulus: &Self) {
+        debug_assert!(self.len() == result.len() && self.len() == modulus.len());
+        debug_assert!(self.slice_cmp(modulus).is_lt());
+
+        if self.iter().all(T::is_zero) {
+            result.fill(T::ZERO);
+        } else {
+            let mut borrow = false;
+            for (xs, ys, zs) in izip!(self, modulus, result) {
+                (*zs, borrow) = ys.borrowing_sub(*xs, borrow);
+            }
         }
     }
 }
@@ -364,7 +463,7 @@ mod tests {
         let composed_modulus = multiply_many_values(&moduli);
         let m = compose(&composed_modulus);
 
-        let bits_count = composed_modulus.slice_value_bits_count();
+        let bits_count = composed_modulus.bits_count();
         assert_eq!(bits_count, 128 - m.leading_zeros());
 
         let distrs = moduli.map(|m| Uniform::new(0, m).unwrap());
