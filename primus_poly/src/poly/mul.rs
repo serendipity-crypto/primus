@@ -1,6 +1,6 @@
 use primus_factor::{FactorMul, ShoupFactor};
 use primus_integer::UnsignedInteger;
-use reduce::ops::*;
+use primus_reduce::ops::*;
 use uint_modulus::UintModulus;
 
 use super::Polynomial;

@@ -34,7 +34,7 @@ impl<T: UnsignedInteger> NativeModulus<T> {
     }
 }
 
-impl<T: UnsignedInteger> reduce::Modulus for NativeModulus<T> {
+impl<T: UnsignedInteger> primus_reduce::Modulus for NativeModulus<T> {
     type ValueT = T;
 
     #[inline(always)]

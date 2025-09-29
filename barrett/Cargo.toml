@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 primus_integer = { path = "../primus_integer" }
-reduce = { path = "../reduce" }
+primus_reduce = { path = "../primus_reduce" }
 uint_modulus = { path = "../uint_modulus" }
 num-traits = { workspace = true }
 barrett_derive = { path = "../barrett_derive", optional = true }

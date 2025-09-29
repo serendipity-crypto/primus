@@ -1,6 +1,6 @@
 use num_traits::Zero;
 use primus_integer::UnsignedInteger;
-use reduce::ops::ReduceInvAssign;
+use primus_reduce::ops::ReduceInvAssign;
 
 use super::DcrtPolynomial;
 

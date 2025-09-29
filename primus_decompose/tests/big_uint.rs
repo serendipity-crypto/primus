@@ -4,9 +4,9 @@ mod tests {
     use itertools::Itertools;
     use primus_decompose::big_integer::BigUintApproxSignedBasis;
     use primus_integer::{BigIntegerOps, izip, multiply_many_values};
+    use primus_reduce::ops::ReduceMulAdd;
     use primus_rns::RNSBase;
     use rand::{Rng, distr::Uniform};
-    use reduce::ops::ReduceMulAdd;
 
     type ValueT = u32;
     type SignedT = i64;

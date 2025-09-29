@@ -3,7 +3,7 @@
 use core::fmt::Display;
 
 pub use primus_integer as integer;
-pub use reduce;
+pub use primus_reduce as reduce;
 pub use uint_modulus;
 
 use integer::{DivRemScalar, UnsignedInteger};

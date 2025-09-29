@@ -54,7 +54,7 @@ impl<T: UnsignedInteger> PowOf2Modulus<T> {
     }
 }
 
-impl<T: UnsignedInteger> reduce::Modulus for PowOf2Modulus<T> {
+impl<T: UnsignedInteger> primus_reduce::Modulus for PowOf2Modulus<T> {
     type ValueT = T;
 
     #[inline]
@@ -77,7 +77,7 @@ impl<T: UnsignedInteger> reduce::Modulus for PowOf2Modulus<T> {
 mod tests {
     use rand::{distr::Uniform, prelude::*, rng};
 
-    use reduce::ops::*;
+    use primus_reduce::ops::*;
 
     use super::*;
 

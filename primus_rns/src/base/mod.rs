@@ -9,7 +9,7 @@ use primus_factor::{FactorMul, ShoupFactor};
 use primus_integer::{
     BigIntegerOps, UnsignedInteger, izip, multiply_many_values, multiply_many_values_except_inplace,
 };
-use reduce::FieldContext;
+use primus_reduce::FieldContext;
 
 use crate::RNSError;
 

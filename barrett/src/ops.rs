@@ -1,5 +1,5 @@
 use primus_integer::{AsInto, UnsignedInteger};
-use reduce::{lazy_ops::*, ops::*};
+use primus_reduce::{ReduceError, lazy_ops::*, ops::*};
 use uint_modulus::UintModulus;
 
 use super::BarrettModulus;
@@ -359,7 +359,7 @@ impl<T: UnsignedInteger> TryReduceInv<T> for BarrettModulus<T> {
     type Output = T;
 
     #[inline(always)]
-    fn try_reduce_inv(self, value: T) -> Result<T, reduce::ReduceError<T>> {
+    fn try_reduce_inv(self, value: T) -> Result<T, ReduceError<T>> {
         UintModulus(self.value).try_reduce_inv(value)
     }
 }

@@ -52,9 +52,9 @@ macro_rules! test_modulus {
 #[cfg(all(test, feature = "derive"))]
 mod u8tests {
     use barrett::Barrett;
+    use primus_reduce::FieldContext;
+    use primus_reduce::ops::*;
     use rand::{distr::Uniform, prelude::*};
-    use reduce::FieldContext;
-    use reduce::ops::*;
 
     #[derive(Barrett)]
     #[modulus(u8, value = 61)]
@@ -69,9 +69,9 @@ mod u8tests {
 #[cfg(all(test, feature = "derive"))]
 mod u16tests {
     use barrett::Barrett;
+    use primus_reduce::FieldContext;
+    use primus_reduce::ops::*;
     use rand::{distr::Uniform, prelude::*};
-    use reduce::FieldContext;
-    use reduce::ops::*;
 
     #[derive(Barrett)]
     #[modulus(u16, value = 12289)]
@@ -86,9 +86,9 @@ mod u16tests {
 #[cfg(all(test, feature = "derive"))]
 mod u32tests {
     use barrett::Barrett;
+    use primus_reduce::FieldContext;
+    use primus_reduce::ops::*;
     use rand::{distr::Uniform, prelude::*};
-    use reduce::FieldContext;
-    use reduce::ops::*;
 
     #[derive(Barrett)]
     #[modulus(u32, value = 536813569)]
@@ -103,9 +103,9 @@ mod u32tests {
 #[cfg(all(test, feature = "derive"))]
 mod u64tests {
     use barrett::Barrett;
+    use primus_reduce::FieldContext;
+    use primus_reduce::ops::*;
     use rand::{distr::Uniform, prelude::*};
-    use reduce::FieldContext;
-    use reduce::ops::*;
 
     #[derive(Barrett)]
     #[modulus(u64, value = 4611686018427322369)]

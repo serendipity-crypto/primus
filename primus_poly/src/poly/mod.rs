@@ -1,5 +1,5 @@
 use num_traits::{ConstZero, Zero};
-use reduce::ops::ReduceMulAdd;
+use primus_reduce::ops::ReduceMulAdd;
 use serde::{Deserialize, Serialize};
 
 mod basic;

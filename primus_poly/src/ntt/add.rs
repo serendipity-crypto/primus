@@ -1,4 +1,4 @@
-use reduce::ops::{ReduceAdd, ReduceAddAssign};
+use primus_reduce::ops::{ReduceAdd, ReduceAddAssign};
 
 use super::NttPolynomial;
 

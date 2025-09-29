@@ -1,5 +1,5 @@
 use primus_integer::UnsignedInteger;
-use reduce::ops::*;
+use primus_reduce::{ReduceError, ops::*};
 
 use crate::ModuloError;
 
@@ -462,9 +462,7 @@ where
     #[inline(always)]
     fn try_inv_modulo(self, modulus: M) -> Result<Self::Output, ModuloError<Self>> {
         modulus.try_reduce_inv(self).map_err(|e| match e {
-            reduce::ReduceError::NoInverse { value, modulus } => {
-                ModuloError::NoInverse { value, modulus }
-            }
+            ReduceError::NoInverse { value, modulus } => ModuloError::NoInverse { value, modulus },
         })
     }
 }

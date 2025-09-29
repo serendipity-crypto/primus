@@ -6,5 +6,5 @@ edition = "2024"
 [dependencies]
 primus_gcd = { path = "../primus_gcd" }
 primus_integer = { path = "../primus_integer" }
-reduce = { path = "../reduce" }
+primus_reduce = { path = "../primus_reduce" }
 primus_factor = { path = "../primus_factor" }

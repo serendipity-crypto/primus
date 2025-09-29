@@ -1,4 +1,4 @@
-use reduce::FieldContext;
+use primus_reduce::FieldContext;
 
 use crate::{NttError, root::PrimitiveRoot};
 

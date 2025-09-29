@@ -2,7 +2,7 @@ use primus_gcd::Xgcd;
 use primus_integer::UnsignedInteger;
 
 use primus_factor::{FactorMul, LazyFactorMul};
-use reduce::{ReduceError, lazy_ops::LazyReduceMul, ops::*};
+use primus_reduce::{ReduceError, lazy_ops::LazyReduceMul, ops::*};
 
 use super::UintModulus;
 

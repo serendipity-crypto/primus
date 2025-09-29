@@ -1,7 +1,7 @@
 use std::simd::{LaneCount, Simd, SupportedLaneCount};
 
 use primus_integer::{CarryingAdd, CarryingMul, SimdArray, SimdUnsignedInteger, WideningMul};
-use reduce::lazy_ops::*;
+use primus_reduce::lazy_ops::*;
 
 use super::BarrettModulus;
 

@@ -16,7 +16,7 @@ impl<T: UnsignedInteger> UintModulus<T> {
     }
 }
 
-impl<T: UnsignedInteger> reduce::Modulus for UintModulus<T> {
+impl<T: UnsignedInteger> primus_reduce::Modulus for UintModulus<T> {
     type ValueT = T;
 
     #[inline(always)]

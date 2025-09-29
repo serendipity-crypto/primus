@@ -1,5 +1,5 @@
 use primus_integer::UnsignedInteger;
-use reduce::FieldContext;
+use primus_reduce::FieldContext;
 
 use crate::{NttError, NttTable, UintNttTable};
 

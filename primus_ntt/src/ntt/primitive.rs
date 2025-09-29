@@ -2,7 +2,7 @@ use modulo::{AddModulo, ModuloOnce, ModuloOnceAssign};
 use primus_factor::{FactorMul, LazyFactorMul, ShoupFactor};
 use primus_integer::UnsignedInteger;
 use primus_poly::{NttPolynomial, Polynomial};
-use reduce::{FieldContext, ops::*};
+use primus_reduce::{FieldContext, ops::*};
 use uint_modulus::UintModulus;
 
 use crate::{Ntt, NttError, reverse::ReverseLsbs, root::PrimitiveRoot};
