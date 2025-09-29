@@ -1,5 +1,5 @@
-use integer::UnsignedInteger;
 use primus_factor::{FactorMul, ShoupFactor};
+use primus_integer::UnsignedInteger;
 use reduce::ops::*;
 use uint_modulus::UintModulus;
 

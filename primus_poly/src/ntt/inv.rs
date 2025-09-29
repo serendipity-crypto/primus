@@ -1,5 +1,5 @@
-use integer::UnsignedInteger;
 use num_traits::Zero;
+use primus_integer::UnsignedInteger;
 use reduce::ops::ReduceInvAssign;
 
 use super::NttPolynomial;

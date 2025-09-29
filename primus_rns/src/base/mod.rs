@@ -3,12 +3,12 @@ use std::{
     slice::SliceIndex,
 };
 
-use integer::{
-    BigIntegerOps, UnsignedInteger, izip, multiply_many_values, multiply_many_values_except_inplace,
-};
 use itertools::Itertools;
 use modulo::ops::*;
 use primus_factor::{FactorMul, ShoupFactor};
+use primus_integer::{
+    BigIntegerOps, UnsignedInteger, izip, multiply_many_values, multiply_many_values_except_inplace,
+};
 use reduce::FieldContext;
 
 use crate::RNSError;

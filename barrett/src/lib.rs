@@ -2,12 +2,11 @@
 
 use core::fmt::Display;
 
-pub use integer;
+pub use primus_integer as integer;
 pub use reduce;
 pub use uint_modulus;
 
-use integer::DivRemScalar;
-use integer::UnsignedInteger;
+use integer::{DivRemScalar, UnsignedInteger};
 
 #[cfg(feature = "derive")]
 pub use barrett_derive::Barrett;

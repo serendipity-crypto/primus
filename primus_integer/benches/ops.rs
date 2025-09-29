@@ -5,7 +5,7 @@ use std::hint::black_box;
 use std::simd::Simd;
 
 use criterion::{Criterion, criterion_group, criterion_main};
-use integer::{CarryingMul, DivRemScalar, WideningMul};
+use primus_integer::{CarryingMul, DivRemScalar, WideningMul};
 use rand::distr::Distribution;
 
 type ValueT = u32;

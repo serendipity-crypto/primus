@@ -1,5 +1,5 @@
-use integer::UnsignedInteger;
 use num_traits::ConstOne;
+use primus_integer::UnsignedInteger;
 use serde::{Deserialize, Serialize};
 
 use super::{ScalarIter, SignedDecomposeIter};

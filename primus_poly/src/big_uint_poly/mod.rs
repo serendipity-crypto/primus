@@ -1,5 +1,5 @@
-use integer::UnsignedInteger;
 use num_traits::{ConstZero, Zero};
+use primus_integer::UnsignedInteger;
 use serde::{Deserialize, Serialize};
 
 mod add;

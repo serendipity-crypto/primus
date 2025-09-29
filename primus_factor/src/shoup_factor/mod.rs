@@ -1,4 +1,4 @@
-use integer::{DivRemScalar, UnsignedInteger};
+use primus_integer::{DivRemScalar, UnsignedInteger};
 
 use crate::{FactorMul, LazyFactorMul};
 

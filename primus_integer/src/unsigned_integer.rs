@@ -1,4 +1,4 @@
-use gcd::Xgcd;
+use primus_gcd::Xgcd;
 
 use crate::{BorrowingSub, CarryingAdd, CarryingMul, DivRem, DivRemScalar, Integer, WideningMul};
 

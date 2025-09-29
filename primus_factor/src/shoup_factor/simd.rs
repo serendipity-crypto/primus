@@ -1,6 +1,6 @@
 use core::simd::{LaneCount, Simd, SupportedLaneCount, cmp::SimdPartialOrd};
 
-use integer::{DivRemScalar, SimdArray, SimdMaskArray, SimdUnsignedInteger, WideningMul};
+use primus_integer::{DivRemScalar, SimdArray, SimdMaskArray, SimdUnsignedInteger, WideningMul};
 
 use crate::{FactorMul, LazyFactorMul};
 

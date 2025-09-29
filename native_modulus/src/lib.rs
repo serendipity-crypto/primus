@@ -1,6 +1,6 @@
 use core::{marker::PhantomData, panic};
 
-use integer::UnsignedInteger;
+use primus_integer::UnsignedInteger;
 
 mod ops;
 

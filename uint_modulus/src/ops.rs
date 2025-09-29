@@ -1,5 +1,5 @@
-use gcd::Xgcd;
-use integer::UnsignedInteger;
+use primus_gcd::Xgcd;
+use primus_integer::UnsignedInteger;
 
 use primus_factor::{FactorMul, LazyFactorMul};
 use reduce::{ReduceError, lazy_ops::LazyReduceMul, ops::*};

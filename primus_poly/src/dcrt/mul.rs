@@ -1,4 +1,4 @@
-use integer::{UnsignedInteger, izip};
+use primus_integer::{UnsignedInteger, izip};
 use reduce::ops::{ReduceMul, ReduceMulAdd, ReduceMulAssign};
 
 use crate::NttPolynomial;

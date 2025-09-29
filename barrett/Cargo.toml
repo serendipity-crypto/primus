@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-integer = { path = "../integer" }
+primus_integer = { path = "../primus_integer" }
 reduce = { path = "../reduce" }
 uint_modulus = { path = "../uint_modulus" }
 num-traits = { workspace = true }
@@ -15,6 +15,6 @@ rand = { workspace = true }
 
 [features]
 default = ["nightly", "simd", "derive"]
-nightly = ["integer/nightly"]
-simd = ["integer/simd"]
+nightly = ["primus_integer/nightly"]
+simd = ["primus_integer/simd"]
 derive = ["dep:barrett_derive"]

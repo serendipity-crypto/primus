@@ -1,9 +1,9 @@
 #[cfg(test)]
 mod tests {
     use barrett::BarrettModulus;
-    use integer::izip;
     use itertools::Itertools;
     use primus_decompose::primitive::ApproxSignedBasis;
+    use primus_integer::izip;
     use rand::{Rng, distr::Uniform};
     use reduce::ops::{ReduceMulAdd, ReduceSub};
 

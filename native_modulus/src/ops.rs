@@ -1,4 +1,4 @@
-use integer::UnsignedInteger;
+use primus_integer::UnsignedInteger;
 
 use reduce::ops::*;
 

@@ -1,4 +1,4 @@
-use integer::{BigIntegerOps, UnsignedInteger, izip};
+use primus_integer::{BigIntegerOps, UnsignedInteger, izip};
 
 use super::BigUintPolynomial;
 

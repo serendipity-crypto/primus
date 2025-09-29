@@ -1,6 +1,6 @@
 use std::simd::{LaneCount, Simd, SupportedLaneCount};
 
-use integer::{CarryingAdd, CarryingMul, SimdArray, SimdUnsignedInteger, WideningMul};
+use primus_integer::{CarryingAdd, CarryingMul, SimdArray, SimdUnsignedInteger, WideningMul};
 use reduce::lazy_ops::*;
 
 use super::BarrettModulus;

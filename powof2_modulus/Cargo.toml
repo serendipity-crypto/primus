@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-integer = { path = "../integer" }
+primus_integer = { path = "../primus_integer" }
 reduce = { path = "../reduce" }
 
 [dev-dependencies]

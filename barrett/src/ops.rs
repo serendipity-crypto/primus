@@ -1,4 +1,4 @@
-use integer::{AsInto, UnsignedInteger};
+use primus_integer::{AsInto, UnsignedInteger};
 use reduce::{lazy_ops::*, ops::*};
 use uint_modulus::UintModulus;
 

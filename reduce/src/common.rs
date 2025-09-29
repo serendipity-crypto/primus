@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use integer::UnsignedInteger;
+use primus_integer::UnsignedInteger;
 
 use super::*;
 

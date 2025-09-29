@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-gcd = { path = "../gcd" }
-integer = { path = "../integer" }
+primus_gcd = { path = "../primus_gcd" }
+primus_integer = { path = "../primus_integer" }
 reduce = { path = "../reduce" }
 modulo = { path = "../modulo" }
 primus_factor = { path = "../primus_factor" }

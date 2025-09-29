@@ -1,4 +1,4 @@
-use integer::izip;
+use primus_integer::izip;
 use reduce::ops::{ReduceAdd, ReduceAddAssign};
 
 use super::Polynomial;

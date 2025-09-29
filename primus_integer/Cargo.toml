@@ -1,10 +1,10 @@
 [package]
-name = "integer"
+name = "primus_integer"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-gcd = { path = "../gcd" }
+primus_gcd = { path = "../primus_gcd" }
 
 num-traits = { workspace = true }
 rand = { workspace = true }

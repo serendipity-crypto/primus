@@ -1,6 +1,6 @@
-use integer::UnsignedInteger;
 use modulo::*;
 use primus_factor::{FactorMul, ShoupFactor};
+use primus_integer::UnsignedInteger;
 use rand::{distr::Uniform, prelude::*};
 use reduce::FieldContext;
 

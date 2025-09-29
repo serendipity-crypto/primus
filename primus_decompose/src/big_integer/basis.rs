@@ -1,5 +1,5 @@
-use integer::{BigIntegerOps, UnsignedInteger};
 use num_traits::ConstOne;
+use primus_integer::{BigIntegerOps, UnsignedInteger};
 use serde::{Deserialize, Serialize};
 
 use super::{BigUintScalarIter, BigUintSignedDecomposeIter, ValueMask};
@@ -227,10 +227,10 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
     #[inline]
     pub fn init_value_carry(&self, value: &[T]) -> (Vec<T>, bool) {
         let mut adjust = value.to_vec();
-        if let Some(split) = &self.split_value {
-            if value.slice_cmp(&split).is_ge() {
-                let _ = adjust.slice_add_assign(&self.next_pow_of_2_sub_modulus);
-            }
+        if let Some(split) = &self.split_value
+            && value.slice_cmp(split).is_ge()
+        {
+            let _ = adjust.slice_add_assign(&self.next_pow_of_2_sub_modulus);
         }
 
         let carry = match self.init_carry_mask {
@@ -251,7 +251,7 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
     ) {
         if let Some(split) = &self.split_value {
             values.chunks_exact_mut(value_chunk_size).for_each(|value| {
-                if value.slice_cmp(&split).is_ge() {
+                if value.slice_cmp(split).is_ge() {
                     let _ = value.slice_add_assign(&self.next_pow_of_2_sub_modulus);
                 }
             })
@@ -283,7 +283,7 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
                 .zip(values.chunks_exact(value_chunk_size))
                 .for_each(|(adjust_value, value)| {
                     adjust_value.copy_from_slice(value);
-                    if value.slice_cmp(&split).is_ge() {
+                    if value.slice_cmp(split).is_ge() {
                         let _ = adjust_value.slice_add_assign(&self.next_pow_of_2_sub_modulus);
                     }
                 })

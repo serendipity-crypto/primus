@@ -449,7 +449,7 @@ mod tests {
     fn compose(value: &[ValueT]) -> u128 {
         assert!(value.len() <= 4);
         let mut result = 0u128;
-        for &r in value.into_iter().rev() {
+        for &r in value.iter().rev() {
             result <<= ValueT::BITS;
             result |= r as u128;
         }

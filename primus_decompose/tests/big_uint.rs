@@ -1,9 +1,9 @@
 #[cfg(test)]
 mod tests {
     use barrett::BarrettModulus;
-    use integer::{BigIntegerOps, izip, multiply_many_values};
     use itertools::Itertools;
     use primus_decompose::big_integer::BigUintApproxSignedBasis;
+    use primus_integer::{BigIntegerOps, izip, multiply_many_values};
     use primus_rns::RNSBase;
     use rand::{Rng, distr::Uniform};
     use reduce::ops::ReduceMulAdd;
@@ -94,7 +94,7 @@ mod tests {
             if basis_value > 2 {
                 if d.slice_cmp(&cmp_value).is_ge() {
                     let mut signed = composed_modulus.clone();
-                    let _ = signed.slice_sub_assign(&d);
+                    let _ = signed.slice_sub_assign(d);
                     print!("{:1$}|", -(signed[0] as SignedT), log_basis);
                 } else {
                     print!("{:1$}|", d[0], log_basis);
@@ -109,9 +109,9 @@ mod tests {
         println!("result={:?}", result);
 
         let mut sub1 = result.clone();
-        let _ = sub1.slice_sub_modulo_assign(&value, &composed_modulus);
+        sub1.slice_sub_modulo_assign(&value, &composed_modulus);
         let mut sub2 = value.clone();
-        let _ = sub2.slice_sub_modulo_assign(&result, &composed_modulus);
+        sub2.slice_sub_modulo_assign(&result, &composed_modulus);
         if sub1.slice_cmp(&sub2).is_le() {
             println!("differ={:?}", sub1);
         } else {
