@@ -15,6 +15,7 @@ members = [
     "primus_ntt",
     "primus_rns",
     "primus_lattice",
+    "primus_utils",
 ]
 resolver = "3"
 

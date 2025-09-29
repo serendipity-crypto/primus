@@ -1,5 +1,5 @@
-use primus_integer::izip;
 use primus_reduce::ops::{ReduceMulAdd, ReduceMulAssign};
+use primus_utils::izip;
 
 use super::CrtPolynomial;
 

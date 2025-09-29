@@ -3,9 +3,10 @@ mod tests {
     use itertools::Itertools;
     use primus_barrett_modulus::BarrettModulus;
     use primus_decompose::big_integer::BigUintApproxSignedBasis;
-    use primus_integer::{BigIntegerOps, izip, multiply_many_values};
+    use primus_integer::{BigIntegerOps, multiply_many_values};
     use primus_reduce::ops::ReduceMulAdd;
     use primus_rns::RNSBase;
+    use primus_utils::izip;
     use rand::{Rng, distr::Uniform};
 
     type ValueT = u32;

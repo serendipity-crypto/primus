@@ -7,6 +7,7 @@ use core::{
 };
 
 use num_traits::{ConstOne, ConstZero, FromBytes, MulAdd, MulAddAssign, NumAssign, Pow, ToBytes};
+use primus_utils::ByteCount;
 use rand::distr::uniform::SampleUniform;
 use serde::{Deserialize, Serialize};
 use zeroize::Zeroize;
@@ -28,6 +29,7 @@ pub trait Integer:
     + Debug
     + Display
     + Bits
+    + ByteCount
     + ToBytes
     + FromBytes
     + ConstZero

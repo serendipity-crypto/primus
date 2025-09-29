@@ -3,8 +3,8 @@ mod tests {
     use itertools::Itertools;
     use primus_barrett_modulus::BarrettModulus;
     use primus_decompose::primitive::ApproxSignedBasis;
-    use primus_integer::izip;
     use primus_reduce::ops::{ReduceMulAdd, ReduceSub};
+    use primus_utils::izip;
     use rand::{Rng, distr::Uniform};
 
     type ValueT = u32;

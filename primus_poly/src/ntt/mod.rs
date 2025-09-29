@@ -1,6 +1,7 @@
 use num_traits::{ConstZero, Zero};
-use primus_integer::{UnsignedInteger, izip};
+use primus_integer::UnsignedInteger;
 use primus_reduce::{lazy_ops::LazyReduceMulAdd, ops::ReduceMulAdd};
+use primus_utils::izip;
 use serde::{Deserialize, Serialize};
 
 mod basic;

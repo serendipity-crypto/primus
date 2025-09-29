@@ -1,7 +1,5 @@
 #![cfg_attr(all(feature = "nightly", feature = "simd"), feature(portable_simd))]
 
-pub mod utils;
-
 mod integer_traits;
 
 mod integer;
@@ -13,6 +11,7 @@ mod big_integer;
 mod simd;
 
 pub use integer_traits::*;
+pub use primus_utils::ByteCount;
 
 pub use integer::Integer;
 pub use unsigned_integer::UnsignedInteger;
