@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 gcd = { path = "../gcd" }
+
 num-traits = { workspace = true }
 rand = { workspace = true }
 serde = { workspace = true }

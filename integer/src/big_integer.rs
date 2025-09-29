@@ -38,10 +38,6 @@ pub trait BigIntegerOps: BigInteger {
     #[must_use]
     fn slice_add_value_assign(&mut self, value: Self::ValueT) -> bool;
 
-    /// Adds a value to the big integer slice, returning true if there was a carry.
-    #[must_use]
-    fn slice_add_value_inplace(&self, value: Self::ValueT, result: &mut Self) -> bool;
-
     /// Subtracts a value from the big integer slice, returning true if there was a borrow.
     #[must_use]
     fn slice_sub_value_assign(&mut self, value: Self::ValueT) -> bool;
@@ -49,6 +45,10 @@ pub trait BigIntegerOps: BigInteger {
     /// Multiplies the big integer slice by a value, returning any carry that results.
     #[must_use]
     fn slice_mul_value_assign(&mut self, value: Self::ValueT) -> Self::ValueT;
+
+    /// Adds a value to the big integer slice, returning true if there was a carry.
+    #[must_use]
+    fn slice_add_value_inplace(&self, value: Self::ValueT, result: &mut Self) -> bool;
 
     /// Multiplies the big integer slice by a value, storing the result in another slice.
     #[must_use]
@@ -84,13 +84,13 @@ pub trait BigIntegerOps: BigInteger {
     /// Subs another big integer slice to this one modulo a given modulus.
     fn slice_sub_modulo_assign(&mut self, other: &Self, modulus: &Self);
 
+    fn slice_neg_modulo_assign(&mut self, modulus: &Self);
+
     /// Adds two big integer slices to result modulo a given modulus.
     fn slice_add_modulo_inplace(&self, other: &Self, result: &mut Self, modulus: &Self);
 
     /// Subs another big integer slice to this one modulo a given modulus.
     fn slice_sub_modulo_inplace(&self, other: &Self, result: &mut Self, modulus: &Self);
-
-    fn slice_neg_modulo_assign(&mut self, modulus: &Self);
 
     fn slice_neg_modulo_inplace(&self, result: &mut Self, modulus: &Self);
 }
@@ -142,36 +142,6 @@ impl<T: UnsignedInteger> BigIntegerOps for [T] {
         }
     }
 
-    fn slice_add_value_inplace(&self, value: Self::ValueT, result: &mut Self) -> bool {
-        debug_assert_eq!(self.len(), result.len());
-
-        let mut carry;
-
-        let mut a_iter = self.iter();
-        let mut b_iter = result.iter_mut();
-
-        let a_first = a_iter.next().unwrap();
-        let b_first = b_iter.next().unwrap();
-
-        (*b_first, carry) = a_first.overflowing_add(value);
-
-        while carry {
-            if let Some(a_next) = a_iter.next()
-                && let Some(b_next) = b_iter.next()
-            {
-                (*b_next, carry) = a_next.overflowing_add(T::ONE);
-            } else {
-                return carry;
-            }
-        }
-
-        for (a, b) in a_iter.zip(b_iter) {
-            *b = *a;
-        }
-
-        carry
-    }
-
     #[inline]
     fn slice_sub_value_assign(&mut self, value: Self::ValueT) -> bool {
         let mut borrow;
@@ -200,6 +170,36 @@ impl<T: UnsignedInteger> BigIntegerOps for [T] {
         let mut carry = T::ZERO;
         for ele in self.iter_mut() {
             (*ele, carry) = value.carrying_mul(*ele, carry);
+        }
+
+        carry
+    }
+
+    fn slice_add_value_inplace(&self, value: Self::ValueT, result: &mut Self) -> bool {
+        debug_assert_eq!(self.len(), result.len());
+
+        let mut carry;
+
+        let mut a_iter = self.iter();
+        let mut b_iter = result.iter_mut();
+
+        let a_first = a_iter.next().unwrap();
+        let b_first = b_iter.next().unwrap();
+
+        (*b_first, carry) = a_first.overflowing_add(value);
+
+        while carry {
+            if let Some(a_next) = a_iter.next()
+                && let Some(b_next) = b_iter.next()
+            {
+                (*b_next, carry) = a_next.overflowing_add(T::ONE);
+            } else {
+                return carry;
+            }
+        }
+
+        for (a, b) in a_iter.zip(b_iter) {
+            *b = *a;
         }
 
         carry
@@ -317,6 +317,30 @@ impl<T: UnsignedInteger> BigIntegerOps for [T] {
     }
 
     #[inline]
+    fn slice_sub_modulo_assign(&mut self, other: &Self, modulus: &Self) {
+        debug_assert!(self.len() == other.len() && self.len() == modulus.len());
+        debug_assert!(self.slice_cmp(modulus).is_lt());
+        debug_assert!(other.slice_cmp(modulus).is_lt());
+
+        if self.slice_sub_assign(other) {
+            let _ = self.slice_add_assign(modulus);
+        }
+    }
+
+    #[inline]
+    fn slice_neg_modulo_assign(&mut self, modulus: &Self) {
+        debug_assert!(self.len() == modulus.len());
+        debug_assert!(self.slice_cmp(modulus).is_lt());
+
+        if !self.iter().all(T::is_zero) {
+            let mut borrow = false;
+            for (xs, ys) in self.iter_mut().zip(modulus) {
+                (*xs, borrow) = ys.borrowing_sub(*xs, borrow);
+            }
+        }
+    }
+
+    #[inline]
     fn slice_add_modulo_inplace(&self, other: &Self, result: &mut Self, modulus: &Self) {
         debug_assert!(
             self.len() == other.len() && self.len() == result.len() && self.len() == modulus.len()
@@ -331,17 +355,6 @@ impl<T: UnsignedInteger> BigIntegerOps for [T] {
     }
 
     #[inline]
-    fn slice_sub_modulo_assign(&mut self, other: &Self, modulus: &Self) {
-        debug_assert!(self.len() == other.len() && self.len() == modulus.len());
-        debug_assert!(self.slice_cmp(modulus).is_lt());
-        debug_assert!(other.slice_cmp(modulus).is_lt());
-
-        if self.slice_sub_assign(other) {
-            let _ = self.slice_add_assign(modulus);
-        }
-    }
-
-    #[inline]
     fn slice_sub_modulo_inplace(&self, other: &Self, result: &mut Self, modulus: &Self) {
         debug_assert!(
             self.len() == other.len() && self.len() == result.len() && self.len() == modulus.len()
@@ -351,19 +364,6 @@ impl<T: UnsignedInteger> BigIntegerOps for [T] {
 
         if self.slice_sub_inplace(other, result) {
             let _ = result.slice_add_assign(modulus);
-        }
-    }
-
-    #[inline]
-    fn slice_neg_modulo_assign(&mut self, modulus: &Self) {
-        debug_assert!(self.len() == modulus.len());
-        debug_assert!(self.slice_cmp(modulus).is_lt());
-
-        if !self.iter().all(T::is_zero) {
-            let mut borrow = false;
-            for (xs, ys) in self.iter_mut().zip(modulus) {
-                (*xs, borrow) = ys.borrowing_sub(*xs, borrow);
-            }
         }
     }
 

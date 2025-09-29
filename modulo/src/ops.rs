@@ -363,7 +363,7 @@ pub trait MulAddModulo<M, B = Self, C = Self> {
     /// - `self < modulus`
     /// - `b < modulus`
     /// - `c < modulus`
-    fn reduce_mul_add(self, b: B, c: C, modulus: M) -> Self::Output;
+    fn mul_add_modulo(self, b: B, c: C, modulus: M) -> Self::Output;
 }
 
 impl<T, M, B, C> MulAddModulo<M, B, C> for T
@@ -373,7 +373,7 @@ where
     type Output = <M as ReduceMulAdd<T, B, C>>::Output;
 
     #[inline(always)]
-    fn reduce_mul_add(self, b: B, c: C, modulus: M) -> Self::Output {
+    fn mul_add_modulo(self, b: B, c: C, modulus: M) -> Self::Output {
         modulus.reduce_mul_add(self, b, c)
     }
 }
@@ -387,7 +387,7 @@ pub trait MulAddModuloAssign<M, B = Self, C = Self> {
     /// - `self < modulus`
     /// - `b < modulus`
     /// - `c < modulus`
-    fn reduce_mul_add_assign(&mut self, b: B, c: C, modulus: M);
+    fn mul_add_modulo_assign(&mut self, b: B, c: C, modulus: M);
 }
 
 impl<T, M, B, C> MulAddModuloAssign<M, B, C> for T
@@ -395,7 +395,7 @@ where
     M: ReduceMulAddAssign<T, B, C>,
 {
     #[inline(always)]
-    fn reduce_mul_add_assign(&mut self, b: B, c: C, modulus: M) {
+    fn mul_add_modulo_assign(&mut self, b: B, c: C, modulus: M) {
         modulus.reduce_mul_add_assign(self, b, c)
     }
 }
