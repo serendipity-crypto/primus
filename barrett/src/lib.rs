@@ -4,7 +4,7 @@ use core::fmt::Display;
 
 pub use primus_integer as integer;
 pub use primus_reduce as reduce;
-pub use uint_modulus;
+pub use primus_uint_modulus as uint_modulus;
 
 use integer::{DivRemScalar, UnsignedInteger};
 

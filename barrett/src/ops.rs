@@ -1,6 +1,6 @@
 use primus_integer::{AsInto, UnsignedInteger};
 use primus_reduce::{ReduceError, lazy_ops::*, ops::*};
-use uint_modulus::UintModulus;
+use primus_uint_modulus::UintModulus;
 
 use super::BarrettModulus;
 

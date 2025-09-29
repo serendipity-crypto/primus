@@ -1,5 +1,5 @@
 [package]
-name = "uint_modulus"
+name = "primus_uint_modulus"
 version = "0.1.0"
 edition = "2024"
 
