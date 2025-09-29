@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod tests {
     use itertools::Itertools;
-    use powof2_modulus::PowOf2Modulus;
     use primus_decompose::primitive::ApproxSignedBasis;
+    use primus_powof2_modulus::PowOf2Modulus;
     use primus_reduce::ops::{ReduceMulAdd, ReduceSub};
     use rand::{Rng, distr::Uniform};
 

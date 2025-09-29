@@ -5,7 +5,7 @@ members = [
     "primus_reduce",
     "primus_modulo",
     "primus_uint_modulus",
-    "powof2_modulus",
+    "primus_powof2_modulus",
     "native_modulus",
     "barrett",
     "barrett_derive",

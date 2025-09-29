@@ -1,5 +1,5 @@
 [package]
-name = "powof2_modulus"
+name = "primus_powof2_modulus"
 version = "0.1.0"
 edition = "2024"
 
