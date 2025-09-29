@@ -1,5 +1,5 @@
 [package]
-name = "native_modulus"
+name = "primus_native_modulus"
 version = "0.1.0"
 edition = "2024"
 
