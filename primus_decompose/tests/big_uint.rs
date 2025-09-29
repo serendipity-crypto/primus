@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use barrett::BarrettModulus;
     use itertools::Itertools;
+    use primus_barrett_modulus::BarrettModulus;
     use primus_decompose::big_integer::BigUintApproxSignedBasis;
     use primus_integer::{BigIntegerOps, izip, multiply_many_values};
     use primus_reduce::ops::ReduceMulAdd;

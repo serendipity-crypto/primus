@@ -1,5 +1,5 @@
 [package]
-name = "barrett_derive"
+name = "primus_barrett_derive"
 version = "0.1.0"
 edition = "2024"
 

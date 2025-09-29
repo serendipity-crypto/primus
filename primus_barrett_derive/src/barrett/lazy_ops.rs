@@ -10,13 +10,13 @@ pub(crate) fn impl_lazy_reduce_ops(
 ) -> TokenStream {
     let [r0, r1] = ratio;
     quote! {
-        impl ::barrett::reduce::lazy_ops::LazyReduce<#ty> for #name {
+        impl ::primus_barrett_modulus::reduce::lazy_ops::LazyReduce<#ty> for #name {
             type Output = #ty;
 
             /// Calculates `value (mod 2*modulus)`.
             #[inline]
             fn lazy_reduce(self, value: #ty) -> #ty {
-                use ::barrett::integer::{CarryingMul, WideningMul};
+                use ::primus_barrett_modulus::integer::{CarryingMul, WideningMul};
                 // Step 1.
                 //              ratio[1]  ratio[0]
                 //         *               value
@@ -39,13 +39,13 @@ pub(crate) fn impl_lazy_reduce_ops(
             }
         }
 
-        impl ::barrett::reduce::lazy_ops::LazyReduce<[#ty; 2]> for #name {
+        impl ::primus_barrett_modulus::reduce::lazy_ops::LazyReduce<[#ty; 2]> for #name {
             type Output = #ty;
 
             /// Calculates `value (mod 2*modulus)`.
             #[inline]
             fn lazy_reduce(self, value: [#ty; 2]) -> Self::Output {
-                use ::barrett::integer::{CarryingMul, WideningMul};
+                use ::primus_barrett_modulus::integer::{CarryingMul, WideningMul};
                 // Step 1.
                 //                        ratio[1]  ratio[0]
                 //                   *    value[1]  value[0]
@@ -82,13 +82,13 @@ pub(crate) fn impl_lazy_reduce_ops(
             }
         }
 
-        impl ::barrett::reduce::lazy_ops::LazyReduce<(#ty, #ty)> for #name {
+        impl ::primus_barrett_modulus::reduce::lazy_ops::LazyReduce<(#ty, #ty)> for #name {
             type Output = #ty;
 
             /// Calculates `value (mod 2*modulus)`.
             #[inline]
             fn lazy_reduce(self, value: (#ty, #ty)) -> Self::Output {
-                use ::barrett::integer::{CarryingMul, WideningMul};
+                use ::primus_barrett_modulus::integer::{CarryingMul, WideningMul};
                 // Step 1.
                 //                        ratio[1]  ratio[0]
                 //                   *    value.1   value.0
@@ -125,7 +125,7 @@ pub(crate) fn impl_lazy_reduce_ops(
             }
         }
 
-        impl ::barrett::reduce::lazy_ops::LazyReduce<&[#ty]> for #name {
+        impl ::primus_barrett_modulus::reduce::lazy_ops::LazyReduce<&[#ty]> for #name {
             type Output = #ty;
 
             /// Calculates `value (mod 2*modulus)` when value's length > 0.
@@ -147,49 +147,49 @@ pub(crate) fn impl_lazy_reduce_ops(
             }
         }
 
-        impl ::barrett::reduce::lazy_ops::LazyReduceAssign<#ty> for #name {
+        impl ::primus_barrett_modulus::reduce::lazy_ops::LazyReduceAssign<#ty> for #name {
             /// Calculates `value (mod 2*modulus)`.
             #[inline]
             fn lazy_reduce_assign(self, value: &mut #ty) {
-                use ::barrett::reduce::lazy_ops::LazyReduce;
+                use ::primus_barrett_modulus::reduce::lazy_ops::LazyReduce;
                 *value = self.lazy_reduce(*value);
             }
         }
 
-        impl ::barrett::reduce::lazy_ops::LazyReduceMul<#ty> for #name {
+        impl ::primus_barrett_modulus::reduce::lazy_ops::LazyReduceMul<#ty> for #name {
             type Output = #ty;
 
             #[inline]
             fn lazy_reduce_mul(self, a: #ty, b: #ty) -> Self::Output {
-                use ::barrett::reduce::lazy_ops::LazyReduce;
-                use ::barrett::integer::WideningMul;
+                use ::primus_barrett_modulus::reduce::lazy_ops::LazyReduce;
+                use ::primus_barrett_modulus::integer::WideningMul;
                 self.lazy_reduce(WideningMul::widening_mul(a, b))
             }
         }
 
-        impl ::barrett::reduce::lazy_ops::LazyReduceMulAssign<#ty> for #name {
+        impl ::primus_barrett_modulus::reduce::lazy_ops::LazyReduceMulAssign<#ty> for #name {
             #[inline]
             fn lazy_reduce_mul_assign(self, a: &mut #ty, b: #ty) {
-                use ::barrett::reduce::lazy_ops::LazyReduce;
-                use ::barrett::integer::WideningMul;
+                use ::primus_barrett_modulus::reduce::lazy_ops::LazyReduce;
+                use ::primus_barrett_modulus::integer::WideningMul;
                 *a = self.lazy_reduce(WideningMul::widening_mul(*a, b));
             }
         }
 
-        impl ::barrett::reduce::lazy_ops::LazyReduceMulAdd<#ty> for #name {
+        impl ::primus_barrett_modulus::reduce::lazy_ops::LazyReduceMulAdd<#ty> for #name {
             type Output = #ty;
 
             #[inline]
             fn lazy_reduce_mul_add(self, a: #ty, b: #ty, c: #ty) -> Self::Output {
-                use ::barrett::reduce::lazy_ops::LazyReduce;
+                use ::primus_barrett_modulus::reduce::lazy_ops::LazyReduce;
                 self.lazy_reduce(a.carrying_mul(b, c))
             }
         }
 
-        impl ::barrett::reduce::lazy_ops::LazyReduceMulAddAssign<#ty> for #name {
+        impl ::primus_barrett_modulus::reduce::lazy_ops::LazyReduceMulAddAssign<#ty> for #name {
             #[inline]
             fn lazy_reduce_mul_add_assign(self, a: &mut #ty, b: #ty, c: #ty) {
-                use ::barrett::reduce::lazy_ops::LazyReduce;
+                use ::primus_barrett_modulus::reduce::lazy_ops::LazyReduce;
                 *a = self.lazy_reduce(a.carrying_mul(b, c));
             }
         }

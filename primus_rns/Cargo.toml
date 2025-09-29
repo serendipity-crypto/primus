@@ -14,4 +14,4 @@ thiserror = { workspace = true }
 itertools = { workspace = true }
 
 [dev-dependencies]
-barrett = { path = "../barrett" }
+primus_barrett_modulus = { path = "../primus_barrett_modulus" }

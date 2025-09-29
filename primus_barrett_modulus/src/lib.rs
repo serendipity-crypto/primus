@@ -9,7 +9,7 @@ pub use primus_uint_modulus as uint_modulus;
 use integer::{DivRemScalar, UnsignedInteger};
 
 #[cfg(feature = "derive")]
-pub use barrett_derive::Barrett;
+pub use primus_barrett_derive::Barrett;
 
 mod ops;
 #[cfg(all(feature = "nightly", feature = "simd"))]
