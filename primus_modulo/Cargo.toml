@@ -1,9 +1,10 @@
 [package]
-name = "modulo"
+name = "primus_modulo"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
 primus_integer = { path = "../primus_integer" }
 primus_reduce = { path = "../primus_reduce" }
+
 thiserror = { workspace = true }

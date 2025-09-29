@@ -7,7 +7,7 @@ edition = "2024"
 primus_gcd = { path = "../primus_gcd" }
 primus_integer = { path = "../primus_integer" }
 primus_reduce = { path = "../primus_reduce" }
-modulo = { path = "../modulo" }
+primus_modulo = { path = "../primus_modulo" }
 primus_factor = { path = "../primus_factor" }
 
 thiserror = { workspace = true }

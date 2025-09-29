@@ -3,7 +3,7 @@ members = [
     "primus_gcd",
     "primus_integer",
     "primus_reduce",
-    "modulo",
+    "primus_modulo",
     "uint_modulus",
     "powof2_modulus",
     "native_modulus",
