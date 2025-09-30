@@ -1,8 +1,10 @@
 use bytemuck::Pod;
+use primus_distr::DiscreteGaussian;
 use primus_integer::{ByteCount, UnsignedInteger};
 use primus_modulo::ops::*;
-use primus_reduce::ops::*;
+use primus_reduce::{Modulus, ops::*};
 use primus_utils::Size;
+use rand::distr::{Distribution, Uniform};
 use serde::{Deserialize, Serialize};
 
 /// Represents a cryptographic structure based on the Learning with Errors (LWE) problem.
@@ -296,6 +298,30 @@ impl<T: UnsignedInteger> Lwe<T> {
     {
         self.a.iter_mut().for_each(|v| modulus.reduce_neg_assign(v));
         modulus.reduce_neg_assign(&mut self.b)
+    }
+
+    /// Generate a [`Lwe<T>`] sample which encrypts `0`.
+    #[inline]
+    pub fn generate_random_zero_sample<M, R>(
+        secret_key: &[T],
+        modulus: M,
+        gaussian: &DiscreteGaussian<T>,
+        rng: &mut R,
+    ) -> Self
+    where
+        M: Copy + Modulus<ValueT = T> + ReduceDotProduct<T> + ReduceAdd<T, Output = T>,
+        R: rand::Rng + rand::CryptoRng,
+    {
+        let len = secret_key.len();
+        let uniform = Uniform::new_inclusive(T::ZERO, modulus.minus_one()).unwrap();
+
+        let a: Vec<T> = uniform.sample_iter(&mut *rng).take(len).collect();
+        let e = gaussian.sample(rng);
+
+        let b = modulus.reduce_dot_product(a.as_slice(), secret_key);
+        let b = modulus.reduce_add(b, e);
+
+        Lwe { a, b }
     }
 }
 

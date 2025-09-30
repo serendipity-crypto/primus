@@ -8,6 +8,9 @@ primus_utils = { path = "../primus_utils" }
 primus_integer = { path = "../primus_integer" }
 primus_reduce = { path = "../primus_reduce" }
 primus_modulo = { path = "../primus_modulo" }
+primus_distr = { path = "../primus_distr" }
+primus_poly = { path = "../primus_poly" }
 
 serde = { workspace = true }
 bytemuck = { workspace = true }
+rand = { workspace = true }

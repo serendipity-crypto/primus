@@ -1,5 +1,7 @@
 use num_traits::{ConstZero, Zero};
+use primus_integer::UnsignedInteger;
 use primus_reduce::ops::ReduceMulAdd;
+use primus_utils::{ByteCount, Size};
 use serde::{Deserialize, Serialize};
 
 mod basic;
@@ -113,9 +115,9 @@ where
 {
     /// Creates a [`Polynomial<T>`] with all coefficients equal to zero.
     #[inline]
-    pub fn zero(coeff_count: usize) -> Self {
+    pub fn zero(poly_length: usize) -> Self {
         Self {
-            poly: vec![<T as ConstZero>::ZERO; coeff_count],
+            poly: vec![<T as ConstZero>::ZERO; poly_length],
         }
     }
 
@@ -143,5 +145,12 @@ where
             .fold(<T as ConstZero>::ZERO, |acc, &a| {
                 modulus.reduce_mul_add(acc, x, a)
             })
+    }
+}
+
+impl<T: UnsignedInteger> Size for Polynomial<T> {
+    #[inline]
+    fn size(&self) -> usize {
+        self.poly_length() * <T as ByteCount>::BYTES_COUNT
     }
 }

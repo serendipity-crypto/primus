@@ -6,6 +6,7 @@ use core::{
     },
 };
 
+use bytemuck::Pod;
 use num_traits::{ConstOne, ConstZero, FromBytes, MulAdd, MulAddAssign, NumAssign, Pow, ToBytes};
 use primus_utils::ByteCount;
 use rand::distr::uniform::SampleUniform;
@@ -17,6 +18,7 @@ use crate::integer_traits::*;
 /// An abstract over interger type.
 pub trait Integer:
     Sized
+    + Pod
     + Send
     + Sync
     + Clone
