@@ -16,6 +16,7 @@ members = [
     "primus_rns",
     "primus_lattice",
     "primus_utils",
+    "primus_distr",
 ]
 resolver = "3"
 
@@ -23,6 +24,7 @@ resolver = "3"
 thiserror = "2"
 num-traits = "0.2"
 rand = "0.9"
+# rand_distr = "0.5"
 rayon = "1.11"
 bytemuck = "1.23"
 serde = { version = "1.0", features = ["derive"] }

@@ -2,6 +2,7 @@ use bytemuck::Pod;
 use primus_integer::{ByteCount, UnsignedInteger};
 use primus_modulo::ops::*;
 use primus_reduce::ops::*;
+use primus_utils::Size;
 use serde::{Deserialize, Serialize};
 
 /// Represents a cryptographic structure based on the Learning with Errors (LWE) problem.
@@ -295,5 +296,12 @@ impl<T: UnsignedInteger> Lwe<T> {
     {
         self.a.iter_mut().for_each(|v| modulus.reduce_neg_assign(v));
         modulus.reduce_neg_assign(&mut self.b)
+    }
+}
+
+impl<T: Copy + ByteCount> Size for Lwe<T> {
+    #[inline]
+    fn size(&self) -> usize {
+        (self.a.len() + 1) * T::BYTES_COUNT
     }
 }
