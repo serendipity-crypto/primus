@@ -1,10 +1,11 @@
 use num_traits::{ConstZero, Zero};
 use primus_integer::UnsignedInteger;
 use primus_reduce::{lazy_ops::LazyReduceMulAdd, ops::ReduceMulAdd};
-use primus_utils::izip;
+use primus_utils::{ByteCount, Size, izip};
 use serde::{Deserialize, Serialize};
 
 mod basic;
+mod random;
 
 mod add;
 mod inv;
@@ -172,5 +173,12 @@ impl<T: UnsignedInteger> NttPolynomial<T> {
     {
         izip!(result, self, b, c)
             .for_each(|(d, &a, &b, &c)| *d = modulus.lazy_reduce_mul_add(a, b, c));
+    }
+}
+
+impl<T: UnsignedInteger> Size for NttPolynomial<T> {
+    #[inline]
+    fn size(&self) -> usize {
+        self.poly_length() * <T as ByteCount>::BYTES_COUNT
     }
 }

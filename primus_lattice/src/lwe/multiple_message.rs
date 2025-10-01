@@ -10,13 +10,13 @@ use super::Lwe;
 ///
 /// This structure encrypts several messages like a rlwe but truncated `b`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ExLwe<T: Copy> {
+pub struct MultiMsgLwe<T: Copy> {
     a: Vec<T>,
     b: Vec<T>,
 }
 
-impl<T: Copy + Pod + ByteCount> ExLwe<T> {
-    /// Creates a new [`ExLwe<T>`] from bytes `data`.
+impl<T: Copy + Pod + ByteCount> MultiMsgLwe<T> {
+    /// Creates a new [`MultiMsgLwe<T>`] from bytes `data`.
     #[inline]
     pub fn from_bytes(data: &[u8], dimension: usize) -> Self {
         let converted_data: &[T] = bytemuck::cast_slice(data);
@@ -29,7 +29,7 @@ impl<T: Copy + Pod + ByteCount> ExLwe<T> {
         }
     }
 
-    /// Creates a new [`ExLwe<T>`] from bytes `data`.
+    /// Creates a new [`MultiMsgLwe<T>`] from bytes `data`.
     #[inline]
     pub fn from_bytes_assign(&mut self, data: &[u8]) {
         let converted_data: &[T] = bytemuck::cast_slice(data);
@@ -40,7 +40,7 @@ impl<T: Copy + Pod + ByteCount> ExLwe<T> {
         self.b.copy_from_slice(b);
     }
 
-    /// Converts [`ExLwe<T>`] into bytes.
+    /// Converts [`MultiMsgLwe<T>`] into bytes.
     #[inline]
     pub fn to_bytes(&self) -> Vec<u8> {
         let data_a: &[u8] = bytemuck::cast_slice(&self.a);
@@ -49,7 +49,7 @@ impl<T: Copy + Pod + ByteCount> ExLwe<T> {
         [data_a, data_b].concat()
     }
 
-    /// Converts [`ExLwe<T>`] into bytes, stored in `data`.
+    /// Converts [`MultiMsgLwe<T>`] into bytes, stored in `data`.
     #[inline]
     pub fn to_bytes_inplace(&self, data: &mut [u8]) {
         let data_a: &[u8] = bytemuck::cast_slice(&self.a);
@@ -63,21 +63,21 @@ impl<T: Copy + Pod + ByteCount> ExLwe<T> {
         b.copy_from_slice(data_b);
     }
 
-    /// Returns the bytes count of [`ExLwe<T>`].
+    /// Returns the bytes count of [`MultiMsgLwe<T>`].
     #[inline]
     pub fn bytes_count(&self) -> usize {
         (self.a.len() + self.b.len()) * T::BYTES_COUNT
     }
 }
 
-impl<T: Copy> ExLwe<T> {
-    /// Creates a new [`ExLwe<T>`].
+impl<T: Copy> MultiMsgLwe<T> {
+    /// Creates a new [`MultiMsgLwe<T>`].
     #[inline]
     pub fn new(a: Vec<T>, b: Vec<T>) -> Self {
         Self { a, b }
     }
 
-    /// Creates a new [`ExLwe<T>`] from single `Vec<T>`.
+    /// Creates a new [`MultiMsgLwe<T>`] from single `Vec<T>`.
     #[inline]
     pub fn from_vec(mut data: Vec<T>, dimension: usize) -> Self {
         let b = data.split_off(dimension);
@@ -105,45 +105,45 @@ impl<T: Copy> ExLwe<T> {
         buffer[dimension..].copy_from_slice(&self.b);
     }
 
-    /// Returns a reference to the a of this [`ExLwe<T>`].
+    /// Returns a reference to the a of this [`MultiMsgLwe<T>`].
     #[inline]
     pub fn a(&self) -> &[T] {
         &self.a
     }
 
-    /// Returns a reference to the b of this [`ExLwe<T>`].
+    /// Returns a reference to the b of this [`MultiMsgLwe<T>`].
     #[inline]
     pub fn b(&self) -> &[T] {
         &self.b
     }
 
-    /// Returns a mutable reference to the a of this [`ExLwe<T>`].
+    /// Returns a mutable reference to the a of this [`MultiMsgLwe<T>`].
     #[inline]
     pub fn a_mut(&mut self) -> &mut Vec<T> {
         &mut self.a
     }
 
-    /// Returns a mutable reference to the b of this [`ExLwe<T>`].
+    /// Returns a mutable reference to the b of this [`MultiMsgLwe<T>`].
     #[inline]
     pub fn b_mut(&mut self) -> &mut Vec<T> {
         &mut self.b
     }
 
-    /// Returns mutable references to the a and b of this [`ExLwe<T>`].
+    /// Returns mutable references to the a and b of this [`MultiMsgLwe<T>`].
     #[inline]
     pub fn a_b_mut_slice(&mut self) -> (&mut [T], &mut [T]) {
         (&mut self.a, &mut self.b)
     }
 
-    /// Returns the message count of this [`ExLwe<T>`].
+    /// Returns the message count of this [`MultiMsgLwe<T>`].
     #[inline]
     pub fn msg_count(&self) -> usize {
         self.b.len()
     }
 }
 
-impl<T: UnsignedInteger> ExLwe<T> {
-    /// Generates a [`ExLwe<T>`] with all values are `0`.
+impl<T: UnsignedInteger> MultiMsgLwe<T> {
+    /// Generates a [`MultiMsgLwe<T>`] with all values are `0`.
     #[inline]
     pub fn zero(dimension: usize, msg_count: usize) -> Self {
         Self {
@@ -159,7 +159,7 @@ impl<T: UnsignedInteger> ExLwe<T> {
         self.b.fill(T::ZERO);
     }
 
-    /// Perform component-wise modular addition of two [`ExLwe<T>`].
+    /// Perform component-wise modular addition of two [`MultiMsgLwe<T>`].
     ///
     /// # Attention
     ///
@@ -186,7 +186,7 @@ impl<T: UnsignedInteger> ExLwe<T> {
         )
     }
 
-    /// Perform component-wise modular addition of two [`ExLwe<T>`].
+    /// Perform component-wise modular addition of two [`MultiMsgLwe<T>`].
     ///
     /// # Attention
     ///
@@ -202,7 +202,7 @@ impl<T: UnsignedInteger> ExLwe<T> {
     }
 
     /// Performs an in-place component-wise modular addition
-    /// on the `self` [`ExLwe<T>`] with another `rhs` [`ExLwe<T>`].
+    /// on the `self` [`MultiMsgLwe<T>`] with another `rhs` [`MultiMsgLwe<T>`].
     #[inline]
     pub fn add_component_wise_assign<M>(&mut self, rhs: &Self, modulus: M)
     where
@@ -220,7 +220,7 @@ impl<T: UnsignedInteger> ExLwe<T> {
             .for_each(|(a, &b)| modulus.reduce_add_assign(a, b));
     }
 
-    /// Perform component-wise modular subtraction of two [`ExLwe<T>`].
+    /// Perform component-wise modular subtraction of two [`MultiMsgLwe<T>`].
     ///
     /// # Attention
     ///
@@ -247,7 +247,7 @@ impl<T: UnsignedInteger> ExLwe<T> {
         )
     }
 
-    /// Perform component-wise modular subtraction of two [`ExLwe<T>`].
+    /// Perform component-wise modular subtraction of two [`MultiMsgLwe<T>`].
     ///
     /// # Attention
     ///
@@ -263,7 +263,7 @@ impl<T: UnsignedInteger> ExLwe<T> {
     }
 
     /// Performs an in-place component-wise modular subtraction
-    /// on the `self` [`ExLwe<T>`] with another `rhs` [`ExLwe<T>`].
+    /// on the `self` [`MultiMsgLwe<T>`] with another `rhs` [`MultiMsgLwe<T>`].
     #[inline]
     pub fn sub_component_wise_assign<M>(&mut self, rhs: &Self, modulus: M)
     where
@@ -281,7 +281,7 @@ impl<T: UnsignedInteger> ExLwe<T> {
     }
 
     /// Performs an in-place modular scalar multiplication
-    /// on the `self` [`ExLwe<T>`] with scalar `T`.
+    /// on the `self` [`MultiMsgLwe<T>`] with scalar `T`.
     #[inline]
     pub fn mul_scalar_assign<M>(&mut self, scalar: T, modulus: M)
     where
@@ -296,7 +296,7 @@ impl<T: UnsignedInteger> ExLwe<T> {
     }
 
     /// Performs an in-place modular scalar multiplication
-    /// on the `rhs` [`ExLwe<T>`] with `scalar` `T`,
+    /// on the `rhs` [`MultiMsgLwe<T>`] with `scalar` `T`,
     /// then add to `self`.
     #[inline]
     pub fn add_rhs_mul_scalar_assign<M>(&mut self, rhs: &Self, scalar: T, modulus: M)
@@ -352,7 +352,7 @@ impl<T: UnsignedInteger> ExLwe<T> {
     }
 }
 
-impl<T: Copy> Size for ExLwe<T> {
+impl<T: Copy> Size for MultiMsgLwe<T> {
     #[inline]
     fn size(&self) -> usize {
         (self.a.len() + self.b.len()) * core::mem::size_of::<T>()

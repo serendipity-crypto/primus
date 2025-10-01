@@ -1,13 +1,16 @@
+use primus_distr::DiscreteGaussian;
 use primus_integer::UnsignedInteger;
-use primus_poly::Polynomial;
+use primus_ntt::{Ntt, NttTable};
+use primus_poly::{NttPolynomial, Polynomial};
 use primus_reduce::{
     FieldContext,
     ops::{ReduceNeg, ReduceNegAssign},
 };
 use primus_utils::{ByteCount, Size};
+use rand::{CryptoRng, Rng};
 use serde::{Deserialize, Serialize};
 
-use crate::{ExLwe, Lwe};
+use crate::{Lwe, MultiMsgLwe, NttRlwe};
 
 /// A cryptographic structure for Ring Learning with Errors (RLWE).
 /// This structure is used in advanced cryptographic systems and protocols, particularly
@@ -115,6 +118,23 @@ impl<T: UnsignedInteger> Rlwe<T> {
         }
     }
 
+    /// Creates a new [`Rlwe<T>`] that is initialized to zero,
+    /// both `a` and `b` polynomials are initialized to zero.
+    #[inline]
+    pub fn zero(poly_length: usize) -> Self {
+        Self {
+            a: Polynomial::zero(poly_length),
+            b: Polynomial::zero(poly_length),
+        }
+    }
+
+    /// Set all entries equal to zero.
+    #[inline]
+    pub fn set_zero(&mut self) {
+        self.a.set_zero();
+        self.b.set_zero();
+    }
+
     /// Returns a reference to the a of this [`Rlwe<T>`].
     #[inline]
     pub fn a(&self) -> &Polynomial<T> {
@@ -174,24 +194,40 @@ impl<T: UnsignedInteger> Rlwe<T> {
     pub fn a_b_mut_slices(&mut self) -> (&mut [T], &mut [T]) {
         (self.a.as_mut_slice(), self.b.as_mut_slice())
     }
+}
 
-    /// Creates a new [`Rlwe<T>`] that is initialized to zero,
-    /// both `a` and `b` polynomials are initialized to zero.
+impl<T: UnsignedInteger> Rlwe<T> {
+    /// ntt transform
     #[inline]
-    pub fn zero(poly_length: usize) -> Self {
-        Self {
-            a: Polynomial::zero(poly_length),
-            b: Polynomial::zero(poly_length),
-        }
+    pub fn into_ntt_rlwe<Table>(self, ntt_table: &Table) -> NttRlwe<T>
+    where
+        Table: NttTable<ValueT = T> + Ntt<CoeffPoly = Polynomial<T>, NttPoly = NttPolynomial<T>>,
+    {
+        let Self { a, b } = self;
+
+        let a = ntt_table.transform_inplace(a);
+        let b = ntt_table.transform_inplace(b);
+
+        NttRlwe::new(a, b)
     }
 
-    /// Set all entries equal to zero.
+    /// ntt transform
     #[inline]
-    pub fn set_zero(&mut self) {
-        self.a.set_zero();
-        self.b.set_zero();
-    }
+    pub fn transform_inplace<Table>(&self, ntt_table: &Table, result: &mut NttRlwe<T>)
+    where
+        Table: NttTable<ValueT = T> + Ntt<CoeffPoly = Polynomial<T>, NttPoly = NttPolynomial<T>>,
+    {
+        let (a, b) = result.a_b_mut_slices();
 
+        a.copy_from_slice(self.a_slice());
+        b.copy_from_slice(self.b_slice());
+
+        ntt_table.transform_slice(a);
+        ntt_table.transform_slice(b);
+    }
+}
+
+impl<T: UnsignedInteger> Rlwe<T> {
     /// Perform element-wise modular addition of two [`Rlwe<T>`].
     #[inline]
     pub fn add_element_wise<M>(self, rhs: &Self, modulus: M) -> Self
@@ -239,7 +275,7 @@ impl<T: UnsignedInteger> Rlwe<T> {
     }
 
     /// Performs addition operation:`self + rhs`,
-    /// and puts the result to the `destination`.
+    /// and puts the result to the `result`.
     #[inline]
     pub fn add_inplace<M>(&self, rhs: &Self, result: &mut Self, modulus: M)
     where
@@ -250,7 +286,7 @@ impl<T: UnsignedInteger> Rlwe<T> {
     }
 
     /// Performs subtraction operation:`self - rhs`,
-    /// and put the result to the `destination`.
+    /// and put the result to the `result`.
     #[inline]
     pub fn sub_inplace<M>(&self, rhs: &Self, result: &mut Self, modulus: M)
     where
@@ -260,6 +296,33 @@ impl<T: UnsignedInteger> Rlwe<T> {
         self.b.sub_inplace(rhs.b(), result.b_mut(), modulus);
     }
 
+    /// Performs a multiplication on the `self` [`Rlwe<T>`] with another `ntt_polynomial` [`NttPolynomial<T>`],
+    /// store the result into `result` [`NttRlwe<T>`].
+    #[inline]
+    pub fn mul_ntt_polynomial_inplace<M, Table>(
+        &self,
+        ntt_polynomial: &NttPolynomial<T>,
+        result: &mut NttRlwe<T>,
+        modulus: M,
+        ntt_table: &Table,
+    ) where
+        M: FieldContext<T>,
+        Table: NttTable<ValueT = T> + Ntt<CoeffPoly = Polynomial<T>, NttPoly = NttPolynomial<T>>,
+    {
+        let (a, b) = result.a_b_mut();
+
+        a.copy_from(self.a());
+        b.copy_from(self.b());
+
+        ntt_table.transform_slice(a.as_mut_slice());
+        ntt_table.transform_slice(b.as_mut_slice());
+
+        a.mul_assign(ntt_polynomial, modulus);
+        b.mul_assign(ntt_polynomial, modulus);
+    }
+}
+
+impl<T: UnsignedInteger> Rlwe<T> {
     /// Extract an LWE sample from RLWE.
     #[inline]
     pub fn extract_lwe_with_index<M>(&self, index: usize, modulus: M) -> Lwe<T>
@@ -280,7 +343,7 @@ impl<T: UnsignedInteger> Rlwe<T> {
 
     /// Extract an LWE sample from RLWE.
     #[inline]
-    pub fn extract_first_few_lwe<M>(&self, count: usize, modulus: M) -> ExLwe<T>
+    pub fn extract_first_few_lwe<M>(&self, count: usize, modulus: M) -> MultiMsgLwe<T>
     where
         M: Copy + ReduceNeg<T, Output = T> + ReduceNegAssign<T>,
     {
@@ -288,7 +351,7 @@ impl<T: UnsignedInteger> Rlwe<T> {
         a[1..].reverse();
         modulus.reduce_neg_assign(&mut a[0]);
 
-        ExLwe::new(a, self.b[..count].to_vec())
+        MultiMsgLwe::new(a, self.b[..count].to_vec())
     }
 
     /// Extract an LWE sample from RLWE.
@@ -319,8 +382,8 @@ impl<T: UnsignedInteger> Rlwe<T> {
         Lwe::new(a, b[0])
     }
 
-    /// Sample extract a [`ExLwe<T>`] with several encrypted messages.
-    pub fn extract_first_few_lwe_locally<M>(self, count: usize, modulus: M) -> ExLwe<T>
+    /// Sample extract a [`MultiMsgLwe<T>`] with several encrypted messages.
+    pub fn extract_first_few_lwe_locally<M>(self, count: usize, modulus: M) -> MultiMsgLwe<T>
     where
         M: Copy + ReduceNegAssign<T>,
     {
@@ -333,7 +396,34 @@ impl<T: UnsignedInteger> Rlwe<T> {
         a[1..].reverse();
         a[1..].iter_mut().for_each(|v| modulus.reduce_neg_assign(v));
 
-        ExLwe::new(a, b)
+        MultiMsgLwe::new(a, b)
+    }
+}
+
+impl<T: UnsignedInteger> Rlwe<T> {
+    /// Generate a [`Rlwe<T>`] sample which encrypts `0`.
+    pub fn generate_random_zero_sample<M, Table, R>(
+        secret_key: &NttPolynomial<T>,
+        gaussian: &DiscreteGaussian<T>,
+        ntt_table: &Table,
+        modulus: M,
+        rng: &mut R,
+    ) -> Self
+    where
+        M: FieldContext<T>,
+        Table: NttTable<ValueT = T> + Ntt<CoeffPoly = Polynomial<T>, NttPoly = NttPolynomial<T>>,
+        R: Rng + CryptoRng,
+    {
+        let rlwe_dimension = secret_key.poly_length();
+        let a = <Polynomial<T>>::random(rlwe_dimension, modulus, rng);
+
+        let mut a_ntt = ntt_table.transform(&a);
+        a_ntt.mul_assign(secret_key, modulus);
+
+        let mut e = <Polynomial<T>>::random_gaussian(rlwe_dimension, gaussian, rng);
+        e.add_assign(&ntt_table.inverse_transform_inplace(a_ntt), modulus);
+
+        Self { a, b: e }
     }
 }
 

@@ -5,6 +5,7 @@ use primus_utils::{ByteCount, Size};
 use serde::{Deserialize, Serialize};
 
 mod basic;
+mod random;
 
 mod add;
 mod mul;

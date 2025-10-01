@@ -3,5 +3,5 @@
 mod lwe;
 mod rlwe;
 
-pub use lwe::{ExLwe, Lwe};
+pub use lwe::{Lwe, MultiMsgLwe};
 pub use rlwe::{NttRlwe, Rlwe};
