@@ -1,6 +1,6 @@
 use std::{
-    ops::{Index, IndexMut},
-    slice::SliceIndex,
+    ops::Index,
+    slice::{Iter, SliceIndex},
 };
 
 use itertools::Itertools;
@@ -9,6 +9,7 @@ use primus_integer::{
     BigIntegerOps, UnsignedInteger, multiply_many_values, multiply_many_values_except_inplace,
 };
 use primus_modulo::ops::*;
+use primus_poly::{BigUintPolynomial, crt::CrtPolynomial};
 use primus_reduce::FieldContext;
 use primus_utils::izip;
 
@@ -33,18 +34,6 @@ where
     #[inline]
     fn index(&self, index: I) -> &Self::Output {
         Index::index(&*self.moduli, index)
-    }
-}
-
-impl<T, M, I> IndexMut<I> for RNSBase<T, M>
-where
-    T: UnsignedInteger,
-    M: FieldContext<T>,
-    I: SliceIndex<[M]>,
-{
-    #[inline]
-    fn index_mut(&mut self, index: I) -> &mut Self::Output {
-        IndexMut::index_mut(&mut *self.moduli, index)
     }
 }
 
@@ -128,6 +117,18 @@ impl<T: UnsignedInteger, M: FieldContext<T>> RNSBase<T, M> {
         }
     }
 
+    pub fn decompose_polynomial_inplace(
+        &self,
+        big_uint_poly: &BigUintPolynomial<T>,
+        crt_poly: &mut CrtPolynomial<T>,
+    ) {
+        for (poly, &modulus) in crt_poly.iter_mut().zip(self.moduli()) {
+            for (res, value) in poly.iter_mut().zip(big_uint_poly.iter(self.moduli.len())) {
+                *res = value.modulo(modulus);
+            }
+        }
+    }
+
     /// Composes a value from its RNS representation.
     pub fn compose(&self, residues: &[T]) -> Vec<T> {
         debug_assert_eq!(self.moduli.len(), residues.len());
@@ -174,5 +175,20 @@ impl<T: UnsignedInteger, M: FieldContext<T>> RNSBase<T, M> {
                 }
             },
         );
+    }
+
+    pub fn compose_polynomial_inplace(
+        &self,
+        crt_poly: &CrtPolynomial<T>,
+        big_uint_poly: &mut BigUintPolynomial<T>,
+    ) {
+        let mut residues = vec![T::ZERO; self.moduli.len()];
+        let mut iters: Vec<Iter<'_, T>> = crt_poly.iter().map(|s| s.iter()).collect();
+        for value in big_uint_poly.iter_mut(self.moduli.len()) {
+            for (iter, res) in iters.iter_mut().zip(residues.iter_mut()) {
+                *res = *iter.next().unwrap();
+            }
+            self.compose_inplace(&residues, value);
+        }
     }
 }
