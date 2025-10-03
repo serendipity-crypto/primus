@@ -6,4 +6,4 @@ mod rlwe;
 
 pub use glwe::{Glwe, NttGlwe};
 pub use lwe::{Lwe, MultiMsgLwe};
-pub use rlwe::{NttRlwe, Rlwe};
+pub use rlwe::{CrtRlwe, DcrtRlwe, NttRlwe, Rlwe};

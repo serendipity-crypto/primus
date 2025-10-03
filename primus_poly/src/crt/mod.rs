@@ -25,6 +25,10 @@ pub struct CrtPolynomial<T> {
 }
 
 impl<T> CrtPolynomial<T> {
+    pub fn into_vec(self) -> Vec<Polynomial<T>> {
+        self.polys
+    }
+
     /// Returns an iterator that allows reading each value or coefficient of the polynomial.
     #[inline]
     pub fn iter(&self) -> std::slice::Iter<'_, Polynomial<T>> {

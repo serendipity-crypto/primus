@@ -163,7 +163,7 @@ impl<T: UnsignedInteger> NttGlwe<T> {
 impl<T: UnsignedInteger> NttGlwe<T> {
     /// ntt inverse transform
     #[inline]
-    pub fn into_glwe<Table>(self, ntt_table: &Table) -> Glwe<T>
+    pub fn into_coeff_form<Table>(self, ntt_table: &Table) -> Glwe<T>
     where
         Table: NttTable<ValueT = T> + Ntt<CoeffPoly = Polynomial<T>, NttPoly = NttPolynomial<T>>,
     {

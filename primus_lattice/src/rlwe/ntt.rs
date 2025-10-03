@@ -12,23 +12,13 @@ use crate::Rlwe;
 /// A cryptographic structure for Ring Learning with Errors (RLWE).
 /// This structure is used in advanced cryptographic systems and protocols, particularly
 /// those that require efficient homomorphic encryption properties.
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Default, Serialize, Deserialize)]
 #[serde(bound(deserialize = "T: UnsignedInteger"))]
 pub struct NttRlwe<T: UnsignedInteger> {
     /// Represents the first component in the RLWE structure.
     pub(crate) a: NttPolynomial<T>,
     /// Represents the second component in the RLWE structure.
     pub(crate) b: NttPolynomial<T>,
-}
-
-impl<T: UnsignedInteger> Clone for NttRlwe<T> {
-    #[inline]
-    fn clone(&self) -> Self {
-        Self {
-            a: self.a.clone(),
-            b: self.b.clone(),
-        }
-    }
 }
 
 impl<T: UnsignedInteger> NttRlwe<T> {
@@ -184,7 +174,7 @@ impl<T: UnsignedInteger> NttRlwe<T> {
 impl<T: UnsignedInteger> NttRlwe<T> {
     /// ntt inverse transform
     #[inline]
-    pub fn into_rlwe<Table>(self, ntt_table: &Table) -> Rlwe<T>
+    pub fn into_coeff_form<Table>(self, ntt_table: &Table) -> Rlwe<T>
     where
         Table: NttTable<ValueT = T> + Ntt<CoeffPoly = Polynomial<T>, NttPoly = NttPolynomial<T>>,
     {

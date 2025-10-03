@@ -15,7 +15,7 @@ use crate::{Lwe, MultiMsgLwe, NttRlwe};
 /// A cryptographic structure for Ring Learning with Errors (RLWE).
 /// This structure is used in advanced cryptographic systems and protocols, particularly
 /// those that require efficient homomorphic encryption properties.
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Default, Serialize, Deserialize)]
 #[serde(bound(deserialize = "T: UnsignedInteger"))]
 pub struct Rlwe<T: UnsignedInteger> {
     /// Represents the first component in the RLWE structure.
@@ -24,26 +24,6 @@ pub struct Rlwe<T: UnsignedInteger> {
     /// Represents the second component in the RLWE structure.
     /// It's also a polynomial with coefficients in the field `F`.
     pub(crate) b: Polynomial<T>,
-}
-
-impl<T: UnsignedInteger> Clone for Rlwe<T> {
-    #[inline]
-    fn clone(&self) -> Self {
-        Self {
-            a: self.a.clone(),
-            b: self.b.clone(),
-        }
-    }
-}
-
-impl<T: UnsignedInteger> Default for Rlwe<T> {
-    #[inline]
-    fn default() -> Self {
-        Self {
-            a: Default::default(),
-            b: Default::default(),
-        }
-    }
 }
 
 impl<T: UnsignedInteger> Rlwe<T> {
@@ -199,7 +179,7 @@ impl<T: UnsignedInteger> Rlwe<T> {
 impl<T: UnsignedInteger> Rlwe<T> {
     /// ntt transform
     #[inline]
-    pub fn into_ntt_rlwe<Table>(self, ntt_table: &Table) -> NttRlwe<T>
+    pub fn into_ntt_form<Table>(self, ntt_table: &Table) -> NttRlwe<T>
     where
         Table: NttTable<ValueT = T> + Ntt<CoeffPoly = Polynomial<T>, NttPoly = NttPolynomial<T>>,
     {
