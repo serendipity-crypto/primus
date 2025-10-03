@@ -1,5 +1,5 @@
-mod normal;
+mod coeff;
 mod ntt;
 
-pub use normal::Glwe;
+pub use coeff::Glwe;
 pub use ntt::NttGlwe;
