@@ -159,7 +159,7 @@ impl<T: UnsignedInteger> Rlwe<T> {
         &mut self.b
     }
 
-    /// Returns a mutable reference to the `a` and `b` of this [`Rlwe<T>`].
+    /// Returns mutable references to the `a` and `b` of this [`Rlwe<T>`].
     #[inline]
     pub fn a_b_mut(&mut self) -> (&mut Polynomial<T>, &mut Polynomial<T>) {
         (&mut self.a, &mut self.b)
