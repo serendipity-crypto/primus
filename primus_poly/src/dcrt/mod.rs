@@ -1,4 +1,6 @@
 use num_traits::ConstZero;
+use primus_integer::UnsignedInteger;
+use primus_utils::Size;
 use serde::{Deserialize, Serialize};
 
 use crate::NttPolynomial;
@@ -95,5 +97,12 @@ impl<T: Copy> DcrtPolynomial<T> {
             .iter_mut()
             .zip(src)
             .for_each(|(a, b)| a.copy_from(b.as_ref()));
+    }
+}
+
+impl<T: UnsignedInteger> Size for DcrtPolynomial<T> {
+    #[inline]
+    fn size(&self) -> usize {
+        self.polys.len() * self.polys[0].size()
     }
 }

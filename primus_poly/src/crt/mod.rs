@@ -1,4 +1,6 @@
 use num_traits::ConstZero;
+use primus_integer::UnsignedInteger;
+use primus_utils::Size;
 use serde::{Deserialize, Serialize};
 
 use crate::Polynomial;
@@ -10,11 +12,10 @@ mod mul;
 mod neg;
 mod sub;
 
-/// This structure is used to store polynomials
-/// with large integer coefficients.
+/// This structure is used to store polynomials with large integer coefficients.
 ///
-/// By the Chinese remainder theorem, a large integer
-/// can be decomposed into several remainders.
+/// By the Chinese remainder theorem,
+/// a large integer can be decomposed into several remainders.
 ///
 /// If all the coefficients of a polynomial are decomposed in the same way,
 /// several polynomials with relatively small coefficients can be obtained,
@@ -31,6 +32,7 @@ impl<T> CrtPolynomial<T> {
         Self { polys }
     }
 
+    #[inline]
     pub fn into_vec(self) -> Vec<Polynomial<T>> {
         self.polys
     }
@@ -72,5 +74,23 @@ where
     #[inline]
     pub fn set_zero(&mut self) {
         self.polys.iter_mut().for_each(Polynomial::set_zero);
+    }
+}
+
+impl<T: Copy> CrtPolynomial<T> {
+    /// Copy the coefficients from another slice.
+    #[inline]
+    pub fn copy_from<I: AsRef<[T]>>(&mut self, src: impl IntoIterator<Item = I>) {
+        self.polys
+            .iter_mut()
+            .zip(src)
+            .for_each(|(a, b)| a.copy_from(b.as_ref()));
+    }
+}
+
+impl<T: UnsignedInteger> Size for CrtPolynomial<T> {
+    #[inline]
+    fn size(&self) -> usize {
+        self.polys.len() * self.polys[0].size()
     }
 }

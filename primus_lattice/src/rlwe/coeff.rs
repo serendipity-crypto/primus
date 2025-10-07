@@ -18,11 +18,7 @@ use crate::{Lwe, MultiMsgLwe, NttRlwe};
 #[derive(Clone, Default, Serialize, Deserialize)]
 #[serde(bound(deserialize = "T: UnsignedInteger"))]
 pub struct Rlwe<T: UnsignedInteger> {
-    /// Represents the first component in the RLWE structure.
-    /// It is a polynomial where the coefficients are elements of the field `F`.
     pub(crate) a: Polynomial<T>,
-    /// Represents the second component in the RLWE structure.
-    /// It's also a polynomial with coefficients in the field `F`.
     pub(crate) b: Polynomial<T>,
 }
 
@@ -85,13 +81,14 @@ impl<T: UnsignedInteger> Rlwe<T> {
     /// Creates a new [`Rlwe<T>`].
     #[inline]
     pub fn new(a: Polynomial<T>, b: Polynomial<T>) -> Self {
+        debug_assert_eq!(a.poly_length(), b.poly_length());
         Self { a, b }
     }
 
     /// Creates a new [`Rlwe<T>`] with reference of [`Polynomial<T>`].
     #[inline]
     pub fn from_ref(a: &Polynomial<T>, b: &Polynomial<T>) -> Self {
-        assert_eq!(a.poly_length(), b.poly_length());
+        debug_assert_eq!(a.poly_length(), b.poly_length());
         Self {
             a: a.clone(),
             b: b.clone(),
@@ -193,7 +190,7 @@ impl<T: UnsignedInteger> Rlwe<T> {
 
     /// ntt transform
     #[inline]
-    pub fn transform_inplace<Table>(&self, ntt_table: &Table, result: &mut NttRlwe<T>)
+    pub fn to_ntt_form_inplace<Table>(&self, ntt_table: &Table, result: &mut NttRlwe<T>)
     where
         Table: NttTable<ValueT = T> + Ntt,
     {

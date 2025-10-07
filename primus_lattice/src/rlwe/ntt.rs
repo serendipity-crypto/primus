@@ -188,7 +188,7 @@ impl<T: UnsignedInteger> NttRlwe<T> {
 
     /// ntt inverse transform
     #[inline]
-    pub fn inverse_transform_inplace<Table>(&self, ntt_table: &Table, result: &mut Rlwe<T>)
+    pub fn to_coeff_form_inplace<Table>(&self, ntt_table: &Table, result: &mut Rlwe<T>)
     where
         Table: NttTable<ValueT = T> + Ntt,
     {

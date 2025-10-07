@@ -2,6 +2,7 @@ use primus_integer::UnsignedInteger;
 use primus_ntt::{Dcrt, DcrtTable};
 use primus_poly::{crt::CrtPolynomial, dcrt::DcrtPolynomial};
 use primus_reduce::FieldContext;
+use primus_utils::Size;
 use serde::{Deserialize, Serialize};
 
 use crate::DcrtRlwe;
@@ -9,7 +10,7 @@ use crate::DcrtRlwe;
 /// A cryptographic structure for Ring Learning with Errors (RLWE).
 /// This structure is used in advanced cryptographic systems and protocols, particularly
 /// those that require efficient homomorphic encryption properties.
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(bound(deserialize = "T: UnsignedInteger"))]
 pub struct CrtRlwe<T: UnsignedInteger> {
     pub(crate) a: CrtPolynomial<T>,
@@ -162,10 +163,17 @@ impl<T: UnsignedInteger> CrtRlwe<T> {
         a.copy_from(self.a());
         b.copy_from(self.b());
 
-        table.transform_slice(a.as_mut_slice());
-        table.transform_slice(b.as_mut_slice());
+        table.transform_slice(a.as_mut());
+        table.transform_slice(b.as_mut());
 
         a.mul_assign(dcrt_polynomial, moduli);
         b.mul_assign(dcrt_polynomial, moduli);
+    }
+}
+
+impl<T: UnsignedInteger> Size for CrtRlwe<T> {
+    #[inline]
+    fn size(&self) -> usize {
+        self.a.size() * 2
     }
 }
