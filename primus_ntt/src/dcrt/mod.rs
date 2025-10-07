@@ -1,0 +1,126 @@
+use primus_poly::crt::CrtPolynomial;
+use primus_poly::dcrt::DcrtPolynomial;
+use primus_reduce::FieldContext;
+
+use crate::{NttError, NttTable, PrimitiveRoot};
+
+#[cfg(feature = "concrete-ntt")]
+mod concrete;
+mod primitive;
+
+#[cfg(feature = "concrete-ntt")]
+pub use concrete::prime32::CrtConcrete32Table;
+#[cfg(feature = "concrete-ntt")]
+pub use concrete::prime64::CrtConcrete64Table;
+pub use primitive::UintCrtNttTable;
+
+pub trait DcrtTable: Sized {
+    /// The value type.
+    type ValueT: PrimitiveRoot;
+
+    type NttTables: NttTable<ValueT = Self::ValueT>;
+
+    /// Creates a new [`DcrtTable`].
+    fn new<M>(log_n: u32, moduli: &[M]) -> Result<Self, NttError<Self::ValueT>>
+    where
+        M: FieldContext<Self::ValueT>;
+
+    /// Returns a reference to the ntt tables.
+    fn ntt_tables(&self) -> &[Self::NttTables];
+
+    /// Returns an iterator over the ntt tables.
+    fn iter(&self) -> std::slice::Iter<'_, Self::NttTables>;
+}
+
+pub trait Dcrt: DcrtTable {
+    /// Perform a fast number theory transform.
+    ///
+    /// This function transforms a crt polynomial to a dcrt polynomial.
+    ///
+    /// # Arguments
+    ///
+    /// * `crt_poly` - inputs in normal order, outputs in bit-reversed order
+    #[inline]
+    fn transform(&self, crt_poly: &CrtPolynomial<Self::ValueT>) -> DcrtPolynomial<Self::ValueT> {
+        self.transform_inplace(crt_poly.clone())
+    }
+
+    /// Perform a fast number theory transform in place.
+    ///
+    /// This function transforms a crt polynomial to a dcrt polynomial.
+    ///
+    /// # Arguments
+    ///
+    /// * `crt_poly` - inputs in normal order, outputs in bit-reversed order
+    fn transform_inplace(
+        &self,
+        crt_poly: CrtPolynomial<Self::ValueT>,
+    ) -> DcrtPolynomial<Self::ValueT>;
+
+    /// Perform a fast inverse number theory transform.
+    ///
+    /// This function transforms a dcrt polynomial to a crt polynomial.
+    ///
+    /// # Arguments
+    ///
+    /// * `dcrt_poly` - inputs in bit-reversed order, outputs in normal order
+    #[inline]
+    fn inverse_transform(
+        &self,
+        dcrt_poly: &DcrtPolynomial<Self::ValueT>,
+    ) -> CrtPolynomial<Self::ValueT> {
+        self.inverse_transform_inplace(dcrt_poly.clone())
+    }
+
+    /// Perform a fast inverse number theory transform in place.
+    ///
+    /// This function transforms a dcrt polynomial to a crt polynomial.
+    ///
+    /// # Arguments
+    ///
+    /// * `dcrt_poly` - inputs in bit-reversed order, outputs in normal order
+    fn inverse_transform_inplace(
+        &self,
+        dcrt_poly: DcrtPolynomial<Self::ValueT>,
+    ) -> CrtPolynomial<Self::ValueT>;
+
+    /// Perform a fast number theory transform in place.
+    ///
+    /// This function transforms a crt polynomial slice with coefficient in `[0, 4*modulus)`
+    /// to a dcrt polynomial slice with coefficient in `[0, 4*modulus)`.
+    ///
+    /// # Arguments
+    ///
+    /// * `poly` - inputs in normal order, outputs in bit-reversed order
+    fn lazy_transform_slice<P: AsMut<[Self::ValueT]>>(&self, poly: &mut [P]);
+
+    /// Perform a fast number theory transform in place.
+    ///
+    /// This function transforms a polynomial slice with coefficient in `[0, 4*modulus)`
+    /// to a ntt polynomial slice with coefficient in `[0, modulus)`.
+    ///
+    /// # Arguments
+    ///
+    /// * `poly` - inputs in normal order, outputs in bit-reversed order
+    fn transform_slice<P: AsMut<[Self::ValueT]>>(&self, poly: &mut [P]);
+
+    /// Perform a fast inverse number theory transform in place.
+    ///
+    /// This function transforms a ntt polynomial slice with coefficient in `[0, 2*modulus)`
+    /// to a polynomial slice with coefficient in `[0, 2*modulus)`.
+    ///
+    /// # Arguments
+    ///
+    /// * `values` - inputs in bit-reversed order, outputs in normal order
+    fn lazy_inverse_transform_slice<P: AsMut<[Self::ValueT]>>(&self, poly: &mut [P]);
+
+    /// Perform a fast inverse number theory transform in place.
+    ///
+    /// This function transforms a ntt polynomial slice with coefficient in `[0, 2*modulus)`
+    /// to a polynomial slice with coefficient in `[0, modulus)`.
+    ///
+    /// # Arguments
+    ///
+    /// * `values` - inputs in bit-reversed order, outputs in normal order
+    fn inverse_transform_slice<P: AsMut<[Self::ValueT]>>(&self, poly: &mut [P]);
+}

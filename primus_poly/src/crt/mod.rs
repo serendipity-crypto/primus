@@ -25,6 +25,12 @@ pub struct CrtPolynomial<T> {
 }
 
 impl<T> CrtPolynomial<T> {
+    /// Creates a new [`CrtPolynomial<T>`].
+    #[inline]
+    pub fn new(polys: Vec<Polynomial<T>>) -> Self {
+        Self { polys }
+    }
+
     pub fn into_vec(self) -> Vec<Polynomial<T>> {
         self.polys
     }

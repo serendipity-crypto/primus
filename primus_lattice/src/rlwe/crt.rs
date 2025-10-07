@@ -1,6 +1,7 @@
 use primus_integer::UnsignedInteger;
-use primus_ntt::{Ntt, NttTable};
+use primus_ntt::{Dcrt, DcrtTable, Ntt};
 use primus_poly::{NttPolynomial, Polynomial, crt::CrtPolynomial, dcrt::DcrtPolynomial};
+use primus_reduce::FieldContext;
 use serde::{Deserialize, Serialize};
 
 use crate::DcrtRlwe;
@@ -41,44 +42,131 @@ impl<T: UnsignedInteger> CrtRlwe<T> {
     pub fn a_b_mut(&mut self) -> (&mut CrtPolynomial<T>, &mut CrtPolynomial<T>) {
         (&mut self.a, &mut self.b)
     }
+}
 
-    // /// ntt transform
-    // #[inline]
-    // pub fn into_ntt_form<Table>(self, ntt_table: &Table) -> DcrtRlwe<T>
-    // where
-    //     Table: NttTable<ValueT = T> + Ntt<CoeffPoly = Polynomial<T>, NttPoly = NttPolynomial<T>>,
-    // {
-    //     let Self { a, b } = self;
+impl<T: UnsignedInteger> CrtRlwe<T> {
+    /// ntt transform
+    #[inline]
+    pub fn into_ntt_form<Table>(self, table: &Table) -> DcrtRlwe<T>
+    where
+        Table: DcrtTable<ValueT = T> + Dcrt,
+    {
+        let Self { a, b } = self;
 
-    //     let a = DcrtPolynomial::new(
-    //         a.into_iter()
-    //             .map(|p| ntt_table.transform_inplace(p))
-    //             .collect(),
-    //     );
-    //     let b = DcrtPolynomial::new(
-    //         b.into_iter()
-    //             .map(|p| ntt_table.transform_inplace(p))
-    //             .collect(),
-    //     );
+        let a = table.transform_inplace(a);
+        let b = table.transform_inplace(b);
 
-    //     DcrtRlwe::new(a, b)
-    // }
+        DcrtRlwe::new(a, b)
+    }
 
-    // /// ntt transform
-    // #[inline]
-    // pub fn transform_inplace<Table>(&self, ntt_table: &Table, result: &mut DcrtRlwe<T>)
-    // where
-    //     Table: NttTable<ValueT = T> + Ntt<CoeffPoly = Polynomial<T>, NttPoly = NttPolynomial<T>>,
-    // {
-    //     let (a, b) = result.a_b_mut();
+    /// ntt transform
+    #[inline]
+    pub fn to_ntt_form_inplace<Table>(&self, table: &Table, result: &mut DcrtRlwe<T>)
+    where
+        Table: DcrtTable<ValueT = T> + Dcrt,
+        Table::NttTables: Ntt<CoeffPoly = Polynomial<T>, NttPoly = NttPolynomial<T>>,
+    {
+        let (a, b) = result.a_b_mut();
 
-    //     a.iter_mut().zip(self.a.iter()).for_each(|(x, y)| {
-    //         x.copy_from(y);
-    //         ntt_table.transform_slice(x.as_mut_slice());
-    //     });
-    //     b.iter_mut().zip(self.b.iter()).for_each(|(x, y)| {
-    //         x.copy_from(y);
-    //         ntt_table.transform_slice(x.as_mut_slice());
-    //     });
-    // }
+        a.copy_from(&self.a);
+        b.copy_from(&self.b);
+
+        table.transform_slice(a.as_mut());
+        table.transform_slice(b.as_mut());
+    }
+}
+
+impl<T: UnsignedInteger> CrtRlwe<T> {
+    /// Perform element-wise modular addition of two [`CrtRlwe<T>`].
+    #[inline]
+    pub fn add_element_wise<M>(self, rhs: &Self, moduli: &[M]) -> Self
+    where
+        M: FieldContext<T>,
+    {
+        Self {
+            a: self.a.add(rhs.a(), moduli),
+            b: self.b.add(rhs.b(), moduli),
+        }
+    }
+
+    /// Perform element-wise modular subtraction of two [`CrtRlwe<T>`].
+    #[inline]
+    pub fn sub_element_wise<M>(self, rhs: &Self, moduli: &[M]) -> Self
+    where
+        M: FieldContext<T>,
+    {
+        Self {
+            a: self.a.sub(rhs.a(), moduli),
+            b: self.b.sub(rhs.b(), moduli),
+        }
+    }
+
+    /// Performs an in-place element-wise modular addition
+    /// on the `self` [`CrtRlwe<T>`] with another `rhs` [`CrtRlwe<T>`].
+    #[inline]
+    pub fn add_assign_element_wise<M>(&mut self, rhs: &Self, moduli: &[M])
+    where
+        M: FieldContext<T>,
+    {
+        self.a.add_assign(rhs.a(), moduli);
+        self.b.add_assign(rhs.b(), moduli);
+    }
+
+    /// Performs an in-place element-wise modular subtraction
+    /// on the `self` [`CrtRlwe<T>`] with another `rhs` [`CrtRlwe<T>`].
+    #[inline]
+    pub fn sub_assign_element_wise<M>(&mut self, rhs: &Self, moduli: &[M])
+    where
+        M: FieldContext<T>,
+    {
+        self.a.sub_assign(rhs.a(), moduli);
+        self.b.sub_assign(rhs.b(), moduli);
+    }
+
+    /// Performs addition operation:`self + rhs`,
+    /// and puts the result to the `result`.
+    #[inline]
+    pub fn add_inplace<M>(&self, rhs: &Self, result: &mut Self, moduli: &[M])
+    where
+        M: FieldContext<T>,
+    {
+        self.a.add_inplace(rhs.a(), result.a_mut(), moduli);
+        self.b.add_inplace(rhs.b(), result.b_mut(), moduli);
+    }
+
+    /// Performs subtraction operation:`self - rhs`,
+    /// and put the result to the `result`.
+    #[inline]
+    pub fn sub_inplace<M>(&self, rhs: &Self, result: &mut Self, moduli: &[M])
+    where
+        M: FieldContext<T>,
+    {
+        self.a.sub_inplace(rhs.a(), result.a_mut(), moduli);
+        self.b.sub_inplace(rhs.b(), result.b_mut(), moduli);
+    }
+
+    /// Performs a multiplication on the `self` [`CrtRlwe<T>`] with another `dcrt_polynomial` [`DcrtPolynomial<T>`],
+    /// store the result into `result` [`DcrtRlwe<T>`].
+    #[inline]
+    pub fn mul_dcrt_polynomial_inplace<M, Table>(
+        &self,
+        dcrt_polynomial: &DcrtPolynomial<T>,
+        result: &mut DcrtRlwe<T>,
+        moduli: &[M],
+        table: &Table,
+    ) where
+        M: FieldContext<T>,
+        Table: DcrtTable<ValueT = T> + Dcrt,
+    {
+        let (a, b) = result.a_b_mut();
+
+        a.copy_from(self.a());
+        b.copy_from(self.b());
+
+        table.transform_slice(a.as_mut_slice());
+        table.transform_slice(b.as_mut_slice());
+
+        a.mul_assign(dcrt_polynomial, moduli);
+        b.mul_assign(dcrt_polynomial, moduli);
+    }
 }

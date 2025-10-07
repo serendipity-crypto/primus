@@ -46,6 +46,18 @@ impl<T> DcrtPolynomial<T> {
     pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, NttPolynomial<T>> {
         self.polys.iter_mut()
     }
+
+    /// .
+    #[inline]
+    pub const fn as_slice(&self) -> &[NttPolynomial<T>] {
+        self.polys.as_slice()
+    }
+
+    /// .
+    #[inline]
+    pub const fn as_mut_slice(&mut self) -> &mut [NttPolynomial<T>] {
+        self.polys.as_mut_slice()
+    }
 }
 
 impl<T> DcrtPolynomial<T>
@@ -72,5 +84,16 @@ where
     #[inline]
     pub fn set_zero(&mut self) {
         self.polys.iter_mut().for_each(NttPolynomial::set_zero);
+    }
+}
+
+impl<T: Copy> DcrtPolynomial<T> {
+    /// Copy the coefficients from another slice.
+    #[inline]
+    pub fn copy_from<I: AsRef<[T]>>(&mut self, src: impl IntoIterator<Item = I>) {
+        self.polys
+            .iter_mut()
+            .zip(src)
+            .for_each(|(a, b)| a.copy_from(b.as_ref()));
     }
 }

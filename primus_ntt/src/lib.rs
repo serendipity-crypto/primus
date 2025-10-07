@@ -1,11 +1,11 @@
 mod error;
 
-mod crt_ntt;
+mod dcrt;
 mod ntt;
 mod reverse;
 mod root;
 
-pub use crt_ntt::*;
+pub use dcrt::*;
 pub use error::NttError;
 pub use ntt::*;
 
