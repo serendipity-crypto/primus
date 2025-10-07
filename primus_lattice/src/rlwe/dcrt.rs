@@ -23,6 +23,22 @@ impl<T: UnsignedInteger> DcrtRlwe<T> {
         Self { a, b }
     }
 
+    /// Creates a [`DcrtRlwe<T>`] with all entries equal to zero.
+    #[inline]
+    pub fn zero(moduli_count: usize, poly_length: usize) -> Self {
+        Self {
+            a: DcrtPolynomial::zero(moduli_count, poly_length),
+            b: DcrtPolynomial::zero(moduli_count, poly_length),
+        }
+    }
+
+    /// Set all entries equal to zero.
+    #[inline]
+    pub fn set_zero(&mut self) {
+        self.a.set_zero();
+        self.b.set_zero();
+    }
+
     pub fn a(&self) -> &DcrtPolynomial<T> {
         &self.a
     }

@@ -24,6 +24,22 @@ impl<T: UnsignedInteger> CrtRlwe<T> {
         Self { a, b }
     }
 
+    /// Creates a [`CrtRlwe<T>`] with all entries equal to zero.
+    #[inline]
+    pub fn zero(moduli_count: usize, poly_length: usize) -> Self {
+        Self {
+            a: CrtPolynomial::zero(moduli_count, poly_length),
+            b: CrtPolynomial::zero(moduli_count, poly_length),
+        }
+    }
+
+    /// Set all entries equal to zero.
+    #[inline]
+    pub fn set_zero(&mut self) {
+        self.a.set_zero();
+        self.b.set_zero();
+    }
+
     pub fn a(&self) -> &CrtPolynomial<T> {
         &self.a
     }
