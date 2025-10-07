@@ -54,20 +54,16 @@ pub mod prime32 {
     }
 
     impl Ntt for Concrete32Table {
-        type CoeffPoly = Polynomial<u32>;
-
-        type NttPoly = NttPolynomial<u32>;
-
         #[inline]
-        fn transform_inplace(&self, mut poly: Self::CoeffPoly) -> Self::NttPoly {
+        fn transform_inplace(&self, mut poly: Polynomial<u32>) -> NttPolynomial<u32> {
             self.transform_slice(poly.as_mut_slice());
-            Self::NttPoly::new(poly.into_vec())
+            NttPolynomial::new(poly.into_vec())
         }
 
         #[inline]
-        fn inverse_transform_inplace(&self, mut values: Self::NttPoly) -> Self::CoeffPoly {
+        fn inverse_transform_inplace(&self, mut values: NttPolynomial<u32>) -> Polynomial<u32> {
             self.inverse_transform_slice(values.as_mut_slice());
-            Self::CoeffPoly::new(values.into_vec())
+            Polynomial::new(values.into_vec())
         }
 
         #[inline]
@@ -174,20 +170,16 @@ pub mod prime64 {
     }
 
     impl Ntt for Concrete64Table {
-        type CoeffPoly = Polynomial<u64>;
-
-        type NttPoly = NttPolynomial<u64>;
-
         #[inline]
-        fn transform_inplace(&self, mut poly: Self::CoeffPoly) -> Self::NttPoly {
+        fn transform_inplace(&self, mut poly: Polynomial<u64>) -> NttPolynomial<u64> {
             self.transform_slice(poly.as_mut_slice());
-            Self::NttPoly::new(poly.into_vec())
+            NttPolynomial::new(poly.into_vec())
         }
 
         #[inline]
-        fn inverse_transform_inplace(&self, mut values: Self::NttPoly) -> Self::CoeffPoly {
+        fn inverse_transform_inplace(&self, mut values: NttPolynomial<u64>) -> Polynomial<u64> {
             self.inverse_transform_slice(values.as_mut_slice());
-            Self::CoeffPoly::new(values.into_vec())
+            Polynomial::new(values.into_vec())
         }
 
         #[inline]

@@ -2,7 +2,7 @@ use primus_poly::crt::CrtPolynomial;
 use primus_poly::dcrt::DcrtPolynomial;
 use primus_reduce::FieldContext;
 
-use crate::{NttError, NttTable, PrimitiveRoot};
+use crate::{Ntt, NttError, NttTable, PrimitiveRoot};
 
 #[cfg(feature = "concrete-ntt")]
 mod concrete;
@@ -18,7 +18,7 @@ pub trait DcrtTable: Sized {
     /// The value type.
     type ValueT: PrimitiveRoot;
 
-    type NttTables: NttTable<ValueT = Self::ValueT>;
+    type NttTables: NttTable<ValueT = Self::ValueT> + Ntt;
 
     /// Creates a new [`DcrtTable`].
     fn new<M>(log_n: u32, moduli: &[M]) -> Result<Self, NttError<Self::ValueT>>

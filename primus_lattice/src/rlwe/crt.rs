@@ -1,6 +1,6 @@
 use primus_integer::UnsignedInteger;
-use primus_ntt::{Dcrt, DcrtTable, Ntt};
-use primus_poly::{NttPolynomial, Polynomial, crt::CrtPolynomial, dcrt::DcrtPolynomial};
+use primus_ntt::{Dcrt, DcrtTable};
+use primus_poly::{crt::CrtPolynomial, dcrt::DcrtPolynomial};
 use primus_reduce::FieldContext;
 use serde::{Deserialize, Serialize};
 
@@ -64,7 +64,6 @@ impl<T: UnsignedInteger> CrtRlwe<T> {
     pub fn to_ntt_form_inplace<Table>(&self, table: &Table, result: &mut DcrtRlwe<T>)
     where
         Table: DcrtTable<ValueT = T> + Dcrt,
-        Table::NttTables: Ntt<CoeffPoly = Polynomial<T>, NttPoly = NttPolynomial<T>>,
     {
         let (a, b) = result.a_b_mut();
 

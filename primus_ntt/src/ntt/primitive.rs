@@ -191,20 +191,16 @@ impl<T: UnsignedInteger> NttTable for UintNttTable<T> {
 }
 
 impl<T: UnsignedInteger> Ntt for UintNttTable<T> {
-    type CoeffPoly = Polynomial<T>;
-
-    type NttPoly = NttPolynomial<T>;
-
     #[inline]
-    fn transform_inplace(&self, mut poly: Self::CoeffPoly) -> Self::NttPoly {
+    fn transform_inplace(&self, mut poly: Polynomial<T>) -> NttPolynomial<T> {
         self.transform_slice(poly.as_mut_slice());
-        Self::NttPoly::new(poly.into_vec())
+        NttPolynomial::new(poly.into_vec())
     }
 
     #[inline]
-    fn inverse_transform_inplace(&self, mut values: Self::NttPoly) -> Self::CoeffPoly {
+    fn inverse_transform_inplace(&self, mut values: NttPolynomial<T>) -> Polynomial<T> {
         self.inverse_transform_slice(values.as_mut_slice());
-        Self::CoeffPoly::new(values.into_vec())
+        Polynomial::new(values.into_vec())
     }
 
     #[inline]

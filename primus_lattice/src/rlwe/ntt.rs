@@ -176,7 +176,7 @@ impl<T: UnsignedInteger> NttRlwe<T> {
     #[inline]
     pub fn into_coeff_form<Table>(self, ntt_table: &Table) -> Rlwe<T>
     where
-        Table: NttTable<ValueT = T> + Ntt<CoeffPoly = Polynomial<T>, NttPoly = NttPolynomial<T>>,
+        Table: NttTable<ValueT = T> + Ntt,
     {
         let Self { a, b } = self;
 
@@ -190,7 +190,7 @@ impl<T: UnsignedInteger> NttRlwe<T> {
     #[inline]
     pub fn inverse_transform_inplace<Table>(&self, ntt_table: &Table, result: &mut Rlwe<T>)
     where
-        Table: NttTable<ValueT = T> + Ntt<CoeffPoly = Polynomial<T>, NttPoly = NttPolynomial<T>>,
+        Table: NttTable<ValueT = T> + Ntt,
     {
         let (a, b) = result.a_b_mut_slices();
 
@@ -362,7 +362,7 @@ impl<T: UnsignedInteger> NttRlwe<T> {
     ) -> Self
     where
         M: FieldContext<T>,
-        Table: NttTable<ValueT = T> + Ntt<CoeffPoly = Polynomial<T>, NttPoly = NttPolynomial<T>>,
+        Table: NttTable<ValueT = T> + Ntt,
         R: Rng + CryptoRng,
     {
         let rlwe_dimension = secret_key.poly_length();
@@ -386,7 +386,7 @@ impl<T: UnsignedInteger> NttRlwe<T> {
     ) -> Self
     where
         M: FieldContext<T>,
-        Table: NttTable<ValueT = T> + Ntt<CoeffPoly = Polynomial<T>, NttPoly = NttPolynomial<T>>,
+        Table: NttTable<ValueT = T> + Ntt,
         R: Rng + CryptoRng,
     {
         let rlwe_dimension = secret_key.poly_length();

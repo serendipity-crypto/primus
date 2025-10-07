@@ -1,3 +1,4 @@
+use primus_poly::{NttPolynomial, Polynomial};
 use primus_reduce::FieldContext;
 
 use crate::{NttError, root::PrimitiveRoot};
@@ -28,11 +29,6 @@ pub trait NttTable: Sized {
 
 /// An abstract for Number Theory Transform.
 pub trait Ntt: NttTable {
-    /// Polynomial type with coefficients.
-    type CoeffPoly: Clone;
-    /// Ntt Polynomial type.
-    type NttPoly: Clone;
-
     /// Perform a fast number theory transform.
     ///
     /// This function transforms a polynomial to a ntt polynomial.
@@ -41,7 +37,7 @@ pub trait Ntt: NttTable {
     ///
     /// * `poly` - inputs in normal order, outputs in bit-reversed order
     #[inline]
-    fn transform(&self, poly: &Self::CoeffPoly) -> Self::NttPoly {
+    fn transform(&self, poly: &Polynomial<Self::ValueT>) -> NttPolynomial<Self::ValueT> {
         self.transform_inplace(poly.clone())
     }
 
@@ -52,7 +48,7 @@ pub trait Ntt: NttTable {
     /// # Arguments
     ///
     /// * `poly` - inputs in normal order, outputs in bit-reversed order
-    fn transform_inplace(&self, poly: Self::CoeffPoly) -> Self::NttPoly;
+    fn transform_inplace(&self, poly: Polynomial<Self::ValueT>) -> NttPolynomial<Self::ValueT>;
 
     /// Perform a fast inverse number theory transform.
     ///
@@ -62,7 +58,7 @@ pub trait Ntt: NttTable {
     ///
     /// * `values` - inputs in bit-reversed order, outputs in normal order
     #[inline]
-    fn inverse_transform(&self, values: &Self::NttPoly) -> Self::CoeffPoly {
+    fn inverse_transform(&self, values: &NttPolynomial<Self::ValueT>) -> Polynomial<Self::ValueT> {
         self.inverse_transform_inplace(values.clone())
     }
 
@@ -73,7 +69,10 @@ pub trait Ntt: NttTable {
     /// # Arguments
     ///
     /// * `values` - inputs in bit-reversed order, outputs in normal order
-    fn inverse_transform_inplace(&self, values: Self::NttPoly) -> Self::CoeffPoly;
+    fn inverse_transform_inplace(
+        &self,
+        values: NttPolynomial<Self::ValueT>,
+    ) -> Polynomial<Self::ValueT>;
 
     /// Perform a fast number theory transform in place.
     ///

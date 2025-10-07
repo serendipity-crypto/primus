@@ -1,6 +1,6 @@
 use primus_integer::UnsignedInteger;
 use primus_ntt::{Ntt, NttTable};
-use primus_poly::{NttPolynomial, Polynomial};
+use primus_poly::Polynomial;
 use primus_utils::ByteCount;
 use serde::{Deserialize, Serialize};
 
@@ -177,7 +177,7 @@ impl<T: UnsignedInteger> Glwe<T> {
     #[inline]
     pub fn into_ntt_form<Table>(self, ntt_table: &Table) -> NttGlwe<T>
     where
-        Table: NttTable<ValueT = T> + Ntt<CoeffPoly = Polynomial<T>, NttPoly = NttPolynomial<T>>,
+        Table: NttTable<ValueT = T> + Ntt,
     {
         let Self { a, b } = self;
 
@@ -194,7 +194,7 @@ impl<T: UnsignedInteger> Glwe<T> {
     #[inline]
     pub fn transform_inplace<Table>(&self, ntt_table: &Table, result: &mut NttGlwe<T>)
     where
-        Table: NttTable<ValueT = T> + Ntt<CoeffPoly = Polynomial<T>, NttPoly = NttPolynomial<T>>,
+        Table: NttTable<ValueT = T> + Ntt,
     {
         let (a, b) = result.a_b_mut();
 
