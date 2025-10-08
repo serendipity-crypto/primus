@@ -51,13 +51,13 @@ impl<T: UnsignedInteger> DiscreteGaussian<T> {
             #[cfg(not(target_os = "linux"))]
             Ok(DiscreteGaussian::Cdt(super::CDTSampler::new(
                 std_dev,
-                6.0,
+                12.0,
                 modulus_minus_one,
             )))
         } else {
             Ok(DiscreteGaussian::Ziggurat(super::DiscreteZiggurat::new(
                 std_dev,
-                6.0,
+                12.0,
                 modulus_minus_one,
             )))
         }

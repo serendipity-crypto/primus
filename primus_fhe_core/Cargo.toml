@@ -1,0 +1,17 @@
+[package]
+name = "primus_fhe_core"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+primus_utils = { path = "../primus_utils" }
+primus_integer = { path = "../primus_integer" }
+primus_reduce = { path = "../primus_reduce" }
+primus_modulo = { path = "../primus_modulo" }
+primus_distr = { path = "../primus_distr" }
+primus_poly = { path = "../primus_poly" }
+primus_ntt = { path = "../primus_ntt" }
+primus_rns = { path = "../primus_rns" }
+primus_decompose = { path = "../primus_decompose" }
+
+thiserror = { workspace = true }
