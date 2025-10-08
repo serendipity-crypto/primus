@@ -2,6 +2,7 @@ use std::iter::once;
 
 use primus_integer::UnsignedInteger;
 use primus_poly::Polynomial;
+use primus_utils::ByteCount;
 use serde::{Deserialize, Serialize};
 
 use crate::{Glev, Glwe};
@@ -56,7 +57,7 @@ impl<T: UnsignedInteger> Ggsw<T> {
         Self { a, b: Glev::new(b) }
     }
 
-    /// Creates a new [`NttRgsw<F>`] from bytes `data`.
+    /// Creates a new [`Ggsw<T>`] from bytes `data`.
     #[inline]
     pub fn from_bytes_assign(
         &mut self,
@@ -85,6 +86,68 @@ impl<T: UnsignedInteger> Ggsw<T> {
                             .zip(a.chunks_exact(poly_length))
                             .for_each(|(p, c)| p.copy_from(c));
                         glwe.b.copy_from(b);
+                    })
+            });
+    }
+
+    /// Converts [`Ggsw<T>`] into bytes.
+    #[inline]
+    pub fn into_bytes(
+        &self,
+        decompose_length: usize,
+        dimension: usize,
+        poly_length: usize,
+    ) -> Vec<u8> {
+        let size = (dimension + 1)
+            * decompose_length
+            * (dimension + 1)
+            * poly_length
+            * <T as ByteCount>::BYTES_COUNT;
+        let mut result: Vec<u8> = Vec::with_capacity(size);
+
+        self.a.iter().chain(once(&self.b)).for_each(|glev| {
+            glev.iter().for_each(|glwe| {
+                glwe.a.iter().for_each(|p| {
+                    result.extend_from_slice(bytemuck::cast_slice(p.as_slice()));
+                });
+                result.extend_from_slice(bytemuck::cast_slice(glwe.b_slice()));
+            })
+        });
+
+        result
+    }
+
+    /// Converts [`Ggsw<T>`] into bytes, stored in `data`.
+    #[inline]
+    pub fn into_bytes_inplace(
+        &self,
+        data: &mut [u8],
+        decompose_length: usize,
+        dimension: usize,
+        poly_length: usize,
+    ) {
+        let poly_bytes_count = poly_length * <T as ByteCount>::BYTES_COUNT;
+        let glwe_a_bytes_count = dimension * poly_bytes_count;
+        let glwe_bytes_count = glwe_a_bytes_count + poly_bytes_count;
+        let glev_bytes_count = decompose_length * glwe_bytes_count;
+
+        self.a
+            .iter()
+            .chain(once(&self.b))
+            .zip(data.chunks_exact_mut(glev_bytes_count))
+            .for_each(|(glev, chunk): (&Glev<T>, &mut [u8])| {
+                glev.iter()
+                    .zip(chunk.chunks_exact_mut(glwe_bytes_count))
+                    .for_each(|(glwe, glwe_chunk)| {
+                        let (a, b) =
+                            unsafe { glwe_chunk.split_at_mut_unchecked(glwe_a_bytes_count) };
+                        glwe.a
+                            .iter()
+                            .zip(a.chunks_exact_mut(poly_bytes_count))
+                            .for_each(|(ai, ai_chunk)| {
+                                ai_chunk.copy_from_slice(bytemuck::cast_slice(ai.as_slice()));
+                            });
+                        b.copy_from_slice(bytemuck::cast_slice(glwe.b_slice()));
                     })
             });
     }

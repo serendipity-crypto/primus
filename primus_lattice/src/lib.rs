@@ -17,5 +17,5 @@ pub use rlwe::{CrtRlwe, DcrtRlwe, NttRlwe, Rlwe};
 pub use glev::{CrtGlev, DcrtGlev, Glev, NttGlev};
 pub use rlev::{CrtRlev, DcrtRlev, NttRlev, Rlev};
 
-pub use ggsw::Ggsw;
-pub use rgsw::{NttRgsw, Rgsw};
+pub use ggsw::{CrtGgsw, DcrtGgsw, Ggsw, NttGgsw};
+pub use rgsw::{CrtRgsw, DcrtRgsw, NttRgsw, Rgsw};

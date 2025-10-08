@@ -158,6 +158,18 @@ impl<T: UnsignedInteger> NttGlwe<T> {
     pub fn a_b_mut(&mut self) -> (&mut [NttPolynomial<T>], &mut NttPolynomial<T>) {
         (&mut self.a, &mut self.b)
     }
+
+    /// Extracts a slice of `b` of this [`NttGlwe<T>`].
+    #[inline]
+    pub fn b_slice(&self) -> &[T] {
+        self.b.as_slice()
+    }
+
+    /// Extracts a mutable slice of `b` of this [`NttGlwe<T>`].
+    #[inline]
+    pub fn b_mut_slice(&mut self) -> &mut [T] {
+        self.b.as_mut_slice()
+    }
 }
 
 impl<T: UnsignedInteger> NttGlwe<T> {

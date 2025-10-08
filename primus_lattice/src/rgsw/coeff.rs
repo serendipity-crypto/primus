@@ -14,11 +14,8 @@ use crate::{Rlev, Rlwe};
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(bound = "T: UnsignedInteger")]
 pub struct Rgsw<T: UnsignedInteger> {
-    /// The first part of the RGSW ciphertext, which is often used for homomorphic operations
-    /// and can represent the encrypted data multiplied by some secret value.
-    minus_s_m: Rlev<T>,
-    /// The second part of the RGSW ciphertext, typically representing the encrypted data.
-    m: Rlev<T>,
+    a: Rlev<T>,
+    b: Rlev<T>,
 }
 
 impl<T: UnsignedInteger> Rgsw<T> {
@@ -52,19 +49,19 @@ impl<T: UnsignedInteger> Rgsw<T> {
             .collect();
 
         Self {
-            minus_s_m: Rlev::new(minus_s_m),
-            m: Rlev::new(m),
+            a: Rlev::new(minus_s_m),
+            b: Rlev::new(m),
         }
     }
 
-    /// Creates a new [`Rgsw<F>`] from bytes `data`.
+    /// Creates a new [`Rgsw<T>`] from bytes `data`.
     #[inline]
     pub fn from_bytes_assign(&mut self, data: &[u8], poly_length: usize) {
         let converted_data: &[T] = bytemuck::cast_slice(data);
 
-        self.minus_s_m
+        self.a
             .iter_mut()
-            .chain(self.m.iter_mut())
+            .chain(self.b.iter_mut())
             .zip(converted_data.chunks_exact(poly_length << 1))
             .for_each(|(rlwe, chunk): (&mut Rlwe<T>, &[T])| {
                 let (a, b) = unsafe { chunk.split_at_unchecked(poly_length) };
@@ -73,15 +70,15 @@ impl<T: UnsignedInteger> Rgsw<T> {
             });
     }
 
-    /// Converts [`Rgsw<F>`] into bytes.
+    /// Converts [`Rgsw<T>`] into bytes.
     #[inline]
     pub fn into_bytes(&self, poly_length: usize) -> Vec<u8> {
-        let size = (self.m.data().len() << 2) * poly_length * <T as ByteCount>::BYTES_COUNT;
+        let size = (self.b.data().len() << 2) * poly_length * <T as ByteCount>::BYTES_COUNT;
         let mut result: Vec<u8> = Vec::with_capacity(size);
 
-        self.minus_s_m
+        self.a
             .iter()
-            .chain(self.m.iter())
+            .chain(self.b.iter())
             .for_each(|rlwe: &Rlwe<T>| {
                 result.extend_from_slice(bytemuck::cast_slice(rlwe.a_slice()));
                 result.extend_from_slice(bytemuck::cast_slice(rlwe.b_slice()));
@@ -90,13 +87,13 @@ impl<T: UnsignedInteger> Rgsw<T> {
         result
     }
 
-    /// Converts [`Rgsw<F>`] into bytes, stored in `data``.
+    /// Converts [`Rgsw<T>`] into bytes, stored in `data``.
     #[inline]
     pub fn into_bytes_inplace(&self, data: &mut [u8], poly_length: usize) {
         let poly_bytes_count = poly_length * <T as ByteCount>::BYTES_COUNT;
 
         data.chunks_exact_mut(poly_bytes_count << 1)
-            .zip(self.minus_s_m.iter().chain(self.m.iter()))
+            .zip(self.a.iter().chain(self.b.iter()))
             .for_each(|(chunk, rlwe): (&mut [u8], &Rlwe<T>)| {
                 let (a, b) = unsafe { chunk.split_at_mut_unchecked(poly_bytes_count) };
                 a.copy_from_slice(bytemuck::cast_slice(rlwe.a_slice()));
@@ -114,16 +111,16 @@ impl<T: UnsignedInteger> Rgsw<T> {
 impl<T: UnsignedInteger> Rgsw<T> {
     /// Creates a new [`Rgsw<T>`].
     #[inline]
-    pub fn new(minus_s_m: Rlev<T>, m: Rlev<T>) -> Self {
-        Self { minus_s_m, m }
+    pub fn new(a: Rlev<T>, b: Rlev<T>) -> Self {
+        Self { a, b }
     }
 
     /// Creates a new [`Rgsw<T>`] with reference.
     #[inline]
-    pub fn from_ref(minus_s_m: &Rlev<T>, m: &Rlev<T>) -> Self {
+    pub fn from_ref(a: &Rlev<T>, b: &Rlev<T>) -> Self {
         Self {
-            minus_s_m: minus_s_m.clone(),
-            m: m.clone(),
+            a: a.clone(),
+            b: b.clone(),
         }
     }
 
@@ -131,39 +128,39 @@ impl<T: UnsignedInteger> Rgsw<T> {
     #[inline]
     pub fn zero(decompose_length: usize, poly_length: usize) -> Self {
         Self {
-            minus_s_m: Rlev::zero(decompose_length, poly_length),
-            m: Rlev::zero(decompose_length, poly_length),
+            a: Rlev::zero(decompose_length, poly_length),
+            b: Rlev::zero(decompose_length, poly_length),
         }
     }
 
     /// Set all entries equal to zero.
     #[inline]
     pub fn set_zero(&mut self) {
-        self.minus_s_m.set_zero();
-        self.m.set_zero();
+        self.a.set_zero();
+        self.b.set_zero();
     }
 
-    /// Returns a reference to the `-s*m` of this [`Rgsw<F>`].
+    /// Returns a reference to the `-s*m` of this [`Rgsw<T>`].
     #[inline]
-    pub fn minus_s_m(&self) -> &Rlev<T> {
-        &self.minus_s_m
+    pub fn a(&self) -> &Rlev<T> {
+        &self.a
     }
 
-    /// Returns a mutable reference to the `-s*m` of this [`Rgsw<F>`].
+    /// Returns a mutable reference to the `-s*m` of this [`Rgsw<T>`].
     #[inline]
-    pub fn minus_s_m_mut(&mut self) -> &mut Rlev<T> {
-        &mut self.minus_s_m
+    pub fn a_mut(&mut self) -> &mut Rlev<T> {
+        &mut self.a
     }
 
-    /// Returns a reference to the `m` of this [`Rgsw<F>`].
+    /// Returns a reference to the `m` of this [`Rgsw<T>`].
     #[inline]
-    pub fn m(&self) -> &Rlev<T> {
-        &self.m
+    pub fn b(&self) -> &Rlev<T> {
+        &self.b
     }
 
-    /// Returns a mutable reference to the `m` of this [`Rgsw<F>`].
+    /// Returns a mutable reference to the `m` of this [`Rgsw<T>`].
     #[inline]
-    pub fn m_mut(&mut self) -> &mut Rlev<T> {
-        &mut self.m
+    pub fn b_mut(&mut self) -> &mut Rlev<T> {
+        &mut self.b
     }
 }
