@@ -19,7 +19,7 @@ impl<T: Copy> Polynomial<T> {
     where
         M: Copy + ReduceNegAssign<T>,
     {
-        self.poly
+        self.data
             .iter_mut()
             .for_each(|v| modulus.reduce_neg_assign(v));
     }

@@ -9,7 +9,7 @@ mod discrete_gaussian;
 
 pub use error::DistrErr;
 
-pub use common::{sample_binary_values, sample_ternary_values};
+pub use common::*;
 
 pub use binary::BinaryDistr;
 pub use ternary::TernaryDistr;

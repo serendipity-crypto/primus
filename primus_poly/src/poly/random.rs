@@ -14,7 +14,7 @@ impl<T: UnsignedInteger> Polynomial<T> {
         R: Rng + CryptoRng,
     {
         Self {
-            poly: modulus
+            data: modulus
                 .uniform_distribution()
                 .sample_iter(rng)
                 .take(n)

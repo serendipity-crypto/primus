@@ -3,35 +3,81 @@ use core::{
     slice::SliceIndex,
 };
 
-use super::Polynomial;
-
-impl<T, I: SliceIndex<[T]>> IndexMut<I> for Polynomial<T> {
-    #[inline]
-    fn index_mut(&mut self, index: I) -> &mut Self::Output {
-        IndexMut::index_mut(&mut *self.poly, index)
-    }
-}
+use super::{Polynomial, PolynomialRef, PolynomialRefMut};
 
 impl<T, I: SliceIndex<[T]>> Index<I> for Polynomial<T> {
     type Output = I::Output;
 
     #[inline]
     fn index(&self, index: I) -> &Self::Output {
-        Index::index(&*self.poly, index)
+        Index::index(&*self.data, index)
+    }
+}
+
+impl<'p, T, I: SliceIndex<[T]>> Index<I> for PolynomialRef<'p, T> {
+    type Output = I::Output;
+
+    #[inline]
+    fn index(&self, index: I) -> &Self::Output {
+        Index::index(self.data, index)
+    }
+}
+
+impl<'p, T, I: SliceIndex<[T]>> Index<I> for PolynomialRefMut<'p, T> {
+    type Output = I::Output;
+
+    #[inline]
+    fn index(&self, index: I) -> &Self::Output {
+        Index::index(self.data, index)
+    }
+}
+
+impl<T, I: SliceIndex<[T]>> IndexMut<I> for Polynomial<T> {
+    #[inline]
+    fn index_mut(&mut self, index: I) -> &mut Self::Output {
+        IndexMut::index_mut(&mut *self.data, index)
+    }
+}
+
+impl<'p, T, I: SliceIndex<[T]>> IndexMut<I> for PolynomialRefMut<'p, T> {
+    #[inline]
+    fn index_mut(&mut self, index: I) -> &mut Self::Output {
+        IndexMut::index_mut(self.data, index)
     }
 }
 
 impl<T> AsRef<[T]> for Polynomial<T> {
     #[inline]
     fn as_ref(&self) -> &[T] {
-        self.poly.as_ref()
+        self.data.as_ref()
+    }
+}
+
+impl<'p, T> AsRef<[T]> for PolynomialRef<'p, T> {
+    #[inline]
+    fn as_ref(&self) -> &[T] {
+        self.data
+    }
+}
+
+impl<'p, T> AsRef<[T]> for PolynomialRefMut<'p, T> {
+    #[inline]
+    fn as_ref(&self) -> &[T] {
+        self.data
     }
 }
 
 impl<T> AsMut<[T]> for Polynomial<T> {
     #[inline]
     fn as_mut(&mut self) -> &mut [T] {
-        self.poly.as_mut()
+        self.data.as_mut()
+    }
+}
+
+impl<'p, T> AsMut<[T]> for PolynomialRefMut<'p, T> {
+    #[inline]
+    fn as_mut(&mut self) -> &mut [T] {
+        self.data
     }
 }
 
@@ -42,7 +88,7 @@ impl<T> IntoIterator for Polynomial<T> {
 
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
-        self.poly.into_iter()
+        self.data.into_iter()
     }
 }
 
@@ -53,7 +99,7 @@ impl<'a, T> IntoIterator for &'a Polynomial<T> {
 
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
-        self.poly.iter()
+        self.data.iter()
     }
 }
 
@@ -64,6 +110,26 @@ impl<'a, T> IntoIterator for &'a mut Polynomial<T> {
 
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
-        self.poly.iter_mut()
+        self.data.iter_mut()
+    }
+}
+
+impl<'p, T> IntoIterator for PolynomialRef<'p, T> {
+    type Item = &'p T;
+
+    type IntoIter = core::slice::Iter<'p, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.data.iter()
+    }
+}
+
+impl<'p, T> IntoIterator for PolynomialRefMut<'p, T> {
+    type Item = &'p mut T;
+
+    type IntoIter = core::slice::IterMut<'p, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.data.iter_mut()
     }
 }
