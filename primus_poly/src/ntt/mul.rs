@@ -1,8 +1,7 @@
 use primus_factor::{FactorMul, ShoupFactor};
-use primus_integer::UnsignedInteger;
+use primus_integer::{UnsignedInteger, izip};
 use primus_modulus::UintModulus;
 use primus_reduce::ops::*;
-use primus_utils::izip;
 
 use super::NttPolynomial;
 

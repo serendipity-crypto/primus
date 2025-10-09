@@ -1,7 +1,6 @@
 use std::iter::FusedIterator;
 
-use primus_integer::{BigIntegerOps, UnsignedInteger};
-use primus_utils::izip;
+use primus_integer::{BigIntegerOps, UnsignedInteger, izip};
 use serde::{Deserialize, Serialize};
 
 /// An iterator over scalars.

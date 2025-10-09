@@ -1,8 +1,7 @@
 use std::iter::once;
 
-use primus_integer::UnsignedInteger;
+use primus_integer::{ByteCount, UnsignedInteger};
 use primus_poly::NttPolynomial;
-use primus_utils::ByteCount;
 use serde::{Deserialize, Serialize};
 
 use crate::{NttGlev, NttGlwe};

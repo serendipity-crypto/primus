@@ -6,12 +6,11 @@ use std::{
 use itertools::Itertools;
 use primus_factor::{FactorMul, ShoupFactor};
 use primus_integer::{
-    BigIntegerOps, UnsignedInteger, multiply_many_values, multiply_many_values_except_inplace,
+    BigIntegerOps, UnsignedInteger, izip, multiply_many_values, multiply_many_values_except_inplace,
 };
 use primus_modulo::ops::*;
 use primus_poly::{BigUintPolynomial, crt::CrtPolynomial};
 use primus_reduce::FieldContext;
-use primus_utils::izip;
 
 use crate::RNSError;
 

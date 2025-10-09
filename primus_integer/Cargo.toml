@@ -5,7 +5,6 @@ edition = "2024"
 
 [dependencies]
 primus_gcd = { path = "../primus_gcd" }
-primus_utils = { path = "../primus_utils" }
 
 num-traits = { workspace = true }
 rand = { workspace = true }

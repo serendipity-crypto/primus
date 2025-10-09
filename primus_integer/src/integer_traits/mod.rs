@@ -1,5 +1,6 @@
 mod bits;
 mod bounded;
+mod bytes;
 mod two;
 
 mod cast;
@@ -13,6 +14,7 @@ mod widening;
 
 pub use bits::Bits;
 pub use bounded::ConstBounded;
+pub use bytes::ByteCount;
 pub use two::ConstTwo;
 
 pub use cast::*;

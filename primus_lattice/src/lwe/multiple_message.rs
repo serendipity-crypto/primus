@@ -1,7 +1,6 @@
 use bytemuck::Pod;
-use primus_integer::UnsignedInteger;
+use primus_integer::{ByteCount, UnsignedInteger, size::Size};
 use primus_reduce::ops::*;
-use primus_utils::{ByteCount, Size};
 use serde::{Deserialize, Serialize};
 
 use super::Lwe;
@@ -352,9 +351,9 @@ impl<T: UnsignedInteger> MultiMsgLwe<T> {
     }
 }
 
-impl<T: Copy> Size for MultiMsgLwe<T> {
+impl<T: Copy + ByteCount> Size for MultiMsgLwe<T> {
     #[inline]
-    fn size(&self) -> usize {
-        (self.a.len() + self.b.len()) * core::mem::size_of::<T>()
+    fn byte_count(&self) -> usize {
+        (self.a.len() + self.b.len()) * <T as ByteCount>::BYTES_COUNT
     }
 }

@@ -1,9 +1,8 @@
 use bytemuck::Pod;
 use primus_distr::DiscreteGaussian;
-use primus_integer::{ByteCount, UnsignedInteger};
+use primus_integer::{ByteCount, UnsignedInteger, size::Size};
 use primus_modulo::ops::*;
 use primus_reduce::{Modulus, ops::*};
-use primus_utils::Size;
 use rand::distr::{Distribution, Uniform};
 use serde::{Deserialize, Serialize};
 
@@ -327,7 +326,7 @@ impl<T: UnsignedInteger> Lwe<T> {
 
 impl<T: Copy + ByteCount> Size for Lwe<T> {
     #[inline]
-    fn size(&self) -> usize {
+    fn byte_count(&self) -> usize {
         (self.a.len() + 1) * T::BYTES_COUNT
     }
 }

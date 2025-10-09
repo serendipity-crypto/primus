@@ -12,7 +12,6 @@ members = [
     "primus_ntt",
     "primus_rns",
     "primus_lattice",
-    "primus_utils",
     "primus_distr",
     "primus_fhe_core",
 ]

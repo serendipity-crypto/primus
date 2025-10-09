@@ -1,6 +1,5 @@
-use primus_integer::UnsignedInteger;
+use primus_integer::{UnsignedInteger, izip};
 use primus_reduce::ops::{ReduceMul, ReduceMulAdd, ReduceMulAssign};
-use primus_utils::izip;
 
 use crate::NttPolynomial;
 

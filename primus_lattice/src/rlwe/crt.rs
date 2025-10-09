@@ -1,8 +1,7 @@
-use primus_integer::UnsignedInteger;
+use primus_integer::{UnsignedInteger, size::Size};
 use primus_ntt::{Dcrt, DcrtTable};
 use primus_poly::{crt::CrtPolynomial, dcrt::DcrtPolynomial};
 use primus_reduce::FieldContext;
-use primus_utils::Size;
 use serde::{Deserialize, Serialize};
 
 use crate::DcrtRlwe;
@@ -189,7 +188,7 @@ impl<T: UnsignedInteger> CrtRlwe<T> {
 
 impl<T: UnsignedInteger> Size for CrtRlwe<T> {
     #[inline]
-    fn size(&self) -> usize {
-        self.a.size() * 2
+    fn byte_count(&self) -> usize {
+        self.a.byte_count() * 2
     }
 }

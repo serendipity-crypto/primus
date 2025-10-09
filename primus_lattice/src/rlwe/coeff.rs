@@ -1,12 +1,11 @@
 use primus_distr::DiscreteGaussian;
-use primus_integer::UnsignedInteger;
+use primus_integer::{ByteCount, UnsignedInteger, size::Size};
 use primus_ntt::{Ntt, NttTable};
 use primus_poly::{NttPolynomial, Polynomial};
 use primus_reduce::{
     FieldContext,
     ops::{ReduceNeg, ReduceNegAssign},
 };
-use primus_utils::{ByteCount, Size};
 use rand::{CryptoRng, Rng};
 use serde::{Deserialize, Serialize};
 
@@ -406,7 +405,7 @@ impl<T: UnsignedInteger> Rlwe<T> {
 
 impl<T: UnsignedInteger> Size for Rlwe<T> {
     #[inline]
-    fn size(&self) -> usize {
-        self.a.size() * 2
+    fn byte_count(&self) -> usize {
+        self.a.byte_count() * 2
     }
 }

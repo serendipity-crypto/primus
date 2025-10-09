@@ -1,7 +1,6 @@
 use num_traits::{ConstZero, Zero};
-use primus_integer::UnsignedInteger;
+use primus_integer::{ByteCount, UnsignedInteger, size::Size};
 use primus_reduce::ops::ReduceMulAdd;
-use primus_utils::{ByteCount, Size};
 use serde::{Deserialize, Serialize};
 
 mod basic;
@@ -178,7 +177,7 @@ where
 
 impl<T: UnsignedInteger> Size for Polynomial<T> {
     #[inline]
-    fn size(&self) -> usize {
+    fn byte_count(&self) -> usize {
         self.poly_length() * <T as ByteCount>::BYTES_COUNT
     }
 }

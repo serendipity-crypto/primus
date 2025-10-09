@@ -1,7 +1,6 @@
 use std::iter::FusedIterator;
 
-use primus_integer::UnsignedInteger;
-use primus_utils::izip;
+use primus_integer::{UnsignedInteger, izip};
 
 /// An iterator over scalars.
 pub struct ScalarIter<T: UnsignedInteger> {

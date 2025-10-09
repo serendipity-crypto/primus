@@ -17,16 +17,3 @@ macro_rules! impl_bytes {
 impl_bytes!(
     i8, u8, i16, u16, i32, u32, i64, u64, i128, u128, isize, usize
 );
-
-/// A trait for the size of a value.
-pub trait Size {
-    /// Returns the size of the pointed-to value in bytes.
-    fn size(&self) -> usize;
-}
-
-impl<T: ByteCount> Size for Vec<T> {
-    #[inline]
-    fn size(&self) -> usize {
-        self.len() * T::BYTES_COUNT
-    }
-}

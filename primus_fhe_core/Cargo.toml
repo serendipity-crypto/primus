@@ -4,7 +4,6 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-primus_utils = { path = "../primus_utils" }
 primus_integer = { path = "../primus_integer" }
 primus_reduce = { path = "../primus_reduce" }
 primus_modulo = { path = "../primus_modulo" }

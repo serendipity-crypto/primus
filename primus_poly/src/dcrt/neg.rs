@@ -1,5 +1,5 @@
+use primus_integer::izip;
 use primus_reduce::ops::{ReduceNeg, ReduceNegAssign};
-use primus_utils::izip;
 
 use super::DcrtPolynomial;
 

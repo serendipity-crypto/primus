@@ -1,6 +1,5 @@
 use num_traits::ConstZero;
-use primus_integer::UnsignedInteger;
-use primus_utils::Size;
+use primus_integer::{UnsignedInteger, size::Size};
 use serde::{Deserialize, Serialize};
 
 use crate::Polynomial;
@@ -90,7 +89,7 @@ impl<T: Copy> CrtPolynomial<T> {
 
 impl<T: UnsignedInteger> Size for CrtPolynomial<T> {
     #[inline]
-    fn size(&self) -> usize {
-        self.polys.len() * self.polys[0].size()
+    fn byte_count(&self) -> usize {
+        self.polys.len() * self.polys[0].byte_count()
     }
 }

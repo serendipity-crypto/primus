@@ -1,12 +1,11 @@
 use std::ops::Deref;
 
 use primus_distr::DiscreteGaussian;
-use primus_integer::UnsignedInteger;
+use primus_integer::{UnsignedInteger, size::Size};
 use primus_lattice::Rlwe;
 use primus_ntt::{Ntt, NttTable};
 use primus_poly::{NttPolynomial, Polynomial};
 use primus_reduce::{FieldContext, RingContext};
-use primus_utils::Size;
 use rand::distr::{Distribution, Uniform};
 
 use crate::{
@@ -51,8 +50,8 @@ impl<T: UnsignedInteger> AsRef<[T]> for LweSecretKey<T> {
 
 impl<T: UnsignedInteger> Size for LweSecretKey<T> {
     #[inline]
-    fn size(&self) -> usize {
-        self.key.size()
+    fn byte_count(&self) -> usize {
+        self.key.byte_count()
     }
 }
 

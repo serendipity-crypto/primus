@@ -1,8 +1,6 @@
 use core::cmp::Ordering;
 
-use primus_utils::izip;
-
-use crate::UnsignedInteger;
+use crate::{UnsignedInteger, izip};
 
 /// A trait for big integer types represented as slices of smaller unsigned integer types.
 pub trait BigInteger: AsRef<[Self::ValueT]> + AsMut<[Self::ValueT]> {
