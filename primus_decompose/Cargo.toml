@@ -12,8 +12,7 @@ num-traits = { workspace = true }
 serde = { workspace = true }
 
 [dev-dependencies]
-primus_powof2_modulus = { path = "../primus_powof2_modulus" }
-primus_barrett_modulus = { path = "../primus_barrett_modulus" }
+primus_modulus = { path = "../primus_modulus" }
 primus_rns = { path = "../primus_rns" }
 
 rand = { workspace = true }

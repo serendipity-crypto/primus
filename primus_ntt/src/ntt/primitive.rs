@@ -1,9 +1,9 @@
 use primus_factor::{FactorMul, LazyFactorMul, ShoupFactor};
 use primus_integer::UnsignedInteger;
 use primus_modulo::{AddModulo, ModuloOnce, ModuloOnceAssign};
+use primus_modulus::UintModulus;
 use primus_poly::{NttPolynomial, Polynomial};
 use primus_reduce::{FieldContext, ops::*};
-use primus_uint_modulus::UintModulus;
 
 use crate::{Ntt, NttError, reverse::ReverseLsbs, root::PrimitiveRoot};
 

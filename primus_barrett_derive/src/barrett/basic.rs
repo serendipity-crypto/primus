@@ -23,7 +23,7 @@ pub(crate) fn basic(
             }
         }
 
-        impl ::primus_barrett_modulus::reduce::Modulus for #name {
+        impl ::primus_modulus::reduce::Modulus for #name {
             type ValueT = #ty;
 
             #[inline(always)]

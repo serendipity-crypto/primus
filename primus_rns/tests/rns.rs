@@ -1,4 +1,4 @@
-use primus_barrett_modulus::BarrettModulus;
+use primus_modulus::BarrettModulus;
 use primus_rns::RNSBase;
 
 type ValueT = u16;

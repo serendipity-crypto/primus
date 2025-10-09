@@ -4,11 +4,8 @@ members = [
     "primus_integer",
     "primus_reduce",
     "primus_modulo",
-    "primus_uint_modulus",
-    "primus_powof2_modulus",
-    "primus_native_modulus",
-    "primus_barrett_modulus",
     "primus_barrett_derive",
+    "primus_modulus",
     "primus_factor",
     "primus_decompose",
     "primus_poly",
@@ -16,7 +13,8 @@ members = [
     "primus_rns",
     "primus_lattice",
     "primus_utils",
-    "primus_distr", "primus_fhe_core",
+    "primus_distr",
+    "primus_fhe_core",
 ]
 resolver = "3"
 

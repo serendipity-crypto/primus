@@ -8,7 +8,7 @@ primus_utils = { path = "../primus_utils" }
 primus_integer = { path = "../primus_integer" }
 primus_reduce = { path = "../primus_reduce" }
 primus_modulo = { path = "../primus_modulo" }
-primus_uint_modulus = { path = "../primus_uint_modulus" }
+primus_modulus = { path = "../primus_modulus" }
 primus_factor = { path = "../primus_factor" }
 primus_distr = { path = "../primus_distr" }
 
