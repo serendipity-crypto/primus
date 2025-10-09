@@ -15,7 +15,7 @@ num-traits = { workspace = true }
 rand = { workspace = true }
 
 [features]
-default = ["nightly", "simd", "derive"]
+default = ["derive"]
 nightly = ["primus_integer/nightly"]
 simd = ["primus_integer/simd"]
 derive = ["dep:primus_barrett_derive"]

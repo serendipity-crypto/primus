@@ -189,7 +189,7 @@ pub(crate) fn impl_reduce_ops(name: &Ident, modulus: &TokenStream, ty: &syn::Typ
             fn reduce_mul_add(self, a: #ty, b: #ty, c: #ty) -> Self::Output {
                 use ::primus_barrett_modulus::reduce::ops::Reduce;
                 use ::primus_barrett_modulus::integer::CarryingMul;
-                self.reduce(a.carrying_mul(b, c))
+                self.reduce(CarryingMul::carrying_mul(a, b, c))
             }
         }
 
@@ -198,7 +198,7 @@ pub(crate) fn impl_reduce_ops(name: &Ident, modulus: &TokenStream, ty: &syn::Typ
             fn reduce_mul_add_assign(self, a: &mut #ty, b: #ty, c: #ty) {
                 use ::primus_barrett_modulus::reduce::ops::Reduce;
                 use ::primus_barrett_modulus::integer::CarryingMul;
-                *a = self.reduce(a.carrying_mul(b, c));
+                *a = self.reduce(CarryingMul::carrying_mul(*a, b, c));
             }
         }
 
@@ -309,11 +309,11 @@ pub(crate) fn impl_reduce_ops(name: &Ident, modulus: &TokenStream, ty: &syn::Typ
                 use ::primus_barrett_modulus::reduce::ops::*;
                 /// `c += a * b`
                 fn multiply_add(c: &mut [#ty; 2], a: #ty, b: #ty) {
-                    use ::primus_barrett_modulus::integer::WideningMul;
+                    use ::primus_barrett_modulus::integer::{CarryingAdd, WideningMul};
                     let (lw, hw) = WideningMul::widening_mul(a, b);
                     let carry;
                     (c[0], carry) = c[0].overflowing_add(lw);
-                    (c[1], _) = c[1].carrying_add(hw, carry);
+                    (c[1], _) = CarryingAdd::carrying_add(c[1], hw, carry);
                 }
 
                 let a = a.as_ref();
@@ -355,11 +355,11 @@ pub(crate) fn impl_reduce_ops(name: &Ident, modulus: &TokenStream, ty: &syn::Typ
                 use ::primus_barrett_modulus::reduce::ops::*;
                 /// `c += a * b`
                 fn multiply_add(c: &mut [#ty; 2], a: #ty, b: #ty) {
-                    use ::primus_barrett_modulus::integer::WideningMul;
+                    use ::primus_barrett_modulus::integer::{CarryingAdd, WideningMul};
                     let (lw, hw) = WideningMul::widening_mul(a, b);
                     let carry;
                     (c[0], carry) = c[0].overflowing_add(lw);
-                    (c[1], _) = c[1].carrying_add(hw, carry);
+                    (c[1], _) = CarryingAdd::carrying_add(c[1], hw, carry);
                 }
 
                 let mut a_iter = a.into_iter();

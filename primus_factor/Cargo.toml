@@ -10,6 +10,6 @@ primus_integer = { path = "../primus_integer" }
 rand = { workspace = true }
 
 [features]
-default = ["nightly", "simd"]
+default = []
 nightly = ["primus_integer/nightly"]
 simd = ["primus_integer/simd"]

@@ -182,7 +182,8 @@ pub(crate) fn impl_lazy_reduce_ops(
             #[inline]
             fn lazy_reduce_mul_add(self, a: #ty, b: #ty, c: #ty) -> Self::Output {
                 use ::primus_barrett_modulus::reduce::lazy_ops::LazyReduce;
-                self.lazy_reduce(a.carrying_mul(b, c))
+                use ::primus_barrett_modulus::integer::CarryingMul;
+                self.lazy_reduce(CarryingMul::carrying_mul(a, b, c))
             }
         }
 
@@ -190,7 +191,8 @@ pub(crate) fn impl_lazy_reduce_ops(
             #[inline]
             fn lazy_reduce_mul_add_assign(self, a: &mut #ty, b: #ty, c: #ty) {
                 use ::primus_barrett_modulus::reduce::lazy_ops::LazyReduce;
-                *a = self.lazy_reduce(a.carrying_mul(b, c));
+                use ::primus_barrett_modulus::integer::CarryingMul;
+                *a = self.lazy_reduce(CarryingMul::carrying_mul(*a, b, c));
             }
         }
     }
