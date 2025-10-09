@@ -58,7 +58,7 @@ impl<ValueT: UnsignedInteger, ModulusT: FieldContext<ValueT>> GlweParameters<Val
     }
 }
 
-/// Glwe Parameters.
+/// Big Unsigned Integer Glwe Parameters.
 #[derive(Debug, Clone)]
 pub struct CrtGlweParameters<ValueT: UnsignedInteger, ModulusT: FieldContext<ValueT>> {
     /// The dimension, refers to **k** in the paper.
@@ -78,7 +78,11 @@ pub struct CrtGlweParameters<ValueT: UnsignedInteger, ModulusT: FieldContext<Val
     pub noise_standard_deviation: f64,
 }
 
-impl<ValueT: UnsignedInteger, ModulusT: FieldContext<ValueT>> CrtGlweParameters<ValueT, ModulusT> {
+impl<ValueT, ModulusT> CrtGlweParameters<ValueT, ModulusT>
+where
+    ValueT: UnsignedInteger,
+    ModulusT: FieldContext<ValueT>,
+{
     /// Returns the dimension of this [`CrtGlweParameters<ValueT, ModulusT>`].
     #[inline]
     pub fn dimension(&self) -> usize {
@@ -98,7 +102,7 @@ impl<ValueT: UnsignedInteger, ModulusT: FieldContext<ValueT>> CrtGlweParameters<
     }
 }
 
-/// Ggsw Parameters.
+/// Glev Parameters.
 #[derive(Debug, Clone, Copy)]
 pub struct GlevParameters<ValueT: UnsignedInteger, ModulusT: FieldContext<ValueT>> {
     /// The dimension, refers to **k** in the paper.
@@ -118,6 +122,9 @@ pub struct GlevParameters<ValueT: UnsignedInteger, ModulusT: FieldContext<ValueT
 }
 
 /// Ggsw Parameters.
+pub type GgswParameters<ValueT, ModulusT> = GlevParameters<ValueT, ModulusT>;
+
+/// Big Unsigned Integer Ggsw Parameters.
 #[derive(Debug, Clone)]
 pub struct CrtGlevParameters<ValueT: UnsignedInteger, ModulusT: FieldContext<ValueT>> {
     /// The dimension, refers to **k** in the paper.
@@ -136,3 +143,6 @@ pub struct CrtGlevParameters<ValueT: UnsignedInteger, ModulusT: FieldContext<Val
     /// Decompose basis for `Q`.
     pub basis: BigUintApproxSignedBasis<ValueT>,
 }
+
+/// Big Unsigned Integer Ggsw Parameters.
+pub type CrtGgswParameters<ValueT, ModulusT> = CrtGlevParameters<ValueT, ModulusT>;

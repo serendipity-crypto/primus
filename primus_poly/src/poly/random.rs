@@ -34,28 +34,36 @@ impl<T: UnsignedInteger> Polynomial<T> {
 
     /// Generate a random binary [`Polynomial<T>`].
     #[inline]
-    pub fn random_binary<R>(n: usize, rng: &mut R) -> Self
+    pub fn random_binary<R>(poly_length: usize, rng: &mut R) -> Self
     where
         R: Rng + CryptoRng,
     {
-        Self::new(primus_distr::sample_binary_values(n, rng))
+        Self::new(primus_distr::sample_binary_values(poly_length, rng))
     }
 
     /// Generate a random ternary [`Polynomial<T>`].
     #[inline]
-    pub fn random_ternary<R>(minus_one: T, n: usize, rng: &mut R) -> Self
+    pub fn random_ternary<R>(minus_one: T, poly_length: usize, rng: &mut R) -> Self
     where
         R: Rng + CryptoRng,
     {
-        Self::new(primus_distr::sample_ternary_values(minus_one, n, rng))
+        Self::new(primus_distr::sample_ternary_values(
+            minus_one,
+            poly_length,
+            rng,
+        ))
     }
 
     /// Generate a random [`Polynomial<T>`] with discrete gaussian distribution.
     #[inline]
-    pub fn random_gaussian<R>(n: usize, gaussian: &DiscreteGaussian<T>, rng: &mut R) -> Self
+    pub fn random_gaussian<R>(
+        poly_length: usize,
+        gaussian: &DiscreteGaussian<T>,
+        rng: &mut R,
+    ) -> Self
     where
         R: Rng + CryptoRng,
     {
-        Self::new(gaussian.sample_iter(rng).take(n).collect())
+        Self::new(gaussian.sample_iter(rng).take(poly_length).collect())
     }
 }

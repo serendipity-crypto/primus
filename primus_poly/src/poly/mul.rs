@@ -40,7 +40,7 @@ impl<T: Copy> Polynomial<T> {
 
 impl<T: UnsignedInteger> Polynomial<T> {
     /// A naive multiplication over polynomial.
-    pub fn naive_mul_inplace<M>(&self, rhs: impl AsRef<[T]>, modulus: M, destination: &mut Self)
+    pub fn naive_mul_inplace<M>(&self, rhs: impl AsRef<[T]>, result: &mut Self, modulus: M)
     where
         M: Copy + ReduceSubAssign<T> + ReduceMul<T, Output = T> + ReduceMulAdd<T, Output = T>,
     {
@@ -49,11 +49,11 @@ impl<T: UnsignedInteger> Polynomial<T> {
 
         let coeff_count = self.poly_length();
         debug_assert_eq!(coeff_count, poly2.len());
-        debug_assert_eq!(coeff_count, destination.poly_length());
+        debug_assert_eq!(coeff_count, result.poly_length());
 
         for i in 0..coeff_count {
             for j in 0..=i {
-                destination[i] = modulus.reduce_mul_add(poly1[j], poly2[i - j], destination[i]);
+                result[i] = modulus.reduce_mul_add(poly1[j], poly2[i - j], result[i]);
             }
         }
 
@@ -61,10 +61,8 @@ impl<T: UnsignedInteger> Polynomial<T> {
         for i in coeff_count..coeff_count * 2 - 1 {
             let k = i - coeff_count;
             for j in i - coeff_count + 1..coeff_count {
-                modulus.reduce_sub_assign(
-                    &mut destination[k],
-                    modulus.reduce_mul(poly1[j], poly2[i - j]),
-                );
+                modulus
+                    .reduce_sub_assign(&mut result[k], modulus.reduce_mul(poly1[j], poly2[i - j]));
             }
         }
     }

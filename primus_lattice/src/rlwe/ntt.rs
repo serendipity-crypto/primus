@@ -84,6 +84,12 @@ impl<T: UnsignedInteger> NttRlwe<T> {
         Self { a, b }
     }
 
+    /// Given the a and b, drop self.
+    #[inline]
+    pub fn into_inner(self) -> (NttPolynomial<T>, NttPolynomial<T>) {
+        (self.a, self.b)
+    }
+
     /// Creates a new [`NttRlwe<T>`] with reference of [`NttPolynomial<T>`].
     #[inline]
     pub fn from_ref(a: &NttPolynomial<T>, b: &NttPolynomial<T>) -> Self {

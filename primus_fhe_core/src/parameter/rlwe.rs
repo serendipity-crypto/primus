@@ -22,7 +22,11 @@ pub struct RlweParameters<ValueT: UnsignedInteger, ModulusT: FieldContext<ValueT
     pub noise_standard_deviation: f64,
 }
 
-impl<ValueT: UnsignedInteger, ModulusT: FieldContext<ValueT>> RlweParameters<ValueT, ModulusT> {
+impl<ValueT, ModulusT> RlweParameters<ValueT, ModulusT>
+where
+    ValueT: UnsignedInteger,
+    ModulusT: FieldContext<ValueT>,
+{
     /// Returns the poly length of this [`RlweParameters<ValueT, ModulusT>`].
     #[inline]
     pub fn poly_length(&self) -> usize {
@@ -50,9 +54,9 @@ impl<ValueT: UnsignedInteger, ModulusT: FieldContext<ValueT>> RlweParameters<Val
     }
 }
 
-/// Rgsw Parameters.
+/// Rlev Parameters.
 #[derive(Debug, Clone, Copy)]
-pub struct GadgetRlweParameters<ValueT: UnsignedInteger, ModulusT: FieldContext<ValueT>> {
+pub struct RlevParameters<ValueT: UnsignedInteger, ModulusT: FieldContext<ValueT>> {
     /// The dimension, refers to **N** in the paper.
     pub poly_length: usize,
     /// cipher modulus minus one, refers to **Q-1**.
@@ -67,9 +71,7 @@ pub struct GadgetRlweParameters<ValueT: UnsignedInteger, ModulusT: FieldContext<
     pub basis: ApproxSignedBasis<ValueT>,
 }
 
-impl<ValueT: UnsignedInteger, ModulusT: FieldContext<ValueT>>
-    GadgetRlweParameters<ValueT, ModulusT>
-{
+impl<ValueT: UnsignedInteger, ModulusT: FieldContext<ValueT>> RlevParameters<ValueT, ModulusT> {
     /// Returns the decompose basis.
     #[inline]
     pub fn basis(&self) -> &ApproxSignedBasis<ValueT> {
@@ -96,3 +98,6 @@ impl<ValueT: UnsignedInteger, ModulusT: FieldContext<ValueT>>
         DiscreteGaussian::new(0.0, sigma, self.modulus_minus_one).unwrap()
     }
 }
+
+/// Rgsw Parameters.
+pub type RgswParameters<ValueT, ModulusT> = RlevParameters<ValueT, ModulusT>;
