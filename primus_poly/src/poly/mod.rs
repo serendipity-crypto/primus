@@ -12,10 +12,27 @@ mod mul;
 mod neg;
 mod sub;
 
-/// Represents a polynomial where coefficients are elements of a specified numeric `T`.
+/// Represents a polynomial where coefficients are elements of a specified unsigned integer `T`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Polynomial<T> {
     poly: Vec<T>,
+}
+
+pub struct PolynomialRef<'p, T>(pub &'p [T]);
+
+impl<'p, T> PolynomialRef<'p, T> {
+    /// Creates a new [`PolynomialRef<T>`].
+    pub fn new(poly: &'p [T]) -> Self {
+        Self(poly)
+    }
+}
+pub struct PolynomialRefMut<'p, T>(pub &'p mut [T]);
+
+impl<'p, T> PolynomialRefMut<'p, T> {
+    /// Creates a new [`PolynomialRefMut<T>`].
+    pub fn new(poly: &'p mut [T]) -> Self {
+        Self(poly)
+    }
 }
 
 impl<T> Default for Polynomial<T> {
@@ -36,6 +53,16 @@ impl<T> Polynomial<T> {
     #[inline]
     pub fn into_vec(self) -> Vec<T> {
         self.poly
+    }
+
+    #[inline]
+    pub fn to_ref<'p>(&'p self) -> PolynomialRef<'p, T> {
+        PolynomialRef(&self.poly)
+    }
+
+    #[inline]
+    pub fn to_mut<'p>(&'p mut self) -> PolynomialRefMut<'p, T> {
+        PolynomialRefMut(&mut self.poly)
     }
 
     /// Extracts a slice containing the entire vector.
