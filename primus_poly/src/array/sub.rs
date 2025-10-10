@@ -10,9 +10,10 @@ where
 {
     /// Performs `self - rhs` according to `modulus`.
     #[inline]
-    pub fn sub<M, A: RawData<Elem = T> + Data>(mut self, rhs: &ArrayBase<A>, modulus: M) -> Self
+    pub fn sub<M, A>(mut self, rhs: &ArrayBase<A>, modulus: M) -> Self
     where
         M: Copy + ReduceSubAssign<T>,
+        A: RawData<Elem = T> + Data,
     {
         self.sub_assign(rhs, modulus);
         self
@@ -26,11 +27,12 @@ where
 {
     /// Performs `self -= rhs` according to `modulus`.
     #[inline]
-    pub fn sub_assign<M, A: RawData<Elem = T> + Data>(&mut self, rhs: &ArrayBase<A>, modulus: M)
+    pub fn sub_assign<M, A>(&mut self, rhs: &ArrayBase<A>, modulus: M)
     where
         M: Copy + ReduceSubAssign<T>,
+        A: RawData<Elem = T> + Data,
     {
-        debug_assert_eq!(self.0.len(), rhs.0.len());
+        debug_assert_eq!(self.len(), rhs.len());
         izip!(self, rhs).for_each(|(a, &b)| modulus.reduce_sub_assign(a, b));
     }
 }
@@ -50,8 +52,8 @@ where
     ) where
         M: Copy + ReduceSub<T, Output = T>,
     {
-        debug_assert_eq!(self.0.len(), rhs.0.len());
-        debug_assert_eq!(self.0.len(), result.0.len());
+        debug_assert_eq!(self.len(), rhs.len());
+        debug_assert_eq!(self.len(), result.len());
         izip!(self, rhs, result).for_each(|(&a, &b, c)| *c = modulus.reduce_sub(a, b));
     }
 }

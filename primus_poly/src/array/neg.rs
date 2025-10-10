@@ -30,7 +30,7 @@ where
     where
         M: Copy + ReduceNegAssign<T>,
     {
-        self.0.iter_mut().for_each(|v| modulus.reduce_neg_assign(v));
+        self.iter_mut().for_each(|v| modulus.reduce_neg_assign(v));
     }
 }
 
@@ -41,18 +41,14 @@ where
 {
     /// Performs the unary `-` operation.
     #[inline]
-    pub fn neg_inplace<M, A: RawData<Elem = T> + DataMut>(
-        &self,
-        result: &mut ArrayBase<A>,
-        modulus: M,
-    ) where
+    pub fn neg_inplace<M, A>(&self, result: &mut ArrayBase<A>, modulus: M)
+    where
         M: Copy + ReduceNeg<T, Output = T>,
+        A: RawData<Elem = T> + DataMut,
     {
         debug_assert_eq!(self.0.len(), result.0.len());
-        result
-            .0
-            .iter_mut()
-            .zip(self)
-            .for_each(|(d, &v)| *d = modulus.reduce_neg(v));
+        self.iter()
+            .zip(result)
+            .for_each(|(&v, d)| *d = modulus.reduce_neg(v));
     }
 }

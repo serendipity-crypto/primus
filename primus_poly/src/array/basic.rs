@@ -5,7 +5,6 @@ use core::{
 
 use num_traits::{ConstZero, Zero};
 use primus_integer::{ByteCount, UnsignedInteger, size::Size};
-use primus_reduce::ops::ReduceMulAdd;
 
 use super::{ArrayBase, Data, DataMut, DataOwned, RawData};
 
@@ -23,17 +22,6 @@ where
     #[inline]
     pub fn is_zero(&self) -> bool {
         self.0.iter().all(<T as Zero>::is_zero)
-    }
-
-    /// Evaluate the polynomial with the value `x`.
-    #[inline]
-    pub fn evaluate<M>(&self, x: T, modulus: M) -> T
-    where
-        M: Copy + ReduceMulAdd<T, Output = T>,
-    {
-        self.0.iter().rev().fold(<T as ConstZero>::ZERO, |acc, &a| {
-            modulus.reduce_mul_add(acc, x, a)
-        })
     }
 }
 

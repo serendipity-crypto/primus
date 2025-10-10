@@ -30,7 +30,7 @@ where
     S: RawData<Elem = T> + DataOwned,
     T: UnsignedInteger,
 {
-    /// Creates a [`BigUintPolynomial<T>`] with all coefficients equal to zero.
+    /// Creates a [`BigUintPolynomial<S>`] with all coefficients equal to zero.
     #[inline]
     pub fn zero(poly_length: usize, value_len: usize) -> Self {
         Self(ArrayBase::zero(poly_length * value_len))
