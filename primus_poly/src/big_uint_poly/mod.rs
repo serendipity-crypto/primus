@@ -1,78 +1,69 @@
-use num_traits::{ConstZero, Zero};
 use primus_integer::UnsignedInteger;
-use serde::{Deserialize, Serialize};
+
+use crate::{ArrayBase, Data, DataMut, DataOwned, RawData};
 
 mod add;
 mod neg;
 mod sub;
 
 /// Represents a polynomial where coefficients are elements of a specified numeric `T`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(bound(deserialize = "T: UnsignedInteger"))]
-pub struct BigUintPolynomial<T: UnsignedInteger> {
-    big_uint_poly: Vec<T>,
-}
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BigUintPolynomial<S, T = <S as RawData>::Elem>(pub ArrayBase<S, T>)
+where
+    S: RawData<Elem = T>,
+    T: UnsignedInteger;
 
-impl<T: UnsignedInteger> Default for BigUintPolynomial<T> {
+impl<S, T> BigUintPolynomial<S, T>
+where
+    S: RawData<Elem = T>,
+    T: UnsignedInteger,
+{
+    /// Creates a new [`BigUintPolynomial<T>`].
     #[inline]
-    fn default() -> Self {
-        Self {
-            big_uint_poly: Vec::new(),
-        }
+    pub fn new(big_uint_poly: ArrayBase<S, T>) -> Self {
+        Self(big_uint_poly)
     }
 }
 
-impl<T: UnsignedInteger> BigUintPolynomial<T> {
-    /// Creates a new [`BigUintPolynomial<T>`].
+impl<S, T> BigUintPolynomial<S, T>
+where
+    S: RawData<Elem = T> + DataOwned,
+    T: UnsignedInteger,
+{
+    /// Creates a [`BigUintPolynomial<T>`] with all coefficients equal to zero.
     #[inline]
-    pub fn new(big_uint_poly: Vec<T>) -> Self {
-        Self { big_uint_poly }
+    pub fn zero(poly_length: usize, value_len: usize) -> Self {
+        Self(ArrayBase::zero(poly_length * value_len))
     }
 
     /// Drop self, and return the vector.
     #[inline]
-    pub fn into_vec(self) -> Vec<T> {
-        self.big_uint_poly
+    pub fn into_owned(self) -> S {
+        self.0.0
     }
 
     /// Constructs a new polynomial from a slice.
     #[inline]
-    pub fn from_slice(big_uint_polynomial: &[T]) -> Self {
-        Self::new(big_uint_polynomial.to_vec())
+    pub fn from_slice(polynomial: &[T]) -> Self {
+        Self::new(ArrayBase::from_slice(polynomial))
     }
+}
 
+impl<S, T> BigUintPolynomial<S, T>
+where
+    S: RawData<Elem = T> + DataMut,
+    T: UnsignedInteger,
+{
     /// Copy the coefficients from another slice.
     #[inline]
     pub fn copy_from(&mut self, src: impl AsRef<[T]>) {
-        self.big_uint_poly.copy_from_slice(src.as_ref())
-    }
-
-    /// Creates a [`BigUintPolynomial<T>`] with all coefficients equal to zero.
-    #[inline]
-    pub fn zero(poly_len: usize, value_len: usize) -> Self {
-        Self {
-            big_uint_poly: vec![<T as ConstZero>::ZERO; poly_len * value_len],
-        }
-    }
-
-    /// Returns `true` if `self` is equal to `0`.
-    #[inline]
-    pub fn is_zero(&self) -> bool {
-        self.big_uint_poly.iter().all(<T as Zero>::is_zero)
+        self.0.copy_from_slice(src.as_ref())
     }
 
     /// Sets `self` to `0`.
     #[inline]
     pub fn set_zero(&mut self) {
-        self.big_uint_poly.fill(<T as ConstZero>::ZERO);
-    }
-
-    /// Extracts a slice containing the entire vector.
-    ///
-    /// Equivalent to `&s[..]`.
-    #[inline]
-    pub fn as_slice(&self) -> &[T] {
-        self.big_uint_poly.as_slice()
+        self.0.set_zero();
     }
 
     /// Extracts a mutable slice of the entire vector.
@@ -80,18 +71,38 @@ impl<T: UnsignedInteger> BigUintPolynomial<T> {
     /// Equivalent to `&mut s[..]`.
     #[inline]
     pub fn as_mut_slice(&mut self) -> &mut [T] {
-        self.big_uint_poly.as_mut_slice()
-    }
-
-    /// Returns an iterator that allows reading each value or coefficient of the polynomial.
-    #[inline]
-    pub fn iter(&self, value_len: usize) -> std::slice::ChunksExact<'_, T> {
-        self.big_uint_poly.chunks_exact(value_len)
+        self.0.as_mut()
     }
 
     /// Returns an iterator that allows modifying each value or coefficient of the polynomial.
     #[inline]
     pub fn iter_mut(&mut self, value_len: usize) -> std::slice::ChunksExactMut<'_, T> {
-        self.big_uint_poly.chunks_exact_mut(value_len)
+        self.0.chunks_exact_mut(value_len)
+    }
+}
+
+impl<S, T> BigUintPolynomial<S, T>
+where
+    S: RawData<Elem = T> + Data,
+    T: UnsignedInteger,
+{
+    /// Returns `true` if `self` is equal to `0`.
+    #[inline]
+    pub fn is_zero(&self) -> bool {
+        self.0.is_zero()
+    }
+
+    /// Extracts a slice containing the entire vector.
+    ///
+    /// Equivalent to `&s[..]`.
+    #[inline]
+    pub fn as_slice(&self) -> &[T] {
+        self.0.as_ref()
+    }
+
+    /// Returns an iterator that allows reading each value or coefficient of the polynomial.
+    #[inline]
+    pub fn iter(&self, value_len: usize) -> std::slice::ChunksExact<'_, T> {
+        self.0.chunks_exact(value_len)
     }
 }

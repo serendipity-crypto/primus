@@ -9,7 +9,7 @@ use primus_integer::{
     BigIntegerOps, UnsignedInteger, izip, multiply_many_values, multiply_many_values_except_inplace,
 };
 use primus_modulo::ops::*;
-use primus_poly::{BigUintPolynomial, crt::CrtPolynomial};
+use primus_poly::{BigUintPolynomial, Data, DataMut, RawData, crt::CrtPolynomial};
 use primus_reduce::FieldContext;
 
 use crate::RNSError;
@@ -116,12 +116,16 @@ impl<T: UnsignedInteger, M: FieldContext<T>> RNSBase<T, M> {
         }
     }
 
-    pub fn decompose_polynomial_inplace(
+    pub fn decompose_polynomial_inplace<R, W>(
         &self,
-        big_uint_poly: &BigUintPolynomial<T>,
-        crt_poly: &mut CrtPolynomial<T>,
-    ) {
-        for (poly, &modulus) in crt_poly.iter_mut().zip(self.moduli()) {
+        big_uint_poly: &BigUintPolynomial<R>,
+        crt_poly: &mut CrtPolynomial<W>,
+        poly_length: usize,
+    ) where
+        R: RawData<Elem = T> + Data,
+        W: RawData<Elem = T> + DataMut,
+    {
+        for (poly, &modulus) in crt_poly.iter_mut(poly_length).zip(self.moduli()) {
             for (res, value) in poly.iter_mut().zip(big_uint_poly.iter(self.moduli.len())) {
                 *res = value.modulo(modulus);
             }
@@ -176,13 +180,17 @@ impl<T: UnsignedInteger, M: FieldContext<T>> RNSBase<T, M> {
         );
     }
 
-    pub fn compose_polynomial_inplace(
+    pub fn compose_polynomial_inplace<R, W>(
         &self,
-        crt_poly: &CrtPolynomial<T>,
-        big_uint_poly: &mut BigUintPolynomial<T>,
-    ) {
+        crt_poly: &CrtPolynomial<R>,
+        big_uint_poly: &mut BigUintPolynomial<W>,
+        poly_length: usize,
+    ) where
+        R: RawData<Elem = T> + Data,
+        W: RawData<Elem = T> + DataMut,
+    {
         let mut residues = vec![T::ZERO; self.moduli.len()];
-        let mut iters: Vec<Iter<'_, T>> = crt_poly.iter().map(|s| s.iter()).collect();
+        let mut iters: Vec<Iter<'_, T>> = crt_poly.iter(poly_length).map(|s| s.iter()).collect();
         for value in big_uint_poly.iter_mut(self.moduli.len()) {
             for (iter, res) in iters.iter_mut().zip(residues.iter_mut()) {
                 *res = *iter.next().unwrap();

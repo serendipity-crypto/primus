@@ -1,9 +1,7 @@
-use primus_distr::DiscreteGaussian;
-use primus_integer::{ByteCount, UnsignedInteger, size::Size};
+use primus_integer::{ByteCount, UnsignedInteger};
 use primus_ntt::{Ntt, NttTable};
-use primus_poly::{NttPolynomial, Polynomial};
+use primus_poly::{ArrayMut, ArrayRef, NttPolynomialRef, PolynomialRef};
 use primus_reduce::FieldContext;
-use rand::{CryptoRng, Rng};
 use serde::{Deserialize, Serialize};
 
 use crate::Rlwe;
@@ -11,13 +9,10 @@ use crate::Rlwe;
 /// A cryptographic structure for Ring Learning with Errors (RLWE).
 /// This structure is used in advanced cryptographic systems and protocols, particularly
 /// those that require efficient homomorphic encryption properties.
-#[derive(Clone, Default, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(bound(deserialize = "T: UnsignedInteger"))]
 pub struct NttRlwe<T: UnsignedInteger> {
-    /// Represents the first component in the RLWE structure.
-    pub(crate) a: NttPolynomial<T>,
-    /// Represents the second component in the RLWE structure.
-    pub(crate) b: NttPolynomial<T>,
+    pub(crate) data: Vec<T>,
 }
 
 impl<T: UnsignedInteger> NttRlwe<T> {
@@ -26,11 +21,8 @@ impl<T: UnsignedInteger> NttRlwe<T> {
     pub fn from_bytes(data: &[u8]) -> Self {
         let converted_data: &[T] = bytemuck::cast_slice(data);
 
-        let (a, b) = converted_data.split_at(converted_data.len() >> 1);
-
         Self {
-            a: NttPolynomial::from_slice(a),
-            b: NttPolynomial::from_slice(b),
+            data: converted_data.to_vec(),
         }
     }
 
@@ -39,156 +31,84 @@ impl<T: UnsignedInteger> NttRlwe<T> {
     pub fn from_bytes_assign(&mut self, data: &[u8]) {
         let converted_data: &[T] = bytemuck::cast_slice(data);
 
-        let (a, b) = converted_data.split_at(converted_data.len() >> 1);
-
-        self.a.copy_from(a);
-        self.b.copy_from(b);
+        self.data.copy_from_slice(converted_data);
     }
 
     /// Converts [`NttRlwe<T>`] into bytes.
     #[inline]
     pub fn to_bytes(&self) -> Vec<u8> {
-        let data_a: &[u8] = bytemuck::cast_slice(self.a.as_slice());
-        let data_b: &[u8] = bytemuck::cast_slice(self.b.as_slice());
+        let converted_data: &[u8] = bytemuck::cast_slice(self.data.as_slice());
 
-        [data_a, data_b].concat()
+        converted_data.to_vec()
     }
 
     /// Converts [`NttRlwe<T>`] into bytes, stored in `data`.
     #[inline]
     pub fn to_bytes_inplace(&self, data: &mut [u8]) {
-        let data_a: &[u8] = bytemuck::cast_slice(self.a.as_slice());
-        let data_b: &[u8] = bytemuck::cast_slice(self.b.as_slice());
+        let converted_data: &[u8] = bytemuck::cast_slice(self.data.as_slice());
 
-        assert_eq!(data.len(), data_a.len() + data_b.len());
-
-        let (a, b) = unsafe { data.split_at_mut_unchecked(data_a.len()) };
-
-        a.copy_from_slice(data_a);
-        b.copy_from_slice(data_b);
+        data.copy_from_slice(converted_data);
     }
 
     /// Returns the bytes count of [`NttRlwe<T>`].
     #[inline]
     pub fn bytes_count(&self) -> usize {
-        (self.a.poly_length() << 1) * <T as ByteCount>::BYTES_COUNT
+        self.data.len() * <T as ByteCount>::BYTES_COUNT
     }
 }
 
 impl<T: UnsignedInteger> NttRlwe<T> {
     /// Creates a new [`NttRlwe<T>`].
     #[inline]
-    pub fn new(a: NttPolynomial<T>, b: NttPolynomial<T>) -> Self {
-        assert_eq!(a.poly_length(), b.poly_length());
-        Self { a, b }
+    pub fn new(data: Vec<T>) -> Self {
+        Self { data }
     }
 
-    /// Given the a and b, drop self.
+    /// Creates a new [`NttRlwe<T>`] with reference of [`PolynomialRef<'_, T>`].
     #[inline]
-    pub fn into_inner(self) -> (NttPolynomial<T>, NttPolynomial<T>) {
-        (self.a, self.b)
-    }
-
-    /// Creates a new [`NttRlwe<T>`] with reference of [`NttPolynomial<T>`].
-    #[inline]
-    pub fn from_ref(a: &NttPolynomial<T>, b: &NttPolynomial<T>) -> Self {
-        assert_eq!(a.poly_length(), b.poly_length());
+    pub fn from_ref(a: PolynomialRef<'_, T>, b: PolynomialRef<'_, T>) -> Self {
+        debug_assert_eq!(a.poly_length(), b.poly_length());
         Self {
-            a: a.clone(),
-            b: b.clone(),
+            data: [a.0, b.0].concat(),
         }
     }
 
-    /// Creates a [`NttRlwe<T>`] with all entries equal to zero.
+    /// Creates a new [`NttRlwe<T>`] that is initialized to zero,
+    /// both `a` and `b` polynomials are initialized to zero.
     #[inline]
-    pub fn zero(coeff_count: usize) -> NttRlwe<T> {
+    pub fn zero(poly_length: usize) -> Self {
         Self {
-            a: <NttPolynomial<T>>::zero(coeff_count),
-            b: <NttPolynomial<T>>::zero(coeff_count),
+            data: vec![T::ZERO; poly_length << 1],
         }
     }
 
     /// Set all entries equal to zero.
     #[inline]
     pub fn set_zero(&mut self) {
-        self.a.set_zero();
-        self.b.set_zero();
-    }
-
-    /// Returns a reference to the a of this [`NttRlwe<T>`].
-    #[inline]
-    pub fn a(&self) -> &NttPolynomial<T> {
-        &self.a
-    }
-
-    /// Returns a mutable reference to the a of this [`NttRlwe<T>`].
-    #[inline]
-    pub fn a_mut(&mut self) -> &mut NttPolynomial<T> {
-        &mut self.a
-    }
-
-    /// Returns a reference to the b of this [`NttRlwe<T>`].
-    #[inline]
-    pub fn b(&self) -> &NttPolynomial<T> {
-        &self.b
-    }
-
-    /// Returns a mutable reference to the b of this [`NttRlwe<T>`].
-    #[inline]
-    pub fn b_mut(&mut self) -> &mut NttPolynomial<T> {
-        &mut self.b
-    }
-
-    /// Returns a mutable reference to the `a` and `b` of this [`NttRlwe<T>`].
-    #[inline]
-    pub fn a_b_mut(&mut self) -> (&mut NttPolynomial<T>, &mut NttPolynomial<T>) {
-        (&mut self.a, &mut self.b)
-    }
-
-    /// Extracts a slice of `a` of this [`NttRlwe<T>`].
-    #[inline]
-    pub fn a_slice(&self) -> &[T] {
-        self.a.as_slice()
-    }
-
-    /// Extracts a mutable slice of `a` of this [`NttRlwe<T>`].
-    #[inline]
-    pub fn a_mut_slice(&mut self) -> &mut [T] {
-        self.a.as_mut_slice()
-    }
-
-    /// Extracts a slice of `b` of this [`NttRlwe<T>`].
-    #[inline]
-    pub fn b_slice(&self) -> &[T] {
-        self.b.as_slice()
-    }
-
-    /// Extracts a mutable slice of `b` of this [`NttRlwe<T>`].
-    #[inline]
-    pub fn b_mut_slice(&mut self) -> &mut [T] {
-        self.b.as_mut_slice()
+        ArrayMut(&mut self.data).set_zero();
     }
 
     /// Extracts mutable slice of `a` and `b` of this [`NttRlwe<T>`].
     #[inline]
     pub fn a_b_mut_slices(&mut self) -> (&mut [T], &mut [T]) {
-        (self.a.as_mut_slice(), self.b.as_mut_slice())
+        let mid = self.data.len() >> 1;
+        unsafe { self.data.split_at_mut_unchecked(mid) }
     }
 }
 
 impl<T: UnsignedInteger> NttRlwe<T> {
     /// ntt inverse transform
     #[inline]
-    pub fn into_coeff_form<Table>(self, ntt_table: &Table) -> Rlwe<T>
+    pub fn into_coeff_form<Table>(mut self, ntt_table: &Table) -> Rlwe<T>
     where
         Table: NttTable<ValueT = T> + Ntt,
     {
-        let Self { a, b } = self;
+        let (a, b) = self.a_b_mut_slices();
 
-        let a = ntt_table.inverse_transform_inplace(a);
-        let b = ntt_table.inverse_transform_inplace(b);
+        ntt_table.inverse_transform_slice(a);
+        ntt_table.inverse_transform_slice(b);
 
-        Rlwe::new(a, b)
+        Rlwe::new(self.data)
     }
 
     /// ntt inverse transform
@@ -197,10 +117,9 @@ impl<T: UnsignedInteger> NttRlwe<T> {
     where
         Table: NttTable<ValueT = T> + Ntt,
     {
-        let (a, b) = result.a_b_mut_slices();
+        result.data.copy_from_slice(&self.data);
 
-        a.copy_from_slice(self.a_slice());
-        b.copy_from_slice(self.b_slice());
+        let (a, b) = result.a_b_mut_slices();
 
         ntt_table.inverse_transform_slice(a);
         ntt_table.inverse_transform_slice(b);
@@ -208,82 +127,71 @@ impl<T: UnsignedInteger> NttRlwe<T> {
 }
 
 impl<T: UnsignedInteger> NttRlwe<T> {
-    /// Perform element-wise modular addition of two [`NttRlwe<T>`].
+    /// Perform element-wise modular addition `self + rhs`.
     #[inline]
-    pub fn add_element_wise<M>(self, rhs: &Self, modulus: M) -> Self
+    pub fn add_element_wise<M>(mut self, rhs: &Self, modulus: M) -> Self
     where
         M: FieldContext<T>,
     {
-        Self {
-            a: self.a.add(rhs.a(), modulus),
-            b: self.b.add(rhs.b(), modulus),
-        }
+        ArrayMut(&mut self.data).add_assign(ArrayRef(&rhs.data), modulus);
+        self
     }
 
-    /// Perform element-wise modular subtraction of two [`NttRlwe<T>`].
+    /// Perform element-wise modular subtraction `self - rhs`.
     #[inline]
-    pub fn sub_element_wise<M>(self, rhs: &Self, modulus: M) -> Self
+    pub fn sub_element_wise<M>(mut self, rhs: &Self, modulus: M) -> Self
     where
         M: FieldContext<T>,
     {
-        Self {
-            a: self.a.sub(rhs.a(), modulus),
-            b: self.b.sub(rhs.b(), modulus),
-        }
+        ArrayMut(&mut self.data).sub_assign(ArrayRef(&rhs.data), modulus);
+        self
     }
 
-    /// Performs an in-place element-wise modular addition
-    /// on the `self` [`NttRlwe<T>`] with another `rhs` [`NttRlwe<T>`].
+    /// Performs an in-place element-wise modular addition `self += rhs`.
     #[inline]
     pub fn add_assign_element_wise<M>(&mut self, rhs: &Self, modulus: M)
     where
         M: FieldContext<T>,
     {
-        self.a.add_assign(rhs.a(), modulus);
-        self.b.add_assign(rhs.b(), modulus);
+        ArrayMut(&mut self.data).add_assign(ArrayRef(&rhs.data), modulus);
     }
 
-    /// Performs an in-place element-wise modular subtraction
-    /// on the `self` [`NttRlwe<T>`] with another `rhs` [`NttRlwe<T>`].
+    /// Performs an in-place element-wise modular subtraction `self -= rhs`
     #[inline]
     pub fn sub_assign_element_wise<M>(&mut self, rhs: &Self, modulus: M)
     where
         M: FieldContext<T>,
     {
-        self.a.sub_assign(rhs.a(), modulus);
-        self.b.sub_assign(rhs.b(), modulus);
+        ArrayMut(&mut self.data).sub_assign(ArrayRef(&rhs.data), modulus);
     }
 
-    /// Performs addition operation:`self + rhs`,
-    /// and puts the result to the `destination`.
+    /// Performs element-wise modular addition:`result = self + rhs`,
     #[inline]
     pub fn add_inplace<M>(&self, rhs: &Self, result: &mut Self, modulus: M)
     where
         M: FieldContext<T>,
     {
-        self.a.add_inplace(rhs.a(), result.a_mut(), modulus);
-        self.b.add_inplace(rhs.b(), result.b_mut(), modulus);
+        ArrayRef(&self.data).add_inplace(ArrayRef(&rhs.data), ArrayMut(&mut result.data), modulus)
     }
 
-    /// Performs subtraction operation:`self - rhs`,
-    /// and put the result to the `destination`.
+    /// Performs element-wise modular addition:`result = self - rhs`,
     #[inline]
     pub fn sub_inplace<M>(&self, rhs: &Self, result: &mut Self, modulus: M)
     where
         M: FieldContext<T>,
     {
-        self.a.sub_inplace(rhs.a(), result.a_mut(), modulus);
-        self.b.sub_inplace(rhs.b(), result.b_mut(), modulus);
+        ArrayRef(&self.data).sub_inplace(ArrayRef(&rhs.data), ArrayMut(&mut result.data), modulus)
     }
 
     /// Performs a modular multiplication on the `self` [`NttRlwe<T>`] with another `polynomial` [`NttPolynomial<T>`].
     #[inline]
-    pub fn mul_ntt_polynomial_assign<M>(&mut self, polynomial: &NttPolynomial<T>, modulus: M)
+    pub fn mul_ntt_polynomial_assign<M>(&mut self, polynomial: NttPolynomialRef<'_, T>, modulus: M)
     where
         M: FieldContext<T>,
     {
-        self.a.mul_assign(polynomial, modulus);
-        self.b.mul_assign(polynomial, modulus);
+        let (a, b) = self.a_b_mut_slices();
+        // NttPolynomialMut(a).
+        todo!()
     }
 
     /// Performs a modular multiplication on the `self` [`NttRlwe<T>`] with another `polynomial` [`NttPolynomial<T>`],
@@ -291,125 +199,15 @@ impl<T: UnsignedInteger> NttRlwe<T> {
     #[inline]
     pub fn mul_ntt_polynomial_inplace<M>(
         &self,
-        polynomial: &NttPolynomial<T>,
+        polynomial: NttPolynomialRef<'_, T>,
         result: &mut Self,
         modulus: M,
     ) where
         M: FieldContext<T>,
     {
-        self.a.mul_inplace(polynomial, result.a_mut(), modulus);
-        self.b.mul_inplace(polynomial, result.b_mut(), modulus);
-    }
+        // self.a.mul_inplace(polynomial, result.a_mut(), modulus);
+        // self.b.mul_inplace(polynomial, result.b_mut(), modulus);
 
-    /// Performs `self = self + ntt_rlwe * ntt_polynomial`.
-    #[inline]
-    pub fn add_ntt_rlwe_mul_ntt_polynomial_assign<M>(
-        &mut self,
-        ntt_rlwe: &Self,
-        ntt_polynomial: &NttPolynomial<T>,
-        modulus: M,
-    ) where
-        M: FieldContext<T>,
-    {
-        self.a_mut()
-            .add_mul_assign(ntt_rlwe.a(), ntt_polynomial, modulus);
-        self.b_mut()
-            .add_mul_assign(ntt_rlwe.b(), ntt_polynomial, modulus);
-    }
-
-    /// Performs `self = self + ntt_rlwe * ntt_polynomial`.
-    ///
-    /// The result coefficients may be in [0, 2*modulus) for some case,
-    /// and fall back to [0, modulus) for normal case.
-    #[inline]
-    pub fn add_ntt_rlwe_mul_ntt_polynomial_assign_fast<M>(
-        &mut self,
-        ntt_rlwe: &Self,
-        ntt_polynomial: &NttPolynomial<T>,
-        modulus: M,
-    ) where
-        M: FieldContext<T>,
-    {
-        self.a_mut()
-            .add_mul_assign_fast(ntt_rlwe.a(), ntt_polynomial, modulus);
-        self.b_mut()
-            .add_mul_assign_fast(ntt_rlwe.b(), ntt_polynomial, modulus);
-    }
-
-    /// Performs `destination = self + ntt_rlwe * ntt_polynomial`.
-    #[inline]
-    pub fn add_ntt_rlwe_mul_ntt_polynomial_inplace<M>(
-        &self,
-        ntt_rlwe: &Self,
-        ntt_polynomial: &NttPolynomial<T>,
-        result: &mut Self,
-        modulus: M,
-    ) where
-        M: FieldContext<T>,
-    {
-        ntt_rlwe
-            .a()
-            .mul_add_inplace(ntt_polynomial, self.a(), result.a_mut(), modulus);
-        ntt_rlwe
-            .b()
-            .mul_add_inplace(ntt_polynomial, self.b(), result.b_mut(), modulus);
-    }
-}
-
-impl<T: UnsignedInteger> NttRlwe<T> {
-    /// Generate a [`NttRlwe<T>`] sample which encrypts `0`.
-    pub fn generate_random_zero_sample<M, Table, R>(
-        secret_key: &NttPolynomial<T>,
-        gaussian: &DiscreteGaussian<T>,
-        ntt_table: &Table,
-        modulus: M,
-        rng: &mut R,
-    ) -> Self
-    where
-        M: FieldContext<T>,
-        Table: NttTable<ValueT = T> + Ntt,
-        R: Rng + CryptoRng,
-    {
-        let rlwe_dimension = secret_key.poly_length();
-        let a = <NttPolynomial<T>>::random(rlwe_dimension, modulus, rng);
-
-        let e = <Polynomial<T>>::random_gaussian(rlwe_dimension, gaussian, rng);
-        let mut e = ntt_table.transform_inplace(e);
-        e.add_mul_assign(&a, secret_key, modulus);
-
-        Self { a, b: e }
-    }
-
-    /// Generate a [`NttRlwe<T>`] sample which encrypts `value`.
-    pub fn generate_random_value_sample<M, Table, R>(
-        secret_key: &NttPolynomial<T>,
-        value: T,
-        gaussian: &DiscreteGaussian<T>,
-        ntt_table: &Table,
-        modulus: M,
-        rng: &mut R,
-    ) -> Self
-    where
-        M: FieldContext<T>,
-        Table: NttTable<ValueT = T> + Ntt,
-        R: Rng + CryptoRng,
-    {
-        let rlwe_dimension = secret_key.poly_length();
-        let a = <NttPolynomial<T>>::random(rlwe_dimension, modulus, rng);
-
-        let mut e = <Polynomial<T>>::random_gaussian(rlwe_dimension, gaussian, rng);
-        modulus.reduce_add_assign(&mut e[0], value);
-
-        let mut b = ntt_table.transform_inplace(e);
-        b.add_mul_assign(&a, secret_key, modulus);
-
-        Self { a, b }
-    }
-}
-
-impl<T: UnsignedInteger> Size for NttRlwe<T> {
-    #[inline]
-    fn byte_count(&self) -> usize {
-        self.a.byte_count() * 2
+        todo!()
     }
 }

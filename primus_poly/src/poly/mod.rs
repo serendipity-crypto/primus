@@ -1,7 +1,8 @@
-use num_traits::{ConstZero, Zero};
-use primus_integer::{ByteCount, UnsignedInteger, size::Size};
+use num_traits::ConstZero;
+use primus_integer::{UnsignedInteger, size::Size};
 use primus_reduce::ops::ReduceMulAdd;
-use serde::{Deserialize, Serialize};
+
+use crate::{ArrayBase, Data, DataMut, DataOwned, RawData};
 
 mod basic;
 mod random;
@@ -11,64 +12,94 @@ mod mul;
 mod neg;
 mod sub;
 
+pub type PolynomialOwned<T> = Polynomial<Vec<T>, T>;
+pub type PolynomialRef<'a, T> = Polynomial<&'a [T], T>;
+pub type PolynomialMut<'a, T> = Polynomial<&'a mut [T], T>;
+
 /// Represents a polynomial where coefficients are elements of a specified unsigned integer `T`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Polynomial<T> {
-    data: Vec<T>,
-}
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Polynomial<S, T = <S as RawData>::Elem>(pub ArrayBase<S, T>)
+where
+    S: RawData<Elem = T>,
+    T: UnsignedInteger;
 
-pub struct PolynomialRef<'p, T> {
-    pub data: &'p [T],
-}
-
-impl<'p, T> PolynomialRef<'p, T> {
-    /// Creates a new [`PolynomialRef<T>`].
-    pub fn new(data: &'p [T]) -> Self {
-        Self { data }
-    }
-}
-
-pub struct PolynomialRefMut<'p, T> {
-    pub data: &'p mut [T],
-}
-
-impl<'p, T> PolynomialRefMut<'p, T> {
-    /// Creates a new [`PolynomialRefMut<T>`].
-    pub fn new(data: &'p mut [T]) -> Self {
-        Self { data }
-    }
-}
-
-impl<T> Default for Polynomial<T> {
-    #[inline]
-    fn default() -> Self {
-        Self { data: Vec::new() }
-    }
-}
-
-impl<T> Polynomial<T> {
+impl<S, T> Polynomial<S, T>
+where
+    S: RawData<Elem = T>,
+    T: UnsignedInteger,
+{
     /// Creates a new [`Polynomial<T>`].
     #[inline]
-    pub fn new(poly: Vec<T>) -> Self {
-        Self { data: poly }
+    pub fn new(poly: ArrayBase<S, T>) -> Self {
+        Self(poly)
+    }
+}
+
+impl<S, T> Polynomial<S, T>
+where
+    S: RawData<Elem = T> + DataOwned,
+    T: UnsignedInteger,
+{
+    /// Creates a [`Polynomial<T>`] with all coefficients equal to zero.
+    #[inline]
+    pub fn zero(poly_length: usize) -> Self {
+        Self(ArrayBase::zero(poly_length))
     }
 
     /// Drop self, and return the vector.
     #[inline]
-    pub fn into_vec(self) -> Vec<T> {
-        self.data
+    pub fn into_owned(self) -> S {
+        self.0.0
     }
 
+    /// Constructs a new polynomial from a slice.
     #[inline]
-    pub fn to_ref<'p>(&'p self) -> PolynomialRef<'p, T> {
-        PolynomialRef { data: &self.data }
+    pub fn from_slice(polynomial: &[T]) -> Self {
+        Self::new(ArrayBase::from_slice(polynomial))
+    }
+}
+
+impl<S, T> Polynomial<S, T>
+where
+    S: RawData<Elem = T> + DataMut,
+    T: UnsignedInteger,
+{
+    /// Extracts a mutable slice of the entire vector.
+    ///
+    /// Equivalent to `&mut s[..]`.
+    #[inline]
+    pub fn as_mut_slice(&mut self) -> &mut [T] {
+        self.0.as_mut()
     }
 
+    /// Returns an iterator that allows modifying each value or coefficient of the polynomial.
     #[inline]
-    pub fn to_mut<'p>(&'p mut self) -> PolynomialRefMut<'p, T> {
-        PolynomialRefMut {
-            data: &mut self.data,
-        }
+    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, T> {
+        self.0.iter_mut()
+    }
+
+    /// Copy the coefficients from another slice.
+    #[inline]
+    pub fn copy_from(&mut self, src: impl AsRef<[T]>) {
+        self.0.copy_from_slice(src.as_ref())
+    }
+
+    /// Sets `self` to `0`.
+    #[inline]
+    pub fn set_zero(&mut self) {
+        self.0.set_zero();
+    }
+}
+
+impl<S, T> Polynomial<S, T>
+where
+    S: RawData<Elem = T> + Data,
+    T: UnsignedInteger,
+{
+    /// Get the coefficient counts of polynomial.
+    #[inline]
+    pub fn poly_length(&self) -> usize {
+        self.0.len()
     }
 
     /// Extracts a slice containing the entire vector.
@@ -76,95 +107,25 @@ impl<T> Polynomial<T> {
     /// Equivalent to `&s[..]`.
     #[inline]
     pub fn as_slice(&self) -> &[T] {
-        self.data.as_slice()
-    }
-
-    /// Extracts a mutable slice of the entire vector.
-    ///
-    /// Equivalent to `&mut s[..]`.
-    #[inline]
-    pub fn as_mut_slice(&mut self) -> &mut [T] {
-        self.data.as_mut_slice()
-    }
-
-    /// Get the coefficient counts of polynomial.
-    #[inline]
-    pub fn poly_length(&self) -> usize {
-        self.data.len()
+        self.0.as_ref()
     }
 
     /// Returns an iterator that allows reading each value or coefficient of the polynomial.
     #[inline]
     pub fn iter(&self) -> std::slice::Iter<'_, T> {
-        self.data.iter()
-    }
-
-    /// Returns an iterator that allows modifying each value or coefficient of the polynomial.
-    #[inline]
-    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, T> {
-        self.data.iter_mut()
-    }
-
-    /// Resize the coefficient count of the polynomial.
-    #[inline]
-    pub fn resize_with<FN>(&mut self, new_coeff_count: usize, f: FN)
-    where
-        FN: FnMut() -> T,
-    {
-        self.data.resize_with(new_coeff_count, f);
-    }
-}
-
-impl<T: Clone> Polynomial<T> {
-    /// Constructs a new polynomial from a slice.
-    #[inline]
-    pub fn from_slice(polynomial: &[T]) -> Self {
-        Self::new(polynomial.to_vec())
-    }
-
-    /// Resize the coefficient count of the polynomial.
-    #[inline]
-    pub fn resize(&mut self, new_coeff_count: usize, value: T) {
-        self.data.resize(new_coeff_count, value);
-    }
-}
-
-impl<T: Copy> Polynomial<T> {
-    /// Copy the coefficients from another slice.
-    #[inline]
-    pub fn copy_from(&mut self, src: impl AsRef<[T]>) {
-        self.data.copy_from_slice(src.as_ref())
+        self.0.iter()
     }
 
     /// Returns an iterator that allows reading each value or coefficient of the polynomial.
     #[inline]
     pub fn copied_iter(&self) -> core::iter::Copied<core::slice::Iter<'_, T>> {
-        self.data.iter().copied()
-    }
-}
-
-impl<T> Polynomial<T>
-where
-    T: Copy + ConstZero,
-{
-    /// Creates a [`Polynomial<T>`] with all coefficients equal to zero.
-    #[inline]
-    pub fn zero(poly_length: usize) -> Self {
-        Self {
-            data: vec![<T as ConstZero>::ZERO; poly_length],
-        }
+        self.0.iter().copied()
     }
 
     /// Returns `true` if `self` is equal to `0`.
     #[inline]
     pub fn is_zero(&self) -> bool {
-        self.data.iter().all(<T as Zero>::is_zero)
-    }
-
-    /// Sets `self` to `0`.
-    #[inline]
-    pub fn set_zero(&mut self) {
-        self.data.fill(<T as ConstZero>::ZERO);
+        self.0.is_zero()
     }
 
     /// Evaluate the polynomial with the value `x`.
@@ -173,18 +134,19 @@ where
     where
         M: Copy + ReduceMulAdd<T, Output = T>,
     {
-        self.data
-            .iter()
-            .rev()
-            .fold(<T as ConstZero>::ZERO, |acc, &a| {
-                modulus.reduce_mul_add(acc, x, a)
-            })
+        self.0.iter().rev().fold(<T as ConstZero>::ZERO, |acc, &a| {
+            modulus.reduce_mul_add(acc, x, a)
+        })
     }
 }
 
-impl<T: UnsignedInteger> Size for Polynomial<T> {
+impl<S, T> Size for Polynomial<S, T>
+where
+    S: RawData<Elem = T> + Data,
+    T: UnsignedInteger,
+{
     #[inline]
     fn byte_count(&self) -> usize {
-        self.poly_length() * <T as ByteCount>::BYTES_COUNT
+        self.0.byte_count()
     }
 }

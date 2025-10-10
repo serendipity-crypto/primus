@@ -1,5 +1,6 @@
 use primus_poly::crt::CrtPolynomial;
 use primus_poly::dcrt::DcrtPolynomial;
+use primus_poly::{DataMut, RawData};
 use primus_reduce::FieldContext;
 
 use crate::{Ntt, NttError, NttTable, PrimitiveRoot};
@@ -30,21 +31,11 @@ pub trait DcrtTable: Sized {
 
     /// Returns an iterator over the ntt tables.
     fn iter(&self) -> std::slice::Iter<'_, Self::NttTables>;
+
+    fn poly_length(&self) -> usize;
 }
 
 pub trait Dcrt: DcrtTable {
-    /// Perform a fast number theory transform.
-    ///
-    /// This function transforms a crt polynomial to a dcrt polynomial.
-    ///
-    /// # Arguments
-    ///
-    /// * `crt_poly` - inputs in normal order, outputs in bit-reversed order
-    #[inline]
-    fn transform(&self, crt_poly: &CrtPolynomial<Self::ValueT>) -> DcrtPolynomial<Self::ValueT> {
-        self.transform_inplace(crt_poly.clone())
-    }
-
     /// Perform a fast number theory transform in place.
     ///
     /// This function transforms a crt polynomial to a dcrt polynomial.
@@ -52,25 +43,10 @@ pub trait Dcrt: DcrtTable {
     /// # Arguments
     ///
     /// * `crt_poly` - inputs in normal order, outputs in bit-reversed order
-    fn transform_inplace(
+    fn transform_inplace<S: RawData<Elem = Self::ValueT> + DataMut>(
         &self,
-        crt_poly: CrtPolynomial<Self::ValueT>,
-    ) -> DcrtPolynomial<Self::ValueT>;
-
-    /// Perform a fast inverse number theory transform.
-    ///
-    /// This function transforms a dcrt polynomial to a crt polynomial.
-    ///
-    /// # Arguments
-    ///
-    /// * `dcrt_poly` - inputs in bit-reversed order, outputs in normal order
-    #[inline]
-    fn inverse_transform(
-        &self,
-        dcrt_poly: &DcrtPolynomial<Self::ValueT>,
-    ) -> CrtPolynomial<Self::ValueT> {
-        self.inverse_transform_inplace(dcrt_poly.clone())
-    }
+        crt_poly: CrtPolynomial<S, Self::ValueT>,
+    ) -> DcrtPolynomial<S, Self::ValueT>;
 
     /// Perform a fast inverse number theory transform in place.
     ///
@@ -79,10 +55,10 @@ pub trait Dcrt: DcrtTable {
     /// # Arguments
     ///
     /// * `dcrt_poly` - inputs in bit-reversed order, outputs in normal order
-    fn inverse_transform_inplace(
+    fn inverse_transform_inplace<S: RawData<Elem = Self::ValueT> + DataMut>(
         &self,
-        dcrt_poly: DcrtPolynomial<Self::ValueT>,
-    ) -> CrtPolynomial<Self::ValueT>;
+        dcrt_poly: DcrtPolynomial<S, Self::ValueT>,
+    ) -> CrtPolynomial<S, Self::ValueT>;
 
     /// Perform a fast number theory transform in place.
     ///

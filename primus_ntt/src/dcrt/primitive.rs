@@ -1,5 +1,5 @@
 use primus_integer::UnsignedInteger;
-use primus_poly::{NttPolynomial, Polynomial, crt::CrtPolynomial, dcrt::DcrtPolynomial};
+use primus_poly::{DataMut, RawData, crt::CrtPolynomial, dcrt::DcrtPolynomial};
 use primus_reduce::FieldContext;
 
 use crate::{Dcrt, Ntt, NttError, NttTable, UintNttTable};
@@ -8,6 +8,7 @@ use super::DcrtTable;
 
 pub struct UintCrtNttTable<T: UnsignedInteger> {
     ntt_tables: Vec<UintNttTable<T>>,
+    poly_length: usize,
 }
 
 impl<T: UnsignedInteger> UintCrtNttTable<T> {}
@@ -26,7 +27,10 @@ impl<T: UnsignedInteger> DcrtTable for UintCrtNttTable<T> {
         for modulus in moduli {
             ntt_tables.push(UintNttTable::new(log_n, *modulus)?);
         }
-        Ok(Self { ntt_tables })
+        Ok(Self {
+            ntt_tables,
+            poly_length: 1 << log_n,
+        })
     }
 
     /// Returns a reference to the ntt tables of this [`UintCrtNttTable<T>`].
@@ -40,29 +44,40 @@ impl<T: UnsignedInteger> DcrtTable for UintCrtNttTable<T> {
     fn iter(&self) -> std::slice::Iter<'_, Self::NttTables> {
         self.ntt_tables.iter()
     }
+
+    #[inline]
+    fn poly_length(&self) -> usize {
+        self.poly_length
+    }
 }
 
 impl<T: UnsignedInteger> Dcrt for UintCrtNttTable<T> {
     #[inline]
-    fn transform_inplace(&self, crt_poly: CrtPolynomial<T>) -> DcrtPolynomial<T> {
-        let r: Vec<NttPolynomial<T>> = self
-            .iter()
-            .zip(crt_poly)
-            .map(|(t, p)| t.transform_inplace(p))
-            .collect();
+    fn transform_inplace<S: RawData<Elem = Self::ValueT> + DataMut>(
+        &self,
+        mut crt_poly: CrtPolynomial<S, T>,
+    ) -> DcrtPolynomial<S, T> {
+        let poly_length = self.poly_length();
 
-        DcrtPolynomial::new(r)
+        self.iter()
+            .zip(crt_poly.iter_mut(poly_length))
+            .for_each(|(t, p)| t.transform_slice(p));
+
+        DcrtPolynomial::new(crt_poly.0)
     }
 
     #[inline]
-    fn inverse_transform_inplace(&self, dcrt_poly: DcrtPolynomial<T>) -> CrtPolynomial<T> {
-        let r: Vec<Polynomial<T>> = self
-            .iter()
-            .zip(dcrt_poly)
-            .map(|(t, p)| t.inverse_transform_inplace(p))
-            .collect();
+    fn inverse_transform_inplace<S: RawData<Elem = Self::ValueT> + DataMut>(
+        &self,
+        mut dcrt_poly: DcrtPolynomial<S, T>,
+    ) -> CrtPolynomial<S, T> {
+        let poly_length = self.poly_length();
 
-        CrtPolynomial::new(r)
+        self.iter()
+            .zip(dcrt_poly.iter_mut(poly_length))
+            .for_each(|(t, p)| t.inverse_transform_slice(p));
+
+        CrtPolynomial::new(dcrt_poly.0)
     }
 
     #[inline]

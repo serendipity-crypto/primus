@@ -3,37 +3,44 @@ use primus_integer::{UnsignedInteger, izip};
 use primus_modulus::UintModulus;
 use primus_reduce::ops::{ReduceAddAssign, ReduceMul, ReduceMulAdd, ReduceMulAssign};
 
-use super::{Array, ArrayMut, ArrayRef};
+use super::{ArrayBase, Data, DataMut, RawData};
 
-impl<T: Copy> Array<T> {}
-
-impl<'a, T: Copy> ArrayMut<'a, T> {
+impl<S, T> ArrayBase<S>
+where
+    S: RawData<Elem = T> + DataMut,
+    T: UnsignedInteger,
+{
     /// Performs `self *= scalar` according to `modulus`.
     #[inline]
     pub fn mul_scalar_assign<M>(&mut self, scalar: T, modulus: M)
     where
         M: Copy + ReduceMulAssign<T>,
     {
-        self.0
-            .iter_mut()
+        self.iter_mut()
             .for_each(|v| modulus.reduce_mul_assign(v, scalar))
     }
 
     /// Performs `self += scalar * rhs` according to `modulus`.
     #[inline]
-    pub fn add_mul_scalar_assign<M>(&mut self, rhs: ArrayRef<'_, T>, scalar: T, modulus: M)
-    where
+    pub fn add_mul_scalar_assign<M, A: RawData<Elem = T> + Data>(
+        &mut self,
+        rhs: &ArrayBase<A>,
+        scalar: T,
+        modulus: M,
+    ) where
         M: Copy + ReduceMulAdd<T, Output = T>,
     {
-        self.0
-            .iter_mut()
-            .zip(rhs.0)
+        self.iter_mut()
+            .zip(rhs)
             .for_each(|(r, &v)| *r = modulus.reduce_mul_add(v, scalar, *r));
     }
 
     #[inline]
-    pub fn mul_element_wise_assign<M>(&mut self, rhs: ArrayRef<'_, T>, modulus: M)
-    where
+    pub fn mul_element_wise_assign<M, A: RawData<Elem = T> + Data>(
+        &mut self,
+        rhs: &ArrayBase<A>,
+        modulus: M,
+    ) where
         M: Copy + ReduceMulAssign<T>,
     {
         self.0
@@ -41,9 +48,7 @@ impl<'a, T: Copy> ArrayMut<'a, T> {
             .zip(rhs)
             .for_each(|(a, &b)| modulus.reduce_mul_assign(a, b));
     }
-}
 
-impl<'a, T: UnsignedInteger> ArrayMut<'a, T> {
     /// Performs `self *= scalar` according to `modulus`.
     #[inline]
     pub fn mul_factor_assign(&mut self, scalar: ShoupFactor<T>, modulus: T) {
@@ -54,9 +59,9 @@ impl<'a, T: UnsignedInteger> ArrayMut<'a, T> {
 
     /// Performs `self += scalar * rhs` according to `modulus`.
     #[inline]
-    pub fn add_mul_factor_assign(
+    pub fn add_mul_factor_assign<A: RawData<Elem = T> + Data>(
         &mut self,
-        rhs: ArrayRef<'_, T>,
+        rhs: &ArrayBase<A>,
         scalar: ShoupFactor<T>,
         modulus: T,
     ) {
@@ -66,12 +71,16 @@ impl<'a, T: UnsignedInteger> ArrayMut<'a, T> {
     }
 }
 
-impl<'a, T: Copy> ArrayRef<'a, T> {
+impl<S, T> ArrayBase<S>
+where
+    S: RawData<Elem = T> + Data,
+    T: UnsignedInteger,
+{
     #[inline]
-    pub fn mul_element_wise_inplace<M>(
-        self,
-        rhs: ArrayRef<'_, T>,
-        result: &mut ArrayMut<'_, T>,
+    pub fn mul_element_wise_inplace<M, A: RawData<Elem = T> + DataMut>(
+        &self,
+        rhs: &Self,
+        result: &mut ArrayBase<A>,
         modulus: M,
     ) where
         M: Copy + ReduceMul<T, Output = T>,

@@ -1,79 +1,115 @@
 use primus_integer::{UnsignedInteger, izip};
 use primus_reduce::ops::{ReduceMul, ReduceMulAdd, ReduceMulAssign};
 
-use crate::NttPolynomial;
+use crate::{ArrayBase, Data, DataMut, DataOwned, PolyLength, RawData};
 
 use super::DcrtPolynomial;
 
-impl<T: Copy> DcrtPolynomial<T> {
+impl<S, T> DcrtPolynomial<S, T>
+where
+    S: RawData<Elem = T> + DataOwned,
+    T: UnsignedInteger,
+{
     /// Performs `self * scalar` according to `moduli`.
     #[inline]
-    pub fn mul_scalar<M>(mut self, scalar: T, moduli: &[M]) -> Self
+    pub fn mul_scalar<M>(mut self, scalar: T, moduli: &[M], poly_length: PolyLength) -> Self
     where
         M: Copy + ReduceMulAssign<T>,
     {
-        self.mul_scalar_assign(scalar, moduli);
+        self.mul_scalar_assign(scalar, moduli, poly_length);
         self
     }
 
-    /// Performs `self *= scalar` according to `moduli`.
+    /// Performs `self * rhs` according to `moduli`.
     #[inline]
-    pub fn mul_scalar_assign<M>(&mut self, scalar: T, moduli: &[M])
+    pub fn mul<M, A>(
+        mut self,
+        rhs: &DcrtPolynomial<A, T>,
+        moduli: &[M],
+        poly_length: PolyLength,
+    ) -> Self
     where
         M: Copy + ReduceMulAssign<T>,
+        A: RawData<Elem = T> + Data,
     {
-        self.iter_mut()
+        self.mul_assign(rhs, moduli, poly_length);
+        self
+    }
+}
+
+impl<S, T> DcrtPolynomial<S, T>
+where
+    S: RawData<Elem = T> + DataMut,
+    T: UnsignedInteger,
+{
+    /// Performs `self *= scalar` according to `moduli`.
+    #[inline]
+    pub fn mul_scalar_assign<M>(
+        &mut self,
+        scalar: T,
+        moduli: &[M],
+        PolyLength(poly_length): PolyLength,
+    ) where
+        M: Copy + ReduceMulAssign<T>,
+    {
+        self.iter_mut(poly_length)
             .zip(moduli)
-            .for_each(|(poly, modulus)| poly.mul_scalar_assign(scalar, *modulus))
+            .for_each(|(poly, modulus)| ArrayBase(poly).mul_scalar_assign(scalar, *modulus))
     }
 
     /// Performs `self += scalar * rhs` according to `moduli`.
     #[inline]
-    pub fn add_mul_scalar_assign<M>(&mut self, rhs: &Self, scalar: T, moduli: &[M])
-    where
+    pub fn add_mul_scalar_assign<M>(
+        &mut self,
+        rhs: &Self,
+        scalar: T,
+        moduli: &[M],
+        PolyLength(poly_length): PolyLength,
+    ) where
         M: Copy + ReduceMulAdd<T, Output = T>,
     {
-        izip!(self, rhs, moduli).for_each(|(xs, ys, modulus)| {
-            xs.add_mul_scalar_assign(ys, scalar, *modulus);
-        });
-    }
-}
-
-impl<T: UnsignedInteger> DcrtPolynomial<T> {
-    /// Performs `self * rhs` according to `moduli`.
-    #[inline]
-    pub fn mul<M>(mut self, rhs: &Self, moduli: &[M]) -> Self
-    where
-        M: Copy + ReduceMulAssign<T>,
-    {
-        self.mul_assign(rhs, moduli);
-        self
+        izip!(self.iter_mut(poly_length), rhs.iter(poly_length), moduli).for_each(
+            |(xs, ys, modulus)| {
+                ArrayBase(xs).add_mul_scalar_assign(&ArrayBase(ys), scalar, *modulus);
+            },
+        );
     }
 
     /// Performs `self *= rhs` according to `moduli`.
     #[inline]
-    pub fn mul_assign<M>(&mut self, rhs: &Self, moduli: &[M])
-    where
+    pub fn mul_assign<M, A>(
+        &mut self,
+        rhs: &DcrtPolynomial<A, T>,
+        moduli: &[M],
+        PolyLength(poly_length): PolyLength,
+    ) where
         M: Copy + ReduceMulAssign<T>,
+        A: RawData<Elem = T> + Data,
     {
-        izip!(self, rhs, moduli).for_each(|(xs, ys, modulus)| xs.mul_assign(ys, *modulus))
+        izip!(self.iter_mut(poly_length), rhs.iter(poly_length), moduli).for_each(
+            |(xs, ys, modulus)| ArrayBase(xs).mul_element_wise_assign(&ArrayBase(ys), *modulus),
+        )
     }
 
     /// Performs `result = self * rhs` according to `moduli`.
     #[inline]
-    pub fn mul_inplace<M>(&self, rhs: &Self, result: &mut Self, moduli: &[M])
-    where
+    pub fn mul_inplace<M>(
+        &self,
+        rhs: &Self,
+        result: &mut Self,
+        moduli: &[M],
+        PolyLength(poly_length): PolyLength,
+    ) where
         M: Copy + ReduceMul<T, Output = T>,
     {
-        izip!(self, rhs, result, moduli).for_each(
-            |(xs, ys, zs, modulus): (
-                &NttPolynomial<T>,
-                &NttPolynomial<T>,
-                &mut NttPolynomial<T>,
-                &M,
-            )| {
-                xs.mul_inplace(ys, zs, *modulus);
-            },
+        izip!(
+            self.iter(poly_length),
+            rhs.iter(poly_length),
+            result.iter_mut(poly_length),
+            moduli
         )
+        .for_each(|(xs, ys, zs, modulus)| {
+            ArrayBase(xs).mul_element_wise_inplace(&ArrayBase(ys), &mut ArrayBase(zs), *modulus);
+        })
     }
 }

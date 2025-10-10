@@ -2,9 +2,15 @@ use num_traits::Zero;
 use primus_integer::UnsignedInteger;
 use primus_reduce::ops::ReduceInvAssign;
 
+use crate::{DataOwned, RawData};
+
 use super::NttPolynomial;
 
-impl<T: UnsignedInteger> NttPolynomial<T> {
+impl<S, T> NttPolynomial<S, T>
+where
+    S: RawData<Elem = T> + DataOwned,
+    T: UnsignedInteger,
+{
     /// Try to calculate the inverse of the polynomial.
     #[inline]
     pub fn try_inv<M>(mut self, modulus: M) -> Result<Self, Self>

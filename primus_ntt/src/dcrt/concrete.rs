@@ -1,13 +1,14 @@
 /// ntt for 32bits
 pub mod prime32 {
 
-    use primus_poly::{NttPolynomial, Polynomial, crt::CrtPolynomial, dcrt::DcrtPolynomial};
+    use primus_poly::{DataMut, RawData, crt::CrtPolynomial, dcrt::DcrtPolynomial};
 
     use crate::{Concrete32Table, Dcrt, DcrtTable, Ntt, NttTable};
 
     /// Wrapping crt concrete NTT for 32bit primes.
     pub struct CrtConcrete32Table {
         ntt_tables: Vec<Concrete32Table>,
+        poly_length: usize,
     }
 
     impl DcrtTable for CrtConcrete32Table {
@@ -24,7 +25,10 @@ pub mod prime32 {
             for modulus in moduli {
                 ntt_tables.push(Self::NttTables::new(log_n, *modulus)?);
             }
-            Ok(Self { ntt_tables })
+            Ok(Self {
+                ntt_tables,
+                poly_length: 1 << log_n,
+            })
         }
 
         #[inline]
@@ -36,29 +40,40 @@ pub mod prime32 {
         fn iter(&self) -> std::slice::Iter<'_, Self::NttTables> {
             self.ntt_tables.iter()
         }
+
+        #[inline]
+        fn poly_length(&self) -> usize {
+            self.poly_length
+        }
     }
 
     impl Dcrt for CrtConcrete32Table {
         #[inline]
-        fn transform_inplace(&self, crt_poly: CrtPolynomial<u32>) -> DcrtPolynomial<u32> {
-            let r: Vec<NttPolynomial<u32>> = self
-                .iter()
-                .zip(crt_poly)
-                .map(|(t, p)| t.transform_inplace(p))
-                .collect();
+        fn transform_inplace<S: RawData<Elem = Self::ValueT> + DataMut>(
+            &self,
+            mut crt_poly: CrtPolynomial<S, u32>,
+        ) -> DcrtPolynomial<S, u32> {
+            let poly_length = self.poly_length();
 
-            DcrtPolynomial::new(r)
+            self.iter()
+                .zip(crt_poly.iter_mut(poly_length))
+                .for_each(|(t, p)| t.transform_slice(p));
+
+            DcrtPolynomial::new(crt_poly.0)
         }
 
         #[inline]
-        fn inverse_transform_inplace(&self, dcrt_poly: DcrtPolynomial<u32>) -> CrtPolynomial<u32> {
-            let r: Vec<Polynomial<u32>> = self
-                .iter()
-                .zip(dcrt_poly)
-                .map(|(t, p)| t.inverse_transform_inplace(p))
-                .collect();
+        fn inverse_transform_inplace<S: RawData<Elem = Self::ValueT> + DataMut>(
+            &self,
+            mut dcrt_poly: DcrtPolynomial<S, u32>,
+        ) -> CrtPolynomial<S, u32> {
+            let poly_length = self.poly_length();
 
-            CrtPolynomial::new(r)
+            self.iter()
+                .zip(dcrt_poly.iter_mut(poly_length))
+                .for_each(|(t, p)| t.inverse_transform_slice(p));
+
+            CrtPolynomial::new(dcrt_poly.0)
         }
 
         #[inline]
@@ -94,13 +109,14 @@ pub mod prime32 {
 /// ntt for 64bits
 pub mod prime64 {
 
-    use primus_poly::{NttPolynomial, Polynomial, crt::CrtPolynomial, dcrt::DcrtPolynomial};
+    use primus_poly::{DataMut, RawData, crt::CrtPolynomial, dcrt::DcrtPolynomial};
 
     use crate::{Concrete64Table, Dcrt, DcrtTable, Ntt, NttTable};
 
     /// Wrapping crt concrete NTT for 64bit primes.
     pub struct CrtConcrete64Table {
         ntt_tables: Vec<Concrete64Table>,
+        poly_length: usize,
     }
 
     impl DcrtTable for CrtConcrete64Table {
@@ -117,7 +133,10 @@ pub mod prime64 {
             for modulus in moduli {
                 ntt_tables.push(Self::NttTables::new(log_n, *modulus)?);
             }
-            Ok(Self { ntt_tables })
+            Ok(Self {
+                ntt_tables,
+                poly_length: 1 << log_n,
+            })
         }
 
         #[inline]
@@ -129,29 +148,40 @@ pub mod prime64 {
         fn iter(&self) -> std::slice::Iter<'_, Self::NttTables> {
             self.ntt_tables.iter()
         }
+
+        #[inline]
+        fn poly_length(&self) -> usize {
+            self.poly_length
+        }
     }
 
     impl Dcrt for CrtConcrete64Table {
         #[inline]
-        fn transform_inplace(&self, crt_poly: CrtPolynomial<u64>) -> DcrtPolynomial<u64> {
-            let r: Vec<NttPolynomial<u64>> = self
-                .iter()
-                .zip(crt_poly)
-                .map(|(t, p)| t.transform_inplace(p))
-                .collect();
+        fn transform_inplace<S: RawData<Elem = Self::ValueT> + DataMut>(
+            &self,
+            mut crt_poly: CrtPolynomial<S, u64>,
+        ) -> DcrtPolynomial<S, u64> {
+            let poly_length = self.poly_length();
 
-            DcrtPolynomial::new(r)
+            self.iter()
+                .zip(crt_poly.iter_mut(poly_length))
+                .for_each(|(t, p)| t.transform_slice(p));
+
+            DcrtPolynomial::new(crt_poly.0)
         }
 
         #[inline]
-        fn inverse_transform_inplace(&self, dcrt_poly: DcrtPolynomial<u64>) -> CrtPolynomial<u64> {
-            let r: Vec<Polynomial<u64>> = self
-                .iter()
-                .zip(dcrt_poly)
-                .map(|(t, p)| t.inverse_transform_inplace(p))
-                .collect();
+        fn inverse_transform_inplace<S: RawData<Elem = Self::ValueT> + DataMut>(
+            &self,
+            mut dcrt_poly: DcrtPolynomial<S, u64>,
+        ) -> CrtPolynomial<S, u64> {
+            let poly_length = self.poly_length();
 
-            CrtPolynomial::new(r)
+            self.iter()
+                .zip(dcrt_poly.iter_mut(poly_length))
+                .for_each(|(t, p)| t.inverse_transform_slice(p));
+
+            CrtPolynomial::new(dcrt_poly.0)
         }
 
         #[inline]

@@ -61,7 +61,7 @@ impl<T: UnsignedInteger> Array<T> {
 }
 
 impl<'a, T: UnsignedInteger> ArrayMut<'a, T> {
-    /// Generate a random [`Array<T>`].
+    /// Fill a random [`ArrayMut<'a, T>`].
     #[inline]
     pub fn random<R>(self, modulus_minus_one: T, rng: &mut R)
     where
@@ -74,7 +74,7 @@ impl<'a, T: UnsignedInteger> ArrayMut<'a, T> {
             .for_each(|(a, b)| *a = b);
     }
 
-    /// Generate a random [`Array<T>`] with a specified `distribution`.
+    /// Fill a random [`ArrayMut<'a, T>`] with a specified `distribution`.
     #[inline]
     pub fn random_with_distribution<R, D>(self, distribution: &D, rng: &mut R)
     where
@@ -87,7 +87,7 @@ impl<'a, T: UnsignedInteger> ArrayMut<'a, T> {
             .for_each(|(a, b)| *a = b);
     }
 
-    /// Generate a random binary [`Array<T>`].
+    /// Fill a random binary [`ArrayMut<'a, T>`].
     #[inline]
     pub fn random_binary<R>(self, rng: &mut R)
     where
@@ -96,7 +96,7 @@ impl<'a, T: UnsignedInteger> ArrayMut<'a, T> {
         primus_distr::sample_binary_values_inplace(self.0, rng)
     }
 
-    /// Generate a random ternary [`Array<T>`].
+    /// Fill a random ternary [`ArrayMut<'a, T>`].
     #[inline]
     pub fn random_ternary<R>(self, minus_one: T, rng: &mut R)
     where
@@ -105,7 +105,7 @@ impl<'a, T: UnsignedInteger> ArrayMut<'a, T> {
         primus_distr::sample_ternary_values_inplace(self.0, minus_one, rng)
     }
 
-    /// Generate a random [`Array<T>`] with discrete gaussian distribution.
+    /// Fill a random [`ArrayMut<'a, T>`] with discrete gaussian distribution.
     #[inline]
     pub fn random_gaussian<R>(self, gaussian: &DiscreteGaussian<T>, rng: &mut R)
     where

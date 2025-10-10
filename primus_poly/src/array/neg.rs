@@ -1,8 +1,13 @@
+use primus_integer::UnsignedInteger;
 use primus_reduce::ops::{ReduceNeg, ReduceNegAssign};
 
-use super::{Array, ArrayMut, ArrayRef};
+use super::{ArrayBase, Data, DataMut, DataOwned, RawData};
 
-impl<T: Copy> Array<T> {
+impl<S, T> ArrayBase<S>
+where
+    S: RawData<Elem = T> + DataOwned,
+    T: UnsignedInteger,
+{
     /// Performs the unary `-` operation.
     #[inline]
     pub fn neg<M>(mut self, modulus: M) -> Self
@@ -12,27 +17,13 @@ impl<T: Copy> Array<T> {
         self.neg_assign(modulus);
         self
     }
-
-    /// Performs the unary `-` operation.
-    #[inline]
-    pub fn neg_assign<M>(&mut self, modulus: M)
-    where
-        M: Copy + ReduceNegAssign<T>,
-    {
-        self.to_mut().neg_assign(modulus);
-    }
-
-    /// Performs the unary `-` operation.
-    #[inline]
-    pub fn neg_inplace<M>(&self, result: &mut Self, modulus: M)
-    where
-        M: Copy + ReduceNeg<T, Output = T>,
-    {
-        self.to_ref().neg_inplace(&mut result.to_mut(), modulus);
-    }
 }
 
-impl<'a, T: Copy> ArrayMut<'a, T> {
+impl<S, T> ArrayBase<S>
+where
+    S: RawData<Elem = T> + DataMut,
+    T: UnsignedInteger,
+{
     /// Performs the unary `-` operation.
     #[inline]
     pub fn neg_assign<M>(&mut self, modulus: M)
@@ -43,11 +34,18 @@ impl<'a, T: Copy> ArrayMut<'a, T> {
     }
 }
 
-impl<'a, T: Copy> ArrayRef<'a, T> {
+impl<S, T> ArrayBase<S>
+where
+    S: RawData<Elem = T> + Data,
+    T: UnsignedInteger,
+{
     /// Performs the unary `-` operation.
     #[inline]
-    pub fn neg_inplace<M>(self, result: &mut ArrayMut<'_, T>, modulus: M)
-    where
+    pub fn neg_inplace<M, A: RawData<Elem = T> + DataMut>(
+        &self,
+        result: &mut ArrayBase<A>,
+        modulus: M,
+    ) where
         M: Copy + ReduceNeg<T, Output = T>,
     {
         debug_assert_eq!(self.0.len(), result.0.len());

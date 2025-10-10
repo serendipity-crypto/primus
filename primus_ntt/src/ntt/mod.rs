@@ -1,4 +1,4 @@
-use primus_poly::{NttPolynomial, Polynomial};
+use primus_poly::{DataMut, NttPolynomial, Polynomial, RawData};
 use primus_reduce::FieldContext;
 
 use crate::{NttError, root::PrimitiveRoot};
@@ -29,18 +29,6 @@ pub trait NttTable: Sized {
 
 /// An abstract for Number Theory Transform.
 pub trait Ntt: NttTable {
-    /// Perform a fast number theory transform.
-    ///
-    /// This function transforms a polynomial to a ntt polynomial.
-    ///
-    /// # Arguments
-    ///
-    /// * `poly` - inputs in normal order, outputs in bit-reversed order
-    #[inline]
-    fn transform(&self, poly: &Polynomial<Self::ValueT>) -> NttPolynomial<Self::ValueT> {
-        self.transform_inplace(poly.clone())
-    }
-
     /// Perform a fast number theory transform in place.
     ///
     /// This function transforms a polynomial to a ntt polynomial.
@@ -48,19 +36,10 @@ pub trait Ntt: NttTable {
     /// # Arguments
     ///
     /// * `poly` - inputs in normal order, outputs in bit-reversed order
-    fn transform_inplace(&self, poly: Polynomial<Self::ValueT>) -> NttPolynomial<Self::ValueT>;
-
-    /// Perform a fast inverse number theory transform.
-    ///
-    /// This function transforms a ntt polynomial to a polynomial.
-    ///
-    /// # Arguments
-    ///
-    /// * `values` - inputs in bit-reversed order, outputs in normal order
-    #[inline]
-    fn inverse_transform(&self, values: &NttPolynomial<Self::ValueT>) -> Polynomial<Self::ValueT> {
-        self.inverse_transform_inplace(values.clone())
-    }
+    fn transform_inplace<S: RawData<Elem = Self::ValueT> + DataMut>(
+        &self,
+        poly: Polynomial<S, Self::ValueT>,
+    ) -> NttPolynomial<S, Self::ValueT>;
 
     /// Perform a fast inverse number theory transform in place.
     ///
@@ -69,10 +48,10 @@ pub trait Ntt: NttTable {
     /// # Arguments
     ///
     /// * `values` - inputs in bit-reversed order, outputs in normal order
-    fn inverse_transform_inplace(
+    fn inverse_transform_inplace<S: RawData<Elem = Self::ValueT> + DataMut>(
         &self,
-        values: NttPolynomial<Self::ValueT>,
-    ) -> Polynomial<Self::ValueT>;
+        values: NttPolynomial<S, Self::ValueT>,
+    ) -> Polynomial<S, Self::ValueT>;
 
     /// Perform a fast number theory transform in place.
     ///

@@ -1,19 +1,37 @@
 use primus_integer::{BigIntegerOps, UnsignedInteger, izip};
 
+use crate::{Data, DataMut, DataOwned, RawData};
+
 use super::BigUintPolynomial;
 
-impl<T: UnsignedInteger> BigUintPolynomial<T> {
+impl<S, T> BigUintPolynomial<S, T>
+where
+    S: RawData<Elem = T> + DataOwned,
+    T: UnsignedInteger,
+{
     /// Performs `self + rhs` according to `modulus`.
     #[inline]
-    pub fn add(mut self, rhs: &Self, modulus: &[T]) -> Self {
+    pub fn add<A>(mut self, rhs: &BigUintPolynomial<A>, modulus: &[T]) -> Self
+    where
+        A: RawData<Elem = T> + Data,
+    {
         self.add_assign(rhs, modulus);
         self
     }
+}
 
+impl<S, T> BigUintPolynomial<S, T>
+where
+    S: RawData<Elem = T> + DataMut,
+    T: UnsignedInteger,
+{
     /// Performs `self += rhs` according to `modulus`.
     #[inline]
-    pub fn add_assign(&mut self, rhs: &Self, modulus: &[T]) {
-        debug_assert_eq!(self.big_uint_poly.len(), rhs.big_uint_poly.len());
+    pub fn add_assign<A>(&mut self, rhs: &BigUintPolynomial<A>, modulus: &[T])
+    where
+        A: RawData<Elem = T> + Data,
+    {
+        debug_assert_eq!(self.0.len(), rhs.0.len());
         let value_len = modulus.len();
         self.iter_mut(value_len)
             .zip(rhs.iter(value_len))
@@ -21,12 +39,21 @@ impl<T: UnsignedInteger> BigUintPolynomial<T> {
                 a.slice_add_modulo_assign(b, modulus);
             });
     }
+}
 
+impl<S, T> BigUintPolynomial<S, T>
+where
+    S: RawData<Elem = T> + Data,
+    T: UnsignedInteger,
+{
     /// Performs `result = self + rhs` according to `modulus`.
     #[inline]
-    pub fn add_inplace(&self, rhs: &Self, result: &mut Self, modulus: &[T]) {
-        debug_assert_eq!(self.big_uint_poly.len(), rhs.big_uint_poly.len());
-        debug_assert_eq!(self.big_uint_poly.len(), result.big_uint_poly.len());
+    pub fn add_inplace<A>(&self, rhs: &Self, result: &mut BigUintPolynomial<A>, modulus: &[T])
+    where
+        A: RawData<Elem = T> + DataMut,
+    {
+        debug_assert_eq!(self.0.len(), rhs.0.len());
+        debug_assert_eq!(self.0.len(), result.0.len());
         let value_len = modulus.len();
         izip!(
             self.iter(value_len),

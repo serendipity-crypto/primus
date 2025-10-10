@@ -2,7 +2,7 @@
 pub mod prime32 {
 
     use concrete_ntt::prime32::Plan;
-    use primus_poly::{NttPolynomial, Polynomial};
+    use primus_poly::{DataMut, NttPolynomial, Polynomial, RawData};
     use primus_reduce::FieldContext;
 
     use crate::{Ntt, NttError, NttTable};
@@ -55,15 +55,21 @@ pub mod prime32 {
 
     impl Ntt for Concrete32Table {
         #[inline]
-        fn transform_inplace(&self, mut poly: Polynomial<u32>) -> NttPolynomial<u32> {
+        fn transform_inplace<S: RawData<Elem = Self::ValueT> + DataMut>(
+            &self,
+            mut poly: Polynomial<S, u32>,
+        ) -> NttPolynomial<S, u32> {
             self.transform_slice(poly.as_mut_slice());
-            NttPolynomial::new(poly.into_vec())
+            NttPolynomial::new(poly.0)
         }
 
         #[inline]
-        fn inverse_transform_inplace(&self, mut values: NttPolynomial<u32>) -> Polynomial<u32> {
+        fn inverse_transform_inplace<S: RawData<Elem = Self::ValueT> + DataMut>(
+            &self,
+            mut values: NttPolynomial<S, u32>,
+        ) -> Polynomial<S, u32> {
             self.inverse_transform_slice(values.as_mut_slice());
-            Polynomial::new(values.into_vec())
+            Polynomial::new(values.0)
         }
 
         #[inline]
@@ -121,7 +127,7 @@ pub mod prime32 {
 /// ntt for 64bits
 pub mod prime64 {
     use concrete_ntt::prime64::Plan;
-    use primus_poly::{NttPolynomial, Polynomial};
+    use primus_poly::{DataMut, NttPolynomial, Polynomial, RawData};
 
     use crate::{Ntt, NttError, NttTable};
 
@@ -171,15 +177,21 @@ pub mod prime64 {
 
     impl Ntt for Concrete64Table {
         #[inline]
-        fn transform_inplace(&self, mut poly: Polynomial<u64>) -> NttPolynomial<u64> {
+        fn transform_inplace<S: RawData<Elem = Self::ValueT> + DataMut>(
+            &self,
+            mut poly: Polynomial<S, u64>,
+        ) -> NttPolynomial<S, u64> {
             self.transform_slice(poly.as_mut_slice());
-            NttPolynomial::new(poly.into_vec())
+            NttPolynomial::new(poly.0)
         }
 
         #[inline]
-        fn inverse_transform_inplace(&self, mut values: NttPolynomial<u64>) -> Polynomial<u64> {
+        fn inverse_transform_inplace<S: RawData<Elem = Self::ValueT> + DataMut>(
+            &self,
+            mut values: NttPolynomial<S, u64>,
+        ) -> Polynomial<S, u64> {
             self.inverse_transform_slice(values.as_mut_slice());
-            Polynomial::new(values.into_vec())
+            Polynomial::new(values.0)
         }
 
         #[inline]

@@ -2,7 +2,7 @@ use primus_factor::{FactorMul, LazyFactorMul, ShoupFactor};
 use primus_integer::UnsignedInteger;
 use primus_modulo::{AddModulo, ModuloOnce, ModuloOnceAssign};
 use primus_modulus::UintModulus;
-use primus_poly::{NttPolynomial, Polynomial};
+use primus_poly::{DataMut, NttPolynomial, Polynomial, RawData};
 use primus_reduce::{FieldContext, ops::*};
 
 use crate::{Ntt, NttError, reverse::ReverseLsbs, root::PrimitiveRoot};
@@ -192,15 +192,21 @@ impl<T: UnsignedInteger> NttTable for UintNttTable<T> {
 
 impl<T: UnsignedInteger> Ntt for UintNttTable<T> {
     #[inline]
-    fn transform_inplace(&self, mut poly: Polynomial<T>) -> NttPolynomial<T> {
+    fn transform_inplace<S: RawData<Elem = Self::ValueT> + DataMut>(
+        &self,
+        mut poly: Polynomial<S, T>,
+    ) -> NttPolynomial<S, T> {
         self.transform_slice(poly.as_mut_slice());
-        NttPolynomial::new(poly.into_vec())
+        NttPolynomial::new(poly.0)
     }
 
     #[inline]
-    fn inverse_transform_inplace(&self, mut values: NttPolynomial<T>) -> Polynomial<T> {
+    fn inverse_transform_inplace<S: RawData<Elem = Self::ValueT> + DataMut>(
+        &self,
+        mut values: NttPolynomial<S, T>,
+    ) -> Polynomial<S, T> {
         self.inverse_transform_slice(values.as_mut_slice());
-        Polynomial::new(values.into_vec())
+        Polynomial::new(values.0)
     }
 
     #[inline]

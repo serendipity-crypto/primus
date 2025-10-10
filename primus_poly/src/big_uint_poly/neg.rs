@@ -1,15 +1,27 @@
 use primus_integer::{BigIntegerOps, UnsignedInteger};
 
+use crate::{Data, DataMut, DataOwned, RawData};
+
 use super::BigUintPolynomial;
 
-impl<T: UnsignedInteger> BigUintPolynomial<T> {
+impl<S, T> BigUintPolynomial<S, T>
+where
+    S: RawData<Elem = T> + DataOwned,
+    T: UnsignedInteger,
+{
     /// Performs the unary `-` operation.
     #[inline]
     pub fn neg(mut self, modulus: &[T]) -> Self {
         self.neg_assign(modulus);
         self
     }
+}
 
+impl<S, T> BigUintPolynomial<S, T>
+where
+    S: RawData<Elem = T> + DataMut,
+    T: UnsignedInteger,
+{
     /// Performs the unary `-` operation.
     #[inline]
     pub fn neg_assign(&mut self, modulus: &[T]) {
@@ -17,11 +29,20 @@ impl<T: UnsignedInteger> BigUintPolynomial<T> {
         self.iter_mut(value_len)
             .for_each(|v| v.slice_neg_modulo_assign(modulus));
     }
+}
 
+impl<S, T> BigUintPolynomial<S, T>
+where
+    S: RawData<Elem = T> + Data,
+    T: UnsignedInteger,
+{
     /// Performs the unary `-` operation.
     #[inline]
-    pub fn neg_inplace(&self, result: &mut Self, modulus: &[T]) {
-        debug_assert_eq!(self.big_uint_poly.len(), result.big_uint_poly.len());
+    pub fn neg_inplace<A>(&self, result: &mut BigUintPolynomial<A>, modulus: &[T])
+    where
+        A: RawData<Elem = T> + DataMut,
+    {
+        debug_assert_eq!(self.0.len(), result.0.len());
         let value_len = modulus.len();
         result
             .iter_mut(value_len)

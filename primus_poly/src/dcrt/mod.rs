@@ -1,10 +1,6 @@
-use num_traits::ConstZero;
-use primus_integer::{UnsignedInteger, size::Size};
-use serde::{Deserialize, Serialize};
+use primus_integer::{ByteCount, UnsignedInteger, size::Size};
 
-use crate::NttPolynomial;
-
-mod basic;
+use crate::{ArrayBase, Data, DataMut, DataOwned, RawData};
 
 mod add;
 mod inv;
@@ -24,84 +20,93 @@ mod sub;
 ///
 /// Also, applying number theory transform to each factorized polynomial,
 /// we can get polynomials that are more efficient in addition, subtraction and multiplication.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct DcrtPolynomial<T> {
-    polys: Vec<NttPolynomial<T>>,
-}
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DcrtPolynomial<S, T = <S as RawData>::Elem>(pub ArrayBase<S, T>)
+where
+    S: RawData<Elem = T>,
+    T: UnsignedInteger;
 
-impl<T> DcrtPolynomial<T> {
+impl<S, T> DcrtPolynomial<S, T>
+where
+    S: RawData<Elem = T>,
+    T: UnsignedInteger,
+{
     /// Creates a new [`DcrtPolynomial<T>`].
     #[inline]
-    pub fn new(polys: Vec<NttPolynomial<T>>) -> Self {
-        Self { polys }
-    }
-
-    /// Returns an iterator that allows reading each rns polynomial of the double crt polynomial.
-    #[inline]
-    pub fn iter(&self) -> std::slice::Iter<'_, NttPolynomial<T>> {
-        self.polys.iter()
-    }
-
-    /// Returns an iterator that allows modifying each rns polynomial of the double crt polynomial.
-    #[inline]
-    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, NttPolynomial<T>> {
-        self.polys.iter_mut()
-    }
-
-    /// .
-    #[inline]
-    pub const fn as_slice(&self) -> &[NttPolynomial<T>] {
-        self.polys.as_slice()
-    }
-
-    /// .
-    #[inline]
-    pub const fn as_mut_slice(&mut self) -> &mut [NttPolynomial<T>] {
-        self.polys.as_mut_slice()
+    pub fn new(polys: ArrayBase<S, T>) -> Self {
+        Self(polys)
     }
 }
 
-impl<T> DcrtPolynomial<T>
+impl<S, T> DcrtPolynomial<S, T>
 where
-    T: Copy + ConstZero,
+    S: RawData<Elem = T> + DataOwned,
+    T: UnsignedInteger,
 {
     /// Creates a [`DcrtPolynomial<T>`] with all coefficients equal to zero.
     #[inline]
     pub fn zero(moduli_count: usize, poly_length: usize) -> Self {
-        Self {
-            polys: (0..moduli_count)
-                .map(|_| NttPolynomial::zero(poly_length))
-                .collect(),
-        }
+        Self(ArrayBase::zero(moduli_count * poly_length))
     }
 
-    /// Returns `true` if `self` is equal to `0`.
     #[inline]
-    pub fn is_zero(&self) -> bool {
-        self.polys.iter().all(NttPolynomial::is_zero)
+    pub fn into_owned(self) -> S {
+        self.0.0
+    }
+}
+
+impl<S, T> DcrtPolynomial<S, T>
+where
+    S: RawData<Elem = T> + DataMut,
+    T: UnsignedInteger,
+{
+    /// Returns an iterator that allows modifying each value or coefficient of the polynomial.
+    #[inline]
+    pub fn iter_mut(&mut self, poly_length: usize) -> std::slice::ChunksExactMut<'_, T> {
+        self.0.chunks_exact_mut(poly_length)
     }
 
     /// Sets `self` to `0`.
     #[inline]
     pub fn set_zero(&mut self) {
-        self.polys.iter_mut().for_each(NttPolynomial::set_zero);
+        self.0.set_zero();
     }
-}
 
-impl<T: Copy> DcrtPolynomial<T> {
     /// Copy the coefficients from another slice.
     #[inline]
-    pub fn copy_from<I: AsRef<[T]>>(&mut self, src: impl IntoIterator<Item = I>) {
-        self.polys
-            .iter_mut()
-            .zip(src)
-            .for_each(|(a, b)| a.copy_from(b.as_ref()));
+    pub fn copy_from<A>(&mut self, src: &DcrtPolynomial<A, T>)
+    where
+        A: RawData<Elem = T> + Data,
+    {
+        self.0.copy_from_slice(src.0.as_ref());
     }
 }
 
-impl<T: UnsignedInteger> Size for DcrtPolynomial<T> {
+impl<S, T> DcrtPolynomial<S, T>
+where
+    S: RawData<Elem = T> + Data,
+    T: UnsignedInteger,
+{
+    /// Returns an iterator that allows reading each value or coefficient of the polynomial.
+    #[inline]
+    pub fn iter(&self, poly_length: usize) -> std::slice::ChunksExact<'_, T> {
+        self.0.chunks_exact(poly_length)
+    }
+
+    /// Returns `true` if `self` is equal to `0`.
+    #[inline]
+    pub fn is_zero(&self) -> bool {
+        self.0.is_zero()
+    }
+}
+
+impl<S, T> Size for DcrtPolynomial<S, T>
+where
+    S: RawData<Elem = T> + Data,
+    T: UnsignedInteger,
+{
     #[inline]
     fn byte_count(&self) -> usize {
-        self.polys.len() * self.polys[0].byte_count()
+        self.0.len() * <T as ByteCount>::BYTES_COUNT
     }
 }
