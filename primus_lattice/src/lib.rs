@@ -12,10 +12,13 @@ mod rlwe;
 
 // pub use glwe::{CrtGlwe, DcrtGlwe, Glwe, NttGlwe};
 pub use lwe::{Lwe, MultiMsgLwe};
-pub use rlwe::{CrtRlwe, DcrtRlwe, NttRlwe, Rlwe};
+pub use rlwe::{CrtRlwe, CrtRlweInfo, DcrtRlwe, NttRlwe, Rlwe};
 
 // pub use glev::{CrtGlev, DcrtGlev, Glev, NttGlev};
 // pub use rlev::{CrtRlev, DcrtRlev, NttRlev, Rlev};
 
 // pub use ggsw::{CrtGgsw, DcrtGgsw, Ggsw, NttGgsw};
 // pub use rgsw::{CrtRgsw, DcrtRgsw, NttRgsw, Rgsw};
+
+#[derive(Debug, Clone, Copy)]
+pub struct ModuliCount(pub usize);

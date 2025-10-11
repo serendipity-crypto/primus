@@ -19,7 +19,7 @@ where
 
 impl<S, T: UnsignedInteger> NttRlwe<S>
 where
-    S: RawData<Elem = T> + DataOwned,
+    S: RawData<Elem = T>,
     T: UnsignedInteger,
 {
     /// Creates a new [`NttRlwe<S>`].
@@ -27,7 +27,13 @@ where
     pub fn new(data: ArrayBase<S>) -> Self {
         Self { data }
     }
+}
 
+impl<S, T: UnsignedInteger> NttRlwe<S>
+where
+    S: RawData<Elem = T> + DataOwned,
+    T: UnsignedInteger,
+{
     /// Creates a new [`NttRlwe<S>`] with reference of [`NttPolynomial<A>`].
     #[inline]
     pub fn from_ref<A>(a: &NttPolynomial<A>, b: &NttPolynomial<A>) -> Self

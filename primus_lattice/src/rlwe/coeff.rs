@@ -1,6 +1,6 @@
 use primus_integer::{UnsignedInteger, size::Size};
 use primus_ntt::{Ntt, NttTable};
-use primus_poly::{ArrayBase, Data, DataMut, DataOwned, Polynomial, RawData};
+use primus_poly::{ArrayBase, Data, DataMut, DataOwned, NttPolynomial, Polynomial, RawData};
 use primus_reduce::FieldContext;
 
 use crate::NttRlwe;
@@ -195,6 +195,32 @@ where
         A: RawData<Elem = T> + DataMut,
     {
         self.data.sub_inplace(&rhs.data, &mut result.data, modulus)
+    }
+
+    /// Performs a multiplication on the `self` [`Rlwe<S>`] with another `ntt_polynomial` [`NttPolynomial<A>`],
+    /// store the result into `result` [`NttRlwe<B>`].
+    #[inline]
+    pub fn mul_ntt_polynomial_inplace<M, Table, A, B>(
+        &self,
+        ntt_polynomial: &NttPolynomial<A>,
+        result: &mut NttRlwe<B>,
+        modulus: M,
+        ntt_table: &Table,
+    ) where
+        M: FieldContext<T>,
+        Table: NttTable<ValueT = T> + Ntt,
+        A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + DataMut,
+    {
+        result.data.copy_from_slice(self.data.as_ref());
+
+        let (a, b) = result.a_b_mut_slices();
+
+        ntt_table.transform_slice(a);
+        ntt_table.transform_slice(b);
+
+        NttPolynomial(ArrayBase(a)).mul_assign(ntt_polynomial, modulus);
+        NttPolynomial(ArrayBase(b)).mul_assign(ntt_polynomial, modulus);
     }
 
     /// ntt transform
