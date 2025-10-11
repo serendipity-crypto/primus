@@ -1,7 +1,7 @@
 use primus_integer::{UnsignedInteger, izip};
 use primus_reduce::ops::{ReduceNeg, ReduceNegAssign};
 
-use crate::{ArrayBase, Data, DataMut, DataOwned, PolyLength, RawData};
+use crate::{ArrayBase, Data, DataMut, DataOwned, RawData};
 
 use super::CrtPolynomial;
 
@@ -12,7 +12,7 @@ where
 {
     /// Performs the unary `-` operation.
     #[inline]
-    pub fn neg<M>(mut self, moduli: &[M], poly_length: PolyLength) -> Self
+    pub fn neg<M>(mut self, moduli: &[M], poly_length: usize) -> Self
     where
         M: Copy + ReduceNegAssign<T>,
     {
@@ -28,7 +28,7 @@ where
 {
     /// Performs the unary `-` operation.
     #[inline]
-    pub fn neg_assign<M>(&mut self, moduli: &[M], PolyLength(poly_length): PolyLength)
+    pub fn neg_assign<M>(&mut self, moduli: &[M], poly_length: usize)
     where
         M: Copy + ReduceNegAssign<T>,
     {
@@ -49,7 +49,7 @@ where
         &self,
         result: &mut CrtPolynomial<A, T>,
         moduli: &[M],
-        PolyLength(poly_length): PolyLength,
+        poly_length: usize,
     ) where
         M: Copy + ReduceNeg<T, Output = T>,
         A: RawData<Elem = T> + DataMut,

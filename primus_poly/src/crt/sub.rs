@@ -1,7 +1,7 @@
 use primus_integer::{UnsignedInteger, izip};
 use primus_reduce::ops::{ReduceSub, ReduceSubAssign};
 
-use crate::{ArrayBase, Data, DataMut, DataOwned, PolyLength, RawData};
+use crate::{ArrayBase, Data, DataMut, DataOwned, RawData};
 
 use super::CrtPolynomial;
 
@@ -12,12 +12,7 @@ where
 {
     /// Performs `self - rhs` according to `moduli`.
     #[inline]
-    pub fn sub<M, A>(
-        mut self,
-        rhs: &CrtPolynomial<A, T>,
-        moduli: &[M],
-        poly_length: PolyLength,
-    ) -> Self
+    pub fn sub<M, A>(mut self, rhs: &CrtPolynomial<A, T>, moduli: &[M], poly_length: usize) -> Self
     where
         M: Copy + ReduceSubAssign<T>,
         A: RawData<Elem = T> + Data,
@@ -34,12 +29,8 @@ where
 {
     /// Performs `self -= rhs` according to `moduli`.
     #[inline]
-    pub fn sub_assign<M, A>(
-        &mut self,
-        rhs: &CrtPolynomial<A, T>,
-        moduli: &[M],
-        PolyLength(poly_length): PolyLength,
-    ) where
+    pub fn sub_assign<M, A>(&mut self, rhs: &CrtPolynomial<A, T>, moduli: &[M], poly_length: usize)
+    where
         M: Copy + ReduceSubAssign<T>,
         A: RawData<Elem = T> + Data,
     {
@@ -63,7 +54,7 @@ where
         rhs: &Self,
         result: &mut CrtPolynomial<A, T>,
         moduli: &[M],
-        PolyLength(poly_length): PolyLength,
+        poly_length: usize,
     ) where
         M: Copy + ReduceSub<T, Output = T>,
         A: RawData<Elem = T> + DataMut,

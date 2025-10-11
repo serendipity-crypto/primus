@@ -1,7 +1,7 @@
 use primus_integer::{UnsignedInteger, izip};
 use primus_reduce::ops::{ReduceMulAdd, ReduceMulAssign};
 
-use crate::{ArrayBase, Data, DataMut, DataOwned, PolyLength, RawData};
+use crate::{ArrayBase, Data, DataMut, DataOwned, RawData};
 
 use super::CrtPolynomial;
 
@@ -12,7 +12,7 @@ where
 {
     /// Performs `self * scalar` according to `moduli`.
     #[inline]
-    pub fn mul_scalar<M>(mut self, scalar: T, moduli: &[M], poly_length: PolyLength) -> Self
+    pub fn mul_scalar<M>(mut self, scalar: T, moduli: &[M], poly_length: usize) -> Self
     where
         M: Copy + ReduceMulAssign<T>,
     {
@@ -28,12 +28,8 @@ where
 {
     /// Performs `self *= scalar` according to `moduli`.
     #[inline]
-    pub fn mul_scalar_assign<M>(
-        &mut self,
-        scalar: T,
-        moduli: &[M],
-        PolyLength(poly_length): PolyLength,
-    ) where
+    pub fn mul_scalar_assign<M>(&mut self, scalar: T, moduli: &[M], poly_length: usize)
+    where
         M: Copy + ReduceMulAssign<T>,
     {
         self.0
@@ -49,7 +45,7 @@ where
         rhs: &CrtPolynomial<A, T>,
         scalar: T,
         moduli: &[M],
-        PolyLength(poly_length): PolyLength,
+        poly_length: usize,
     ) where
         M: Copy + ReduceMulAdd<T, Output = T>,
         A: RawData<Elem = T> + Data,

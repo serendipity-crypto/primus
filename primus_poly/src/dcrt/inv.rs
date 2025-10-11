@@ -2,7 +2,7 @@ use num_traits::Zero;
 use primus_integer::UnsignedInteger;
 use primus_reduce::ops::ReduceInvAssign;
 
-use crate::{DataOwned, PolyLength, RawData};
+use crate::{DataOwned, RawData};
 
 use super::DcrtPolynomial;
 
@@ -13,11 +13,7 @@ where
 {
     /// Try to calculate the inverse of the polynomial.
     #[inline]
-    pub fn try_inv<M>(
-        mut self,
-        moduli: &[M],
-        PolyLength(poly_length): PolyLength,
-    ) -> Result<Self, Self>
+    pub fn try_inv<M>(mut self, moduli: &[M], poly_length: usize) -> Result<Self, Self>
     where
         M: Copy + ReduceInvAssign<T>,
     {

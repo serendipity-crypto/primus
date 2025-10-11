@@ -1,60 +1,33 @@
-use primus_integer::UnsignedInteger;
-use serde::{Deserialize, Serialize};
+use primus_integer::{UnsignedInteger, izip};
+use primus_ntt::{Dcrt, DcrtTable, Ntt};
+use primus_poly::{ArrayBase, Data, DataMut, DataOwned, RawData};
+use primus_reduce::FieldContext;
 
-use crate::DcrtRlev;
+use crate::CrtRgsw;
 
 /// Represents a ciphertext in the Ring-GSW (Ring Learning With Errors) homomorphic encryption scheme.
-#[derive(Clone, Serialize, Deserialize)]
-#[serde(bound = "T: UnsignedInteger")]
-pub struct DcrtRgsw<T: UnsignedInteger> {
-    a: DcrtRlev<T>,
-    b: DcrtRlev<T>,
+#[derive(Clone)]
+pub struct DcrtRgsw<S, T = <S as RawData>::Elem>
+where
+    S: RawData<Elem = T>,
+    T: UnsignedInteger,
+{
+    pub data: ArrayBase<S>,
 }
 
-impl<T: UnsignedInteger> DcrtRgsw<T> {
-    /// Creates a new [`CrtRgsw<T>`].
+impl<S, T> DcrtRgsw<S, T>
+where
+    S: RawData<Elem = T>,
+    T: UnsignedInteger,
+{
+    /// Creates a new [`DcrtRgsw<S, T>`].
     #[inline]
-    pub fn new(a: DcrtRlev<T>, b: DcrtRlev<T>) -> Self {
-        Self { a, b }
-    }
-
-    /// Creates a [`CrtRgsw<T>`] with all entries equal to zero.
-    #[inline]
-    pub fn zero(decompose_length: usize, moduli_count: usize, poly_length: usize) -> Self {
-        Self {
-            a: DcrtRlev::zero(decompose_length, moduli_count, poly_length),
-            b: DcrtRlev::zero(decompose_length, moduli_count, poly_length),
-        }
-    }
-
-    /// Set all entries equal to zero.
-    #[inline]
-    pub fn set_zero(&mut self) {
-        self.a.set_zero();
-        self.b.set_zero();
-    }
-
-    /// Returns a reference to the `-s*m` of this [`CrtRgsw<T>`].
-    #[inline]
-    pub fn a(&self) -> &DcrtRlev<T> {
-        &self.a
-    }
-
-    /// Returns a mutable reference to the `-s*m` of this [`CrtRgsw<T>`].
-    #[inline]
-    pub fn a_mut(&mut self) -> &mut DcrtRlev<T> {
-        &mut self.a
-    }
-
-    /// Returns a reference to the `m` of this [`CrtRgsw<T>`].
-    #[inline]
-    pub fn b(&self) -> &DcrtRlev<T> {
-        &self.b
-    }
-
-    /// Returns a mutable reference to the `m` of this [`CrtRgsw<T>`].
-    #[inline]
-    pub fn b_mut(&mut self) -> &mut DcrtRlev<T> {
-        &mut self.b
+    pub fn new(data: ArrayBase<S>) -> Self {
+        Self { data }
     }
 }
+
+impl_bytes_conversion!(DcrtRgsw<S, T>);
+impl_zero!(DcrtRgsw<S, T>);
+impl_basic_operation_multiple_modulus!(DcrtRgsw<S, T>);
+impl_crt_intt!(DcrtRgsw<S, T>, CrtRgsw);
