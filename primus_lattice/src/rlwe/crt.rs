@@ -19,18 +19,24 @@ where
     pub data: ArrayBase<S>,
 }
 
-impl<S, T: UnsignedInteger> CrtRlwe<S>
+impl<S, T> CrtRlwe<S>
 where
-    S: RawData<Elem = T> + DataOwned,
+    S: RawData<Elem = T>,
     T: UnsignedInteger,
 {
-    /// Creates a new [`CrtRlwe<T>`].
+    /// Creates a new [`CrtRlwe<S>`].
     #[inline]
     pub fn new(data: ArrayBase<S>) -> Self {
         Self { data }
     }
+}
 
-    /// Creates a [`CrtRlwe<T>`] with all entries equal to zero.
+impl<S, T> CrtRlwe<S>
+where
+    S: RawData<Elem = T> + DataOwned,
+    T: UnsignedInteger,
+{
+    /// Creates a [`CrtRlwe<S>`] with all entries equal to zero.
     #[inline]
     pub fn zero(info: CrtRlweInfo) -> Self {
         let len = info.moduli_count.0 * info.poly_length.0 * 2;
@@ -70,9 +76,30 @@ where
         self.sub_assign_element_wise(rhs, moduli, poly_length);
         self
     }
+
+    /// ntt transform
+    #[inline]
+    pub fn into_ntt_form<Table>(self, table: &Table) -> DcrtRlwe<S>
+    where
+        Table: DcrtTable<ValueT = T> + Dcrt,
+    {
+        let poly_length = table.poly_length();
+
+        let Self { mut data } = self;
+
+        data.chunks_exact_mut(poly_length * 2)
+            .zip(table.iter())
+            .for_each(|(rlwe, ntt_table)| {
+                rlwe.chunks_exact_mut(poly_length).for_each(|poly| {
+                    ntt_table.transform_slice(poly);
+                });
+            });
+
+        DcrtRlwe::new(data)
+    }
 }
 
-impl<S, T: UnsignedInteger> CrtRlwe<S>
+impl<S, T> CrtRlwe<S>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
@@ -84,7 +111,7 @@ where
     }
 
     /// Performs an in-place element-wise modular addition
-    /// on the `self` [`CrtRlwe<T>`] with another `rhs` [`CrtRlwe<T>`].
+    /// on the `self` [`CrtRlwe<S>`] with another `rhs` [`CrtRlwe<S>`].
     #[inline]
     pub fn add_assign_element_wise<M, A>(
         &mut self,
@@ -106,7 +133,7 @@ where
     }
 
     /// Performs an in-place element-wise modular subtraction
-    /// on the `self` [`CrtRlwe<T>`] with another `rhs` [`CrtRlwe<T>`].
+    /// on the `self` [`CrtRlwe<S>`] with another `rhs` [`CrtRlwe<S>`].
     #[inline]
     pub fn sub_assign_element_wise<M, A>(
         &mut self,
@@ -128,7 +155,7 @@ where
     }
 }
 
-impl<S, T: UnsignedInteger> CrtRlwe<S>
+impl<S, T> CrtRlwe<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
@@ -183,7 +210,7 @@ where
         });
     }
 
-    /// Performs a multiplication on the `self` [`CrtRlwe<T>`] with another `dcrt_polynomial` [`DcrtPolynomial<T>`],
+    /// Performs a multiplication on the `self` [`CrtRlwe<S>`] with another `dcrt_polynomial` [`DcrtPolynomial<T>`],
     /// store the result into `result` [`DcrtRlwe<T>`].
     #[inline]
     pub fn mul_dcrt_polynomial_inplace<M, Table, A, B>(
@@ -208,12 +235,33 @@ where
             table.iter(),
             moduli
         )
-        .for_each(|(x, p, t, m)| {
-            let (a, b) = unsafe { x.split_at_mut_unchecked(poly_length) };
-            t.transform_slice(a);
-            t.transform_slice(b);
-            NttPolynomial(ArrayBase(a)).mul_assign(&NttPolynomial(ArrayBase(p)), *m);
-            NttPolynomial(ArrayBase(b)).mul_assign(&NttPolynomial(ArrayBase(p)), *m);
+        .for_each(|(rlwe, poly, ntt_table, modulus)| {
+            rlwe.chunks_exact_mut(poly_length).for_each(|a| {
+                ntt_table.transform_slice(a);
+                NttPolynomial(ArrayBase(a)).mul_assign(&NttPolynomial(ArrayBase(poly)), *modulus);
+            });
         });
+    }
+
+    /// ntt transform
+    #[inline]
+    pub fn to_ntt_form_inplace<Table, A>(&self, result: &mut DcrtRlwe<A>, table: &Table)
+    where
+        Table: DcrtTable<ValueT = T> + Dcrt,
+        A: RawData<Elem = T> + DataMut,
+    {
+        result.data.copy_from_slice(self.data.as_ref());
+
+        let poly_length = table.poly_length();
+
+        result
+            .data
+            .chunks_exact_mut(poly_length * 2)
+            .zip(table.iter())
+            .for_each(|(rlwe, ntt_table)| {
+                rlwe.chunks_exact_mut(poly_length).for_each(|a| {
+                    ntt_table.transform_slice(a);
+                });
+            });
     }
 }

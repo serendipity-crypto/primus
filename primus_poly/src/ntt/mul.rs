@@ -3,13 +3,13 @@ use primus_integer::{UnsignedInteger, izip};
 use primus_modulus::UintModulus;
 use primus_reduce::ops::*;
 
-use crate::{Data, DataMut, DataOwned, RawData};
+use crate::{Data, DataMut, RawData};
 
 use super::NttPolynomial;
 
 impl<S, T> NttPolynomial<S, T>
 where
-    S: RawData<Elem = T> + DataOwned,
+    S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
 {
     /// Performs `self * scalar` according to `modulus`.
@@ -38,13 +38,7 @@ where
         self.mul_assign(rhs, modulus);
         self
     }
-}
 
-impl<S, T> NttPolynomial<S, T>
-where
-    S: RawData<Elem = T> + DataMut,
-    T: UnsignedInteger,
-{
     /// Performs `self *= scalar` according to `modulus`.
     #[inline]
     pub fn mul_scalar_assign<M>(&mut self, scalar: T, modulus: M)

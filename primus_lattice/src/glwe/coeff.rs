@@ -1,207 +1,220 @@
-use primus_integer::{ByteCount, UnsignedInteger};
+use primus_integer::{UnsignedInteger, size::Size};
 use primus_ntt::{Ntt, NttTable};
-use primus_poly::Polynomial;
-use serde::{Deserialize, Serialize};
+use primus_poly::{ArrayBase, Data, DataMut, DataOwned, NttPolynomial, RawData};
+use primus_reduce::FieldContext;
 
-use crate::NttGlwe;
+use crate::{GlweInfo, NttGlwe};
 
 /// A cryptographic structure for Module(General) Learning with Errors (MLWE, GLWE).
 /// This structure is used in advanced cryptographic systems and protocols, particularly
 /// those that require efficient homomorphic encryption properties.
-#[derive(Clone, Default, Serialize, Deserialize)]
-#[serde(bound(deserialize = "T: UnsignedInteger"))]
-pub struct Glwe<T: UnsignedInteger> {
-    pub(crate) a: Vec<Polynomial<T>>,
-    pub(crate) b: Polynomial<T>,
+#[derive(Clone)]
+pub struct Glwe<S, T = <S as RawData>::Elem>
+where
+    S: RawData<Elem = T>,
+    T: UnsignedInteger,
+{
+    pub data: ArrayBase<S>,
 }
 
-impl<T: UnsignedInteger> Glwe<T> {
-    /// Creates a new [`Glwe<T>`] from bytes `data`.
+impl<S, T> Glwe<S>
+where
+    S: RawData<Elem = T>,
+    T: UnsignedInteger,
+{
+    /// Creates a new [`Glwe<S>`].
     #[inline]
-    pub fn from_bytes(data: &[u8], dimension: usize, poly_length: usize) -> Self {
-        let converted_data: &[T] = bytemuck::cast_slice(data);
-
-        let (a, b) = converted_data.split_at(dimension * poly_length);
-
-        Self {
-            a: a.chunks_exact(poly_length)
-                .map(|s| Polynomial::from_slice(s))
-                .collect(),
-            b: Polynomial::from_slice(b),
-        }
-    }
-
-    /// Creates a new [`Glwe<T>`] from bytes `data`.
-    #[inline]
-    pub fn from_bytes_assign(&mut self, data: &[u8], dimension: usize, poly_length: usize) {
-        let converted_data: &[T] = bytemuck::cast_slice(data);
-
-        let (a, b) = converted_data.split_at(dimension * poly_length);
-
-        self.a
-            .iter_mut()
-            .zip(a.chunks_exact(poly_length))
-            .for_each(|(x, y)| x.copy_from(y));
-        self.b.copy_from(b);
-    }
-
-    /// Converts [`Glwe<T>`] into bytes.
-    #[inline]
-    pub fn to_bytes(&self) -> Vec<u8> {
-        let data_b: &[u8] = bytemuck::cast_slice(self.b.as_slice());
-
-        let dimension = self.a.len();
-        let poly_bytes_len = data_b.len();
-        let mid = poly_bytes_len * dimension;
-
-        let mut result: Vec<u8> = vec![0; mid + poly_bytes_len];
-
-        let (a, b) = result.split_at_mut(mid);
-
-        a.chunks_exact_mut(poly_bytes_len)
-            .zip(self.a.iter())
-            .for_each(|(x, y)| {
-                x.copy_from_slice(bytemuck::cast_slice(y.as_slice()));
-            });
-
-        b.copy_from_slice(data_b);
-
-        result
-    }
-
-    /// Converts [`Glwe<T>`] into bytes, stored in `data``.
-    #[inline]
-    pub fn to_bytes_inplace(&self, data: &mut [u8]) {
-        let data_b: &[u8] = bytemuck::cast_slice(self.b.as_slice());
-
-        let dimension = self.a.len();
-        let poly_bytes_len = data_b.len();
-        let mid = poly_bytes_len * dimension;
-
-        assert_eq!(data.len(), mid + poly_bytes_len);
-
-        let (a, b) = unsafe { data.split_at_mut_unchecked(mid) };
-
-        a.chunks_exact_mut(poly_bytes_len)
-            .zip(self.a.iter())
-            .for_each(|(x, y)| {
-                x.copy_from_slice(bytemuck::cast_slice(y.as_slice()));
-            });
-        b.copy_from_slice(data_b);
-    }
-
-    /// Returns the bytes count of [`Glwe<T>`].
-    #[inline]
-    pub fn bytes_count(&self) -> usize {
-        (self.a.len() + 1) * self.b.poly_length() * <T as ByteCount>::BYTES_COUNT
+    pub fn new(data: ArrayBase<S>) -> Self {
+        Self { data }
     }
 }
 
-impl<T: UnsignedInteger> Glwe<T> {
-    /// Creates a new [`Glwe<T>`].
+impl<S, T> Glwe<S>
+where
+    S: RawData<Elem = T> + DataOwned,
+    T: UnsignedInteger,
+{
+    /// Creates a new [`Glwe<S>`] that is initialized to zero.
     #[inline]
-    pub fn new(a: Vec<Polynomial<T>>, b: Polynomial<T>) -> Self {
-        Self { a, b }
-    }
-
-    /// Creates a new [`Glwe<T>`] with reference of [`Polynomial<T>`].
-    #[inline]
-    pub fn from_ref(a: &[Polynomial<T>], b: &Polynomial<T>) -> Self {
+    pub fn zero(info: GlweInfo) -> Self {
+        let len = (info.dimension + 1) * info.poly_length;
         Self {
-            a: a.to_vec(),
-            b: b.clone(),
+            data: ArrayBase::from_vec(vec![T::ZERO; len]),
         }
     }
 
-    /// Creates a new [`Glwe<T>`] that is initialized to zero,
-    /// both `a` and `b` polynomials are initialized to zero.
+    /// Creates a new [`Glwe<S>`] from bytes `data`.
     #[inline]
-    pub fn zero(dimension: usize, poly_length: usize) -> Self {
+    pub fn from_bytes(data: &[u8]) -> Self {
+        let converted_data: &[T] = bytemuck::cast_slice(data);
+
         Self {
-            a: (0..dimension)
-                .map(|_| Polynomial::zero(poly_length))
-                .collect(),
-            b: Polynomial::zero(poly_length),
+            data: ArrayBase::from_slice(converted_data),
         }
+    }
+
+    /// Perform element-wise modular addition `self + rhs`.
+    #[inline]
+    pub fn add_element_wise<M, A>(mut self, rhs: &Glwe<A>, modulus: M) -> Self
+    where
+        M: FieldContext<T>,
+        A: RawData<Elem = T> + Data,
+    {
+        self.data.add_assign(&rhs.data, modulus);
+        self
+    }
+
+    /// Perform element-wise modular subtraction `self - rhs`.
+    #[inline]
+    pub fn sub_element_wise<M, A>(mut self, rhs: &Glwe<A>, modulus: M) -> Self
+    where
+        M: FieldContext<T>,
+        A: RawData<Elem = T> + Data,
+    {
+        self.data.sub_assign(&rhs.data, modulus);
+        self
+    }
+
+    /// ntt transform
+    #[inline]
+    pub fn into_ntt_form<Table>(mut self, ntt_table: &Table) -> NttGlwe<S>
+    where
+        Table: NttTable<ValueT = T> + Ntt,
+    {
+        let poly_length = ntt_table.poly_length();
+        self.data.chunks_exact_mut(poly_length).for_each(|poly| {
+            ntt_table.transform_slice(poly);
+        });
+
+        NttGlwe::new(self.data)
+    }
+}
+
+impl<S, T> Glwe<S>
+where
+    S: RawData<Elem = T> + DataMut,
+    T: UnsignedInteger,
+{
+    /// Creates a new [`Glwe<S>`] from bytes `data`.
+    #[inline]
+    pub fn from_bytes_assign(&mut self, data: &[u8]) {
+        let converted_data: &[T] = bytemuck::cast_slice(data);
+
+        self.data.copy_from_slice(converted_data);
     }
 
     /// Set all entries equal to zero.
     #[inline]
     pub fn set_zero(&mut self) {
-        self.a.iter_mut().for_each(|s| s.set_zero());
-        self.b.set_zero();
+        self.data.set_zero();
     }
 
-    /// Returns a reference to the a of this [`Glwe<T>`].
-    pub fn a(&self) -> &[Polynomial<T>] {
-        &self.a
-    }
-
-    /// Returns a mutable reference to the a of this [`Glwe<T>`].
-    pub fn a_mut(&mut self) -> &mut [Polynomial<T>] {
-        &mut self.a
-    }
-
-    /// Returns a reference to the b of this [`Glwe<T>`].
-    pub fn b(&self) -> &Polynomial<T> {
-        &self.b
-    }
-
-    /// Returns a mutable reference to the b of this [`Glwe<T>`].
-    pub fn b_mut(&mut self) -> &mut Polynomial<T> {
-        &mut self.b
-    }
-
-    /// Returns mutable references to the `a` and `b` of this [`Glwe<T>`].
+    /// Performs an in-place element-wise modular addition `self += rhs`.
     #[inline]
-    pub fn a_b_mut(&mut self) -> (&mut [Polynomial<T>], &mut Polynomial<T>) {
-        (&mut self.a, &mut self.b)
+    pub fn add_assign_element_wise<M, A>(&mut self, rhs: &Glwe<A>, modulus: M)
+    where
+        M: FieldContext<T>,
+        A: RawData<Elem = T> + Data,
+    {
+        self.data.add_assign(&rhs.data, modulus);
     }
 
-    /// Extracts a slice of `b` of this [`Glwe<T>`].
+    /// Performs an in-place element-wise modular subtraction `self -= rhs`
     #[inline]
-    pub fn b_slice(&self) -> &[T] {
-        self.b.as_slice()
-    }
-
-    /// Extracts a mutable slice of `b` of this [`Glwe<T>`].
-    #[inline]
-    pub fn b_mut_slice(&mut self) -> &mut [T] {
-        self.b.as_mut_slice()
+    pub fn sub_assign_element_wise<M, A>(&mut self, rhs: &Glwe<A>, modulus: M)
+    where
+        M: FieldContext<T>,
+        A: RawData<Elem = T> + Data,
+    {
+        self.data.sub_assign(&rhs.data, modulus);
     }
 }
 
-impl<T: UnsignedInteger> Glwe<T> {
-    /// ntt transform
+impl<S, T> Glwe<S>
+where
+    S: RawData<Elem = T> + Data,
+    T: UnsignedInteger,
+{
+    /// Converts [`Glwe<S>`] into bytes.
     #[inline]
-    pub fn into_ntt_form<Table>(self, ntt_table: &Table) -> NttGlwe<T>
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let converted_data: &[u8] = bytemuck::cast_slice(self.data.as_ref());
+
+        converted_data.to_vec()
+    }
+
+    /// Converts [`Glwe<S>`] into bytes, stored in `data`.
+    #[inline]
+    pub fn to_bytes_inplace(&self, data: &mut [u8]) {
+        let converted_data: &[u8] = bytemuck::cast_slice(self.data.as_ref());
+
+        data.copy_from_slice(converted_data);
+    }
+
+    /// Returns the bytes count of [`Glwe<S>`].
+    #[inline]
+    pub fn bytes_count(&self) -> usize {
+        self.data.byte_count()
+    }
+
+    /// Performs element-wise modular addition:`result = self + rhs`,
+    #[inline]
+    pub fn add_inplace<M, A>(&self, rhs: &Self, result: &mut Glwe<A>, modulus: M)
     where
-        Table: NttTable<ValueT = T> + Ntt,
+        M: FieldContext<T>,
+        A: RawData<Elem = T> + DataMut,
     {
-        let Self { a, b } = self;
+        self.data.add_inplace(&rhs.data, &mut result.data, modulus)
+    }
 
-        let a = a
-            .into_iter()
-            .map(|p| ntt_table.transform_inplace(p))
-            .collect();
-        let b = ntt_table.transform_inplace(b);
+    /// Performs element-wise modular addition:`result = self - rhs`,
+    #[inline]
+    pub fn sub_inplace<M, A>(&self, rhs: &Self, result: &mut Glwe<A>, modulus: M)
+    where
+        M: FieldContext<T>,
+        A: RawData<Elem = T> + DataMut,
+    {
+        self.data.sub_inplace(&rhs.data, &mut result.data, modulus)
+    }
 
-        NttGlwe::new(a, b)
+    /// Performs a multiplication on the `self` [`Glwe<S>`] with another `ntt_polynomial` [`NttPolynomial<A>`],
+    /// store the result into `result` [`NttGlwe<B>`].
+    #[inline]
+    pub fn mul_ntt_polynomial_inplace<M, Table, A, B>(
+        &self,
+        ntt_polynomial: &NttPolynomial<A>,
+        result: &mut NttGlwe<B>,
+        modulus: M,
+        ntt_table: &Table,
+    ) where
+        M: FieldContext<T>,
+        Table: NttTable<ValueT = T> + Ntt,
+        A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + DataMut,
+    {
+        let poly_length = ntt_table.poly_length();
+
+        result.data.copy_from_slice(self.data.as_ref());
+
+        result.data.chunks_exact_mut(poly_length).for_each(|poly| {
+            ntt_table.transform_slice(poly);
+            NttPolynomial(ArrayBase(poly)).mul_assign(ntt_polynomial, modulus);
+        });
     }
 
     /// ntt transform
     #[inline]
-    pub fn transform_inplace<Table>(&self, ntt_table: &Table, result: &mut NttGlwe<T>)
+    pub fn to_ntt_form_inplace<Table, A>(&self, result: &mut NttGlwe<A>, ntt_table: &Table)
     where
+        A: RawData<Elem = T> + DataMut,
         Table: NttTable<ValueT = T> + Ntt,
     {
-        let (a, b) = result.a_b_mut();
+        let poly_length = ntt_table.poly_length();
 
-        a.iter_mut().zip(self.a()).for_each(|(x, y)| x.copy_from(y));
-        b.copy_from(self.b());
+        result.data.copy_from_slice(self.data.as_ref());
 
-        a.iter_mut()
-            .for_each(|p| ntt_table.transform_slice(p.as_mut_slice()));
-        ntt_table.transform_slice(b.as_mut_slice());
+        result.data.chunks_exact_mut(poly_length).for_each(|poly| {
+            ntt_table.transform_slice(poly);
+        });
     }
 }

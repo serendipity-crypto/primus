@@ -1,196 +1,279 @@
-use primus_integer::{UnsignedInteger, izip, size::Size};
-use primus_ntt::{Dcrt, DcrtTable};
-use primus_poly::dcrt::DcrtPolynomial;
+use primus_integer::{UnsignedInteger, izip};
+use primus_ntt::{Dcrt, DcrtTable, Ntt};
+use primus_poly::{
+    ArrayBase, Data, DataMut, DataOwned, NttPolynomial, RawData, dcrt::DcrtPolynomial,
+};
 use primus_reduce::FieldContext;
-use serde::{Deserialize, Serialize};
 
-use super::CrtGlwe;
+use crate::{CrtGlwe, CrtGlweInfo};
 
 /// A cryptographic structure for Ring Learning with Errors (RLWE).
 /// This structure is used in advanced cryptographic systems and protocols, particularly
 /// those that require efficient homomorphic encryption properties.
-#[derive(Clone, Serialize, Deserialize)]
-#[serde(bound(deserialize = "T: UnsignedInteger"))]
-pub struct DcrtGlwe<T: UnsignedInteger> {
-    pub(crate) a: Vec<DcrtPolynomial<T>>,
-    pub(crate) b: DcrtPolynomial<T>,
+#[derive(Clone)]
+pub struct DcrtGlwe<S, T = <S as RawData>::Elem>
+where
+    S: RawData<Elem = T>,
+    T: UnsignedInteger,
+{
+    pub data: ArrayBase<S>,
 }
 
-impl<T: UnsignedInteger> DcrtGlwe<T> {
-    /// Creates a new [`DcrtGlwe<T>`].
+impl<S, T> DcrtGlwe<S>
+where
+    S: RawData<Elem = T>,
+    T: UnsignedInteger,
+{
+    /// Creates a new [`DcrtGlwe<S>`].
     #[inline]
-    pub fn new(a: Vec<DcrtPolynomial<T>>, b: DcrtPolynomial<T>) -> Self {
-        Self { a, b }
+    pub fn new(data: ArrayBase<S>) -> Self {
+        Self { data }
     }
+}
 
-    /// Creates a [`DcrtGlwe<T>`] with all entries equal to zero.
+impl<S, T> DcrtGlwe<S>
+where
+    S: RawData<Elem = T> + DataOwned,
+    T: UnsignedInteger,
+{
+    /// Creates a [`DcrtGlwe<S>`] with all entries equal to zero.
     #[inline]
-    pub fn zero(dimension: usize, moduli_count: usize, poly_length: usize) -> Self {
+    pub fn zero(info: CrtGlweInfo) -> Self {
+        let len = info.moduli_count * (info.dimension + 1) * info.poly_length;
         Self {
-            a: (0..dimension)
-                .map(|_| DcrtPolynomial::zero(moduli_count, poly_length))
-                .collect(),
-            b: DcrtPolynomial::zero(moduli_count, poly_length),
+            data: ArrayBase::from_vec(vec![T::ZERO; len]),
         }
     }
 
+    /// Perform element-wise modular addition of two [`DcrtGlwe<S>`].
+    #[inline]
+    pub fn add_element_wise<M, A>(
+        mut self,
+        rhs: &DcrtGlwe<A>,
+        moduli: &[M],
+        info: CrtGlweInfo,
+    ) -> Self
+    where
+        M: FieldContext<T>,
+        A: RawData<Elem = T> + Data,
+    {
+        self.add_assign_element_wise(rhs, moduli, info);
+        self
+    }
+
+    /// Perform element-wise modular subtraction of two [`DcrtRlwe<S>`].
+    #[inline]
+    pub fn sub_element_wise<M, A>(
+        mut self,
+        rhs: &DcrtGlwe<A>,
+        moduli: &[M],
+        info: CrtGlweInfo,
+    ) -> Self
+    where
+        M: FieldContext<T>,
+        A: RawData<Elem = T> + Data,
+    {
+        self.sub_assign_element_wise(rhs, moduli, info);
+        self
+    }
+
+    /// inverse ntt transform
+    #[inline]
+    pub fn into_coeff_form<Table>(self, table: &Table, dimension: usize) -> CrtGlwe<S>
+    where
+        Table: DcrtTable<ValueT = T> + Dcrt,
+    {
+        let poly_length = table.poly_length();
+
+        let Self { mut data } = self;
+
+        data.chunks_exact_mut(poly_length * (dimension + 1))
+            .zip(table.iter())
+            .for_each(|(glwe, ntt_table)| {
+                glwe.chunks_exact_mut(poly_length).for_each(|poly| {
+                    ntt_table.inverse_transform_slice(poly);
+                });
+            });
+
+        CrtGlwe::new(data)
+    }
+}
+
+impl<S, T> DcrtGlwe<S>
+where
+    S: RawData<Elem = T> + DataMut,
+    T: UnsignedInteger,
+{
     /// Set all entries equal to zero.
     #[inline]
     pub fn set_zero(&mut self) {
-        self.a.iter_mut().for_each(|v| v.set_zero());
-        self.b.set_zero();
-    }
-
-    pub fn a(&self) -> &[DcrtPolynomial<T>] {
-        &self.a
-    }
-
-    pub fn a_mut(&mut self) -> &mut [DcrtPolynomial<T>] {
-        &mut self.a
-    }
-
-    pub fn b(&self) -> &DcrtPolynomial<T> {
-        &self.b
-    }
-
-    pub fn b_mut(&mut self) -> &mut DcrtPolynomial<T> {
-        &mut self.b
-    }
-
-    pub fn a_b_mut(&mut self) -> (&mut [DcrtPolynomial<T>], &mut DcrtPolynomial<T>) {
-        (&mut self.a, &mut self.b)
-    }
-}
-
-impl<T: UnsignedInteger> DcrtGlwe<T> {
-    /// ntt transform
-    #[inline]
-    pub fn into_coeff_form<Table>(self, table: &Table) -> CrtGlwe<T>
-    where
-        Table: DcrtTable<ValueT = T> + Dcrt,
-    {
-        let Self { a, b } = self;
-
-        let a = a
-            .into_iter()
-            .map(|v| table.inverse_transform_inplace(v))
-            .collect();
-        let b = table.inverse_transform_inplace(b);
-
-        CrtGlwe::new(a, b)
-    }
-
-    /// ntt transform
-    #[inline]
-    pub fn to_coeff_form_inplace<Table>(&self, table: &Table, result: &mut CrtGlwe<T>)
-    where
-        Table: DcrtTable<ValueT = T> + Dcrt,
-    {
-        let (a, b) = result.a_b_mut();
-
-        a.iter_mut().zip(&self.a).for_each(|(x, y)| {
-            x.copy_from(y);
-            table.inverse_transform_slice(x.as_mut());
-        });
-
-        b.copy_from(&self.b);
-        table.inverse_transform_slice(b.as_mut());
-    }
-}
-
-impl<T: UnsignedInteger> DcrtGlwe<T> {
-    /// Perform element-wise modular addition of two [`DcrtGlwe<T>`].
-    #[inline]
-    pub fn add_element_wise<M>(self, rhs: &Self, moduli: &[M]) -> Self
-    where
-        M: FieldContext<T>,
-    {
-        Self {
-            a: self
-                .a
-                .into_iter()
-                .zip(rhs.a())
-                .map(|(x, y)| x.add(y, moduli))
-                .collect(),
-            b: self.b.add(rhs.b(), moduli),
-        }
-    }
-
-    /// Perform element-wise modular subtraction of two [`DcrtGlwe<T>`].
-    #[inline]
-    pub fn sub_element_wise<M>(self, rhs: &Self, moduli: &[M]) -> Self
-    where
-        M: FieldContext<T>,
-    {
-        Self {
-            a: self
-                .a
-                .into_iter()
-                .zip(rhs.a())
-                .map(|(x, y)| x.sub(y, moduli))
-                .collect(),
-            b: self.b.sub(rhs.b(), moduli),
-        }
+        self.data.set_zero();
     }
 
     /// Performs an in-place element-wise modular addition
-    /// on the `self` [`DcrtGlwe<T>`] with another `rhs` [`DcrtGlwe<T>`].
+    /// on the `self` [`DcrtRlwe<S>`] with another `rhs` [`DcrtRlwe<A>`].
     #[inline]
-    pub fn add_assign_element_wise<M>(&mut self, rhs: &Self, moduli: &[M])
-    where
+    pub fn add_assign_element_wise<M, A>(
+        &mut self,
+        rhs: &DcrtGlwe<A>,
+        moduli: &[M],
+        info: CrtGlweInfo,
+    ) where
         M: FieldContext<T>,
+        A: RawData<Elem = T> + Data,
     {
-        self.a
-            .iter_mut()
-            .zip(rhs.a())
-            .for_each(|(x, y)| x.add_assign(y, moduli));
-        self.b.add_assign(rhs.b(), moduli);
+        let glwe_len = info.glwe_len;
+        izip!(
+            self.data.chunks_exact_mut(glwe_len),
+            rhs.data.chunks_exact(glwe_len),
+            moduli
+        )
+        .for_each(|(x, y, m)| {
+            ArrayBase(x).add_assign(&ArrayBase(y), *m);
+        });
     }
 
     /// Performs an in-place element-wise modular subtraction
-    /// on the `self` [`DcrtGlwe<T>`] with another `rhs` [`DcrtGlwe<T>`].
+    /// on the `self` [`DcrtRlwe<S>`] with another `rhs` [`DcrtRlwe<A>`].
     #[inline]
-    pub fn sub_assign_element_wise<M>(&mut self, rhs: &Self, moduli: &[M])
-    where
+    pub fn sub_assign_element_wise<M, A>(
+        &mut self,
+        rhs: &DcrtGlwe<A>,
+        moduli: &[M],
+        info: CrtGlweInfo,
+    ) where
         M: FieldContext<T>,
+        A: RawData<Elem = T> + Data,
     {
-        self.a
-            .iter_mut()
-            .zip(rhs.a())
-            .for_each(|(x, y)| x.sub_assign(y, moduli));
-        self.b.sub_assign(rhs.b(), moduli);
+        let glwe_len = info.glwe_len;
+        izip!(
+            self.data.chunks_exact_mut(glwe_len),
+            rhs.data.chunks_exact(glwe_len),
+            moduli
+        )
+        .for_each(|(x, y, m)| {
+            ArrayBase(x).add_assign(&ArrayBase(y), *m);
+        });
     }
+}
 
+impl<S, T> DcrtGlwe<S>
+where
+    S: RawData<Elem = T> + Data,
+    T: UnsignedInteger,
+{
     /// Performs addition operation:`self + rhs`,
     /// and puts the result to the `result`.
     #[inline]
-    pub fn add_inplace<M>(&self, rhs: &Self, result: &mut Self, moduli: &[M])
-    where
+    pub fn add_inplace<M, A, B>(
+        &self,
+        rhs: &DcrtGlwe<A>,
+        result: &mut DcrtGlwe<B>,
+        moduli: &[M],
+        info: CrtGlweInfo,
+    ) where
         M: FieldContext<T>,
+        A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + DataMut,
     {
-        izip!(self.a(), rhs.a(), result.a_mut()).for_each(|(x, y, z)| {
-            x.add_inplace(y, z, moduli);
+        let glwe_len = info.glwe_len;
+        izip!(
+            self.data.chunks_exact(glwe_len),
+            rhs.data.chunks_exact(glwe_len),
+            result.data.chunks_exact_mut(glwe_len),
+            moduli
+        )
+        .for_each(|(x, y, z, m)| {
+            ArrayBase(x).add_inplace(&ArrayBase(y), &mut ArrayBase(z), *m);
         });
-        self.b.add_inplace(rhs.b(), result.b_mut(), moduli);
     }
 
     /// Performs subtraction operation:`self - rhs`,
     /// and put the result to the `result`.
     #[inline]
-    pub fn sub_inplace<M>(&self, rhs: &Self, result: &mut Self, moduli: &[M])
-    where
+    pub fn sub_inplace<M, A, B>(
+        &self,
+        rhs: &DcrtGlwe<A>,
+        result: &mut DcrtGlwe<B>,
+        moduli: &[M],
+        info: CrtGlweInfo,
+    ) where
         M: FieldContext<T>,
+        A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + DataMut,
     {
-        izip!(self.a(), rhs.a(), result.a_mut()).for_each(|(x, y, z)| {
-            x.sub_inplace(y, z, moduli);
+        let glwe_len = info.glwe_len;
+        izip!(
+            self.data.chunks_exact(glwe_len),
+            rhs.data.chunks_exact(glwe_len),
+            result.data.chunks_exact_mut(glwe_len),
+            moduli
+        )
+        .for_each(|(x, y, z, m)| {
+            ArrayBase(x).sub_inplace(&ArrayBase(y), &mut ArrayBase(z), *m);
         });
-        self.b.sub_inplace(rhs.b(), result.b_mut(), moduli);
     }
-}
 
-impl<T: UnsignedInteger> Size for DcrtGlwe<T> {
+    /// Performs a multiplication on the `self` [`DcrtGlwe<S>`] with another `dcrt_polynomial` [`DcrtPolynomial<A>`],
+    /// store the result into `result` [`DcrtGlwe<B>`].
     #[inline]
-    fn byte_count(&self) -> usize {
-        self.b.byte_count() * (self.a.len() + 1)
+    pub fn mul_dcrt_polynomial_inplace<M, A, B>(
+        &self,
+        dcrt_polynomial: &DcrtPolynomial<A>,
+        result: &mut DcrtGlwe<B>,
+        moduli: &[M],
+        info: CrtGlweInfo,
+    ) where
+        M: FieldContext<T>,
+        A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + DataMut,
+    {
+        let poly_length = info.poly_length;
+        let glwe_len = info.glwe_len;
+        izip!(
+            self.data.chunks_exact(glwe_len),
+            result.data.chunks_exact_mut(glwe_len),
+            dcrt_polynomial.iter(poly_length),
+            moduli
+        )
+        .for_each(|(glwe0, glwe1, poly, modulus)| {
+            glwe0
+                .chunks_exact(poly_length)
+                .zip(glwe1.chunks_exact_mut(poly_length))
+                .for_each(|(a0, a1)| {
+                    NttPolynomial(ArrayBase(a0)).mul_inplace(
+                        &NttPolynomial(ArrayBase(poly)),
+                        &mut NttPolynomial(ArrayBase(a1)),
+                        *modulus,
+                    );
+                });
+        });
+    }
+
+    /// inverse ntt transform
+    #[inline]
+    pub fn to_coeff_form_inplace<Table, A>(
+        &self,
+        result: &mut CrtGlwe<A>,
+        table: &Table,
+        info: CrtGlweInfo,
+    ) where
+        Table: DcrtTable<ValueT = T> + Dcrt,
+        A: RawData<Elem = T> + DataMut,
+    {
+        result.data.copy_from_slice(self.data.as_ref());
+
+        let poly_length = table.poly_length();
+        let glwe_len = info.glwe_len;
+
+        result
+            .data
+            .chunks_exact_mut(glwe_len)
+            .zip(table.iter())
+            .for_each(|(glwe, ntt_table)| {
+                glwe.chunks_exact_mut(poly_length).for_each(|a| {
+                    ntt_table.inverse_transform_slice(a);
+                });
+            });
     }
 }

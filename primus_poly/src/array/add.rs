@@ -1,11 +1,11 @@
 use primus_integer::{UnsignedInteger, izip};
 use primus_reduce::ops::{ReduceAdd, ReduceAddAssign};
 
-use super::{ArrayBase, Data, DataMut, DataOwned, RawData};
+use super::{ArrayBase, Data, DataMut, RawData};
 
 impl<S, T> ArrayBase<S>
 where
-    S: RawData<Elem = T> + DataOwned,
+    S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
 {
     /// Performs `self + rhs` according to `modulus`.
@@ -18,13 +18,7 @@ where
         self.add_assign(rhs, modulus);
         self
     }
-}
 
-impl<S, T> ArrayBase<S>
-where
-    S: RawData<Elem = T> + DataMut,
-    T: UnsignedInteger,
-{
     /// Performs `self += rhs` according to `modulus`.
     #[inline]
     pub fn add_assign<M, A>(&mut self, rhs: &ArrayBase<A>, modulus: M)

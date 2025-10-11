@@ -17,9 +17,9 @@ where
     pub data: ArrayBase<S>,
 }
 
-impl<S, T: UnsignedInteger> Rlwe<S>
+impl<S, T> Rlwe<S>
 where
-    S: RawData<Elem = T> + DataOwned,
+    S: RawData<Elem = T>,
     T: UnsignedInteger,
 {
     /// Creates a new [`Rlwe<S>`].
@@ -27,7 +27,13 @@ where
     pub fn new(data: ArrayBase<S>) -> Self {
         Self { data }
     }
+}
 
+impl<S, T> Rlwe<S>
+where
+    S: RawData<Elem = T> + DataOwned,
+    T: UnsignedInteger,
+{
     /// Creates a new [`Rlwe<S>`] with reference of [`Polynomial<A>`].
     #[inline]
     pub fn from_ref<A>(a: &Polynomial<A>, b: &Polynomial<A>) -> Self
@@ -87,16 +93,16 @@ where
     where
         Table: NttTable<ValueT = T> + Ntt,
     {
-        let (a, b) = self.a_b_mut_slices();
-
-        ntt_table.transform_slice(a);
-        ntt_table.transform_slice(b);
+        let poly_length = ntt_table.poly_length();
+        self.data.chunks_exact_mut(poly_length).for_each(|poly| {
+            ntt_table.transform_slice(poly);
+        });
 
         NttRlwe::new(self.data)
     }
 }
 
-impl<S, T: UnsignedInteger> Rlwe<S>
+impl<S, T> Rlwe<S>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
@@ -143,7 +149,7 @@ where
     }
 }
 
-impl<S, T: UnsignedInteger> Rlwe<S>
+impl<S, T> Rlwe<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
@@ -212,15 +218,14 @@ where
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + DataMut,
     {
+        let poly_length = ntt_table.poly_length();
+
         result.data.copy_from_slice(self.data.as_ref());
 
-        let (a, b) = result.a_b_mut_slices();
-
-        ntt_table.transform_slice(a);
-        ntt_table.transform_slice(b);
-
-        NttPolynomial(ArrayBase(a)).mul_assign(ntt_polynomial, modulus);
-        NttPolynomial(ArrayBase(b)).mul_assign(ntt_polynomial, modulus);
+        result.data.chunks_exact_mut(poly_length).for_each(|poly| {
+            ntt_table.transform_slice(poly);
+            NttPolynomial(ArrayBase(poly)).mul_assign(ntt_polynomial, modulus);
+        });
     }
 
     /// ntt transform
@@ -230,11 +235,12 @@ where
         A: RawData<Elem = T> + DataMut,
         Table: NttTable<ValueT = T> + Ntt,
     {
+        let poly_length = ntt_table.poly_length();
+
         result.data.copy_from_slice(self.data.as_ref());
 
-        let (a, b) = result.a_b_mut_slices();
-
-        ntt_table.transform_slice(a);
-        ntt_table.transform_slice(b);
+        result.data.chunks_exact_mut(poly_length).for_each(|poly| {
+            ntt_table.transform_slice(poly);
+        });
     }
 }

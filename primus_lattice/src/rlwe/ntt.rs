@@ -17,7 +17,7 @@ where
     pub data: ArrayBase<S>,
 }
 
-impl<S, T: UnsignedInteger> NttRlwe<S>
+impl<S, T> NttRlwe<S>
 where
     S: RawData<Elem = T>,
     T: UnsignedInteger,
@@ -29,7 +29,7 @@ where
     }
 }
 
-impl<S, T: UnsignedInteger> NttRlwe<S>
+impl<S, T> NttRlwe<S>
 where
     S: RawData<Elem = T> + DataOwned,
     T: UnsignedInteger,
@@ -102,7 +102,7 @@ where
     }
 }
 
-impl<S, T: UnsignedInteger> NttRlwe<S>
+impl<S, T> NttRlwe<S>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
@@ -155,14 +155,15 @@ where
         M: FieldContext<T>,
         A: RawData<Elem = T> + Data,
     {
-        let (a, b) = self.a_b_mut_slices();
+        let poly_length = polynomial.poly_length();
 
-        NttPolynomial(ArrayBase(a)).mul_assign(polynomial, modulus);
-        NttPolynomial(ArrayBase(b)).mul_assign(polynomial, modulus);
+        self.data.chunks_exact_mut(poly_length).for_each(|p| {
+            NttPolynomial(ArrayBase(p)).mul_assign(polynomial, modulus);
+        });
     }
 }
 
-impl<S, T: UnsignedInteger> NttRlwe<S>
+impl<S, T> NttRlwe<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
@@ -229,19 +230,18 @@ where
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + DataMut,
     {
-        let (a0, b0) = self.a_b_slices();
-        let (a1, b1) = result.a_b_mut_slices();
+        let poly_length = polynomial.poly_length();
 
-        NttPolynomial(ArrayBase(a0)).mul_inplace(
-            polynomial,
-            &mut NttPolynomial(ArrayBase(a1)),
-            modulus,
-        );
-        NttPolynomial(ArrayBase(b0)).mul_inplace(
-            polynomial,
-            &mut NttPolynomial(ArrayBase(b1)),
-            modulus,
-        );
+        self.data
+            .chunks_exact(poly_length)
+            .zip(result.data.chunks_exact_mut(poly_length))
+            .for_each(|(x, y)| {
+                NttPolynomial(ArrayBase(x)).mul_inplace(
+                    polynomial,
+                    &mut NttPolynomial(ArrayBase(y)),
+                    modulus,
+                );
+            });
     }
 
     /// ntt inverse transform
@@ -253,9 +253,12 @@ where
     {
         result.data.copy_from_slice(self.data.as_ref());
 
-        let (a, b) = result.a_b_mut_slices();
-
-        ntt_table.inverse_transform_slice(a);
-        ntt_table.inverse_transform_slice(b);
+        let poly_length = ntt_table.poly_length();
+        result
+            .data
+            .chunks_exact_mut(poly_length)
+            .for_each(|values| {
+                ntt_table.inverse_transform_slice(values);
+            });
     }
 }

@@ -1,6 +1,6 @@
 //! Defines some lattice cryptographic structure.
 
-// mod glwe;
+mod glwe;
 mod lwe;
 mod rlwe;
 
@@ -10,7 +10,7 @@ mod rlwe;
 // mod ggsw;
 // mod rgsw;
 
-// pub use glwe::{CrtGlwe, DcrtGlwe, Glwe, NttGlwe};
+pub use glwe::{CrtGlwe, CrtGlweInfo, DcrtGlwe, Glwe, GlweInfo, NttGlwe};
 pub use lwe::{Lwe, MultiMsgLwe};
 pub use rlwe::{CrtRlwe, CrtRlweInfo, DcrtRlwe, NttRlwe, Rlwe};
 

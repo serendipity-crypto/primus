@@ -1,13 +1,13 @@
 use primus_integer::{UnsignedInteger, izip};
 use primus_reduce::ops::{ReduceAdd, ReduceAddAssign};
 
-use crate::{ArrayBase, Data, DataMut, DataOwned, PolyLength, RawData};
+use crate::{ArrayBase, Data, DataMut, PolyLength, RawData};
 
 use super::DcrtPolynomial;
 
 impl<S, T> DcrtPolynomial<S, T>
 where
-    S: RawData<Elem = T> + DataOwned,
+    S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
 {
     /// Performs `self + rhs` according to `moduli`.
@@ -25,13 +25,7 @@ where
         self.add_assign(rhs, moduli, poly_length);
         self
     }
-}
 
-impl<S, T> DcrtPolynomial<S, T>
-where
-    S: RawData<Elem = T> + DataMut,
-    T: UnsignedInteger,
-{
     /// Performs `self += rhs` according to `moduli`.
     #[inline]
     pub fn add_assign<M, A>(

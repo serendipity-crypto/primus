@@ -1,11 +1,11 @@
 use primus_integer::UnsignedInteger;
 use primus_reduce::ops::{ReduceNeg, ReduceNegAssign};
 
-use super::{ArrayBase, Data, DataMut, DataOwned, RawData};
+use super::{ArrayBase, Data, DataMut, RawData};
 
 impl<S, T> ArrayBase<S>
 where
-    S: RawData<Elem = T> + DataOwned,
+    S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
 {
     /// Performs the unary `-` operation.
@@ -17,13 +17,7 @@ where
         self.neg_assign(modulus);
         self
     }
-}
 
-impl<S, T> ArrayBase<S>
-where
-    S: RawData<Elem = T> + DataMut,
-    T: UnsignedInteger,
-{
     /// Performs the unary `-` operation.
     #[inline]
     pub fn neg_assign<M>(&mut self, modulus: M)
