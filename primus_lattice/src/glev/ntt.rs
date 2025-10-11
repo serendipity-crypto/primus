@@ -150,7 +150,7 @@ where
         data.copy_from_slice(converted_data);
     }
 
-    /// Returns the bytes count of [`Rlev<S>`].
+    /// Returns the bytes count of [`NttGlev<S>`].
     #[inline]
     pub fn bytes_count(&self) -> usize {
         self.data.byte_count()
