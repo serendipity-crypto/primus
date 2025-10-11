@@ -72,10 +72,15 @@ where
     T: UnsignedInteger,
 {
     #[inline]
-    pub fn mul_element_wise_inplace<M, A>(&self, rhs: &Self, result: &mut ArrayBase<A>, modulus: M)
-    where
+    pub fn mul_element_wise_inplace<M, A, B>(
+        &self,
+        rhs: &ArrayBase<A>,
+        result: &mut ArrayBase<B>,
+        modulus: M,
+    ) where
         M: Copy + ReduceMul<T, Output = T>,
-        A: RawData<Elem = T> + DataMut,
+        A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + DataMut,
     {
         izip!(self, rhs, result).for_each(|(&a, &b, c)| *c = modulus.reduce_mul(a, b));
     }

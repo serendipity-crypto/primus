@@ -109,10 +109,15 @@ where
 {
     /// Performs `result = self * rhs` according to `modulus`.
     #[inline]
-    pub fn mul_inplace<M, A>(&self, rhs: &Self, result: &mut NttPolynomial<A, T>, modulus: M)
-    where
+    pub fn mul_inplace<M, A, B>(
+        &self,
+        rhs: &NttPolynomial<A, T>,
+        result: &mut NttPolynomial<B, T>,
+        modulus: M,
+    ) where
         M: Copy + ReduceMul<T, Output = T>,
-        A: RawData<Elem = T> + DataMut,
+        A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + DataMut,
     {
         izip!(self.iter(), rhs.iter(), result.iter_mut())
             .for_each(|(&a, &b, c)| *c = modulus.reduce_mul(a, b));
