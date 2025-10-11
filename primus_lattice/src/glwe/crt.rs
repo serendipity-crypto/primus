@@ -262,7 +262,7 @@ where
     {
         result.data.copy_from_slice(self.data.as_ref());
 
-        let poly_length = table.poly_length();
+        let poly_length = info.poly_length;
         let glwe_len = info.glwe_len;
 
         result
