@@ -5,7 +5,7 @@ mod lwe;
 mod rlwe;
 
 // mod glev;
-// mod rlev;
+mod rlev;
 
 // mod ggsw;
 // mod rgsw;
@@ -15,7 +15,7 @@ pub use lwe::{Lwe, MultiMsgLwe};
 pub use rlwe::{CrtRlwe, CrtRlweInfo, DcrtRlwe, NttRlwe, Rlwe};
 
 // pub use glev::{CrtGlev, DcrtGlev, Glev, NttGlev};
-// pub use rlev::{CrtRlev, DcrtRlev, NttRlev, Rlev};
+pub use rlev::{CrtRlev, CrtRlevInfo, DcrtRlev, NttRlev, Rlev, RlevInfo};
 
 // pub use ggsw::{CrtGgsw, DcrtGgsw, Ggsw, NttGgsw};
 // pub use rgsw::{CrtRgsw, DcrtRgsw, NttRgsw, Rgsw};
