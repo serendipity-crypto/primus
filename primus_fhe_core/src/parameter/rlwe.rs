@@ -6,7 +6,7 @@ use primus_reduce::FieldContext;
 use crate::RingSecretKeyType;
 
 /// Rlwe Parameters.
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone)]
 pub struct RlweParameters<ValueT: UnsignedInteger, ModulusT: FieldContext<ValueT>> {
     /// The polynomial length, refers to **N** in the paper.
     pub poly_length: usize,
@@ -20,6 +20,8 @@ pub struct RlweParameters<ValueT: UnsignedInteger, ModulusT: FieldContext<ValueT
     pub secret_key_type: RingSecretKeyType,
     /// The noise error's standard deviation.
     pub noise_standard_deviation: f64,
+    /// The noise's distribution.
+    pub noise_distribution: DiscreteGaussian<ValueT>,
 }
 
 impl<ValueT, ModulusT> RlweParameters<ValueT, ModulusT>
@@ -41,8 +43,9 @@ where
 
     /// Returns the noise distribution.
     #[inline]
-    pub fn noise_distribution(&self) -> DiscreteGaussian<ValueT> {
-        DiscreteGaussian::new(0.0, self.noise_standard_deviation, self.modulus_minus_one).unwrap()
+    pub fn noise_distribution(&self) -> &DiscreteGaussian<ValueT> {
+        // DiscreteGaussian::new(0.0, self.noise_standard_deviation, self.modulus_minus_one).unwrap()
+        &self.noise_distribution
     }
 
     /// Returns the noise distribution.
@@ -55,7 +58,7 @@ where
 }
 
 /// Rlev Parameters.
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone)]
 pub struct RlevParameters<ValueT: UnsignedInteger, ModulusT: FieldContext<ValueT>> {
     /// The dimension, refers to **N** in the paper.
     pub poly_length: usize,
@@ -69,6 +72,8 @@ pub struct RlevParameters<ValueT: UnsignedInteger, ModulusT: FieldContext<ValueT
     pub noise_standard_deviation: f64,
     /// Decompose basis for `Q`.
     pub basis: ApproxSignedBasis<ValueT>,
+    /// The noise's distribution.
+    pub noise_distribution: DiscreteGaussian<ValueT>,
 }
 
 impl<ValueT: UnsignedInteger, ModulusT: FieldContext<ValueT>> RlevParameters<ValueT, ModulusT> {
@@ -86,8 +91,9 @@ impl<ValueT: UnsignedInteger, ModulusT: FieldContext<ValueT>> RlevParameters<Val
 
     /// Returns the noise distribution.
     #[inline]
-    pub fn noise_distribution(&self) -> DiscreteGaussian<ValueT> {
-        DiscreteGaussian::new(0.0, self.noise_standard_deviation, self.modulus_minus_one).unwrap()
+    pub fn noise_distribution(&self) -> &DiscreteGaussian<ValueT> {
+        // DiscreteGaussian::new(0.0, self.noise_standard_deviation, self.modulus_minus_one).unwrap()
+        &self.noise_distribution
     }
 
     /// Returns the noise distribution.

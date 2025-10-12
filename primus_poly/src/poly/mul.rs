@@ -79,10 +79,15 @@ where
     T: UnsignedInteger,
 {
     /// A naive multiplication over polynomial.
-    pub fn naive_mul_inplace<M, A>(&self, rhs: &Self, result: &mut Polynomial<A, T>, modulus: M)
-    where
+    pub fn naive_mul_inplace<M, A, B>(
+        &self,
+        rhs: &Polynomial<A, T>,
+        result: &mut Polynomial<B, T>,
+        modulus: M,
+    ) where
         M: Copy + ReduceSubAssign<T> + ReduceMul<T, Output = T> + ReduceMulAdd<T, Output = T>,
-        A: RawData<Elem = T> + DataMut,
+        A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + DataMut,
     {
         let a: &[T] = self.as_ref();
         let b: &[T] = rhs.as_ref();

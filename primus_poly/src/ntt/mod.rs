@@ -93,14 +93,15 @@ where
 
     /// Performs `self = self + (a * b)`.
     #[inline]
-    pub fn add_mul_assign<M, A>(
+    pub fn add_mul_assign<M, A, B>(
         &mut self,
         a: &NttPolynomial<A, T>,
-        b: &NttPolynomial<A, T>,
+        b: &NttPolynomial<B, T>,
         modulus: M,
     ) where
         M: Copy + ReduceMulAdd<T, Output = T>,
         A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + Data,
     {
         izip!(self.0.iter_mut(), a.0.iter(), b.0.iter())
             .for_each(|(z, &x, &y)| *z = modulus.reduce_mul_add(x, y, *z));

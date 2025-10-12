@@ -53,6 +53,12 @@ where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
 {
+    /// Extracts slice of `a` and `b` of this [`NttGlwe<S>`].
+    #[inline]
+    pub fn a_b_slices(&self, mid: usize) -> (&[T], &[T]) {
+        unsafe { self.data.split_at_unchecked(mid) }
+    }
+
     /// Performs a modular multiplication on the `self` [`NttGlwe<S>`] with another `polynomial` [`NttPolynomial`],
     /// stores the result into `result`.
     #[inline]

@@ -31,9 +31,10 @@ where
 
     /// Performs `self * rhs` according to `modulus`.
     #[inline]
-    pub fn mul<M>(mut self, rhs: &Self, modulus: M) -> Self
+    pub fn mul<M, A>(mut self, rhs: &NttPolynomial<A>, modulus: M) -> Self
     where
         M: Copy + ReduceMulAssign<T>,
+        A: RawData<Elem = T> + Data,
     {
         self.mul_assign(rhs, modulus);
         self

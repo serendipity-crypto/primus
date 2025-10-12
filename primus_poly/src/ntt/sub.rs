@@ -46,12 +46,29 @@ where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
 {
-    /// Performs `result = self - rhs` according to `moduli`.
+    /// Performs `rhs = self - rhs` according to `moduli`.
     #[inline]
-    pub fn sub_inplace<M, A>(&self, rhs: &Self, result: &mut NttPolynomial<A, T>, modulus: M)
+    pub fn sub_to_right<M, A>(&self, rhs: &mut NttPolynomial<A, T>, modulus: M)
     where
         M: Copy + ReduceSub<T, Output = T>,
         A: RawData<Elem = T> + DataMut,
+    {
+        debug_assert_eq!(self.poly_length(), rhs.poly_length());
+
+        izip!(self.iter(), rhs.iter_mut()).for_each(|(&a, b)| *b = modulus.reduce_sub(a, *b))
+    }
+
+    /// Performs `result = self - rhs` according to `moduli`.
+    #[inline]
+    pub fn sub_inplace<M, A, B>(
+        &self,
+        rhs: &NttPolynomial<A, T>,
+        result: &mut NttPolynomial<B, T>,
+        modulus: M,
+    ) where
+        M: Copy + ReduceSub<T, Output = T>,
+        A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + DataMut,
     {
         debug_assert_eq!(self.poly_length(), rhs.poly_length());
         debug_assert_eq!(self.poly_length(), result.poly_length());

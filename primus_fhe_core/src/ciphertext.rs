@@ -11,7 +11,7 @@ pub type RlweCiphertext<T> = primus_lattice::Rlwe<T>;
 pub type NttRlweCiphertext<T> = primus_lattice::NttRlwe<T>;
 
 // /// Glwe Ciphertext
-// pub type GlweCiphertext<T> = primus_lattice::Glwe<T>;
+pub type GlweCiphertext<T> = primus_lattice::Glwe<T>;
 
 // /// Ntt version Glwe Ciphertext
-// pub type NttGlweCiphertext<T> = primus_lattice::NttGlwe<T>;
+pub type NttGlweCiphertext<T> = primus_lattice::NttGlwe<T>;

@@ -1,9 +1,13 @@
+use primus_distr::DiscreteGaussian;
 use primus_integer::UnsignedInteger;
 use primus_ntt::{Ntt, NttTable};
 use primus_poly::{ArrayBase, Data, DataMut, DataOwned, NttPolynomial, Polynomial, RawData};
-use primus_reduce::FieldContext;
+use primus_reduce::{
+    FieldContext,
+    ops::{ReduceNeg, ReduceNegAssign},
+};
 
-use crate::NttRlwe;
+use crate::{Lwe, MultiMsgLwe, NttRlwe};
 
 /// A cryptographic structure for Ring Learning with Errors (RLWE).
 #[derive(Clone)]
@@ -36,6 +40,84 @@ where
         Self {
             data: ArrayBase::from_vec([a.0.as_ref(), b.0.as_ref()].concat()),
         }
+    }
+}
+
+impl<T> Rlwe<Vec<T>, T>
+where
+    T: UnsignedInteger,
+{
+    /// Extract an LWE sample from RLWE.
+    #[inline]
+    pub fn extract_lwe_locally<M>(self, modulus: M) -> Lwe<T>
+    where
+        M: Copy + ReduceNegAssign<T>,
+    {
+        let Self { data } = self;
+        let ArrayBase(mut data) = data;
+        let len = data.len() / 2;
+        let b = data[len];
+        data.truncate(len);
+
+        data[1..].reverse();
+        data[1..]
+            .iter_mut()
+            .for_each(|v| modulus.reduce_neg_assign(v));
+
+        Lwe::new(data, b)
+    }
+
+    /// Sample extract a [`MultiMsgLwe<T>`] with several encrypted messages.
+    pub fn extract_first_few_lwe_locally<M>(self, count: usize, modulus: M) -> MultiMsgLwe<T>
+    where
+        M: Copy + ReduceNegAssign<T>,
+    {
+        let Self { data } = self;
+        let ArrayBase(mut data) = data;
+        let len = data.len() / 2;
+
+        let b = data[len..len + count].to_vec();
+
+        data.truncate(len);
+
+        data[1..].reverse();
+        data[1..]
+            .iter_mut()
+            .for_each(|v| modulus.reduce_neg_assign(v));
+
+        MultiMsgLwe::new(data, b)
+    }
+
+    /// Generate a [`Rlwe<Vec<T>>`] sample which encrypts `0`.
+    pub fn generate_random_zero_sample<R, Table, M, A>(
+        secret_key: &NttPolynomial<A>,
+        gaussian: &DiscreteGaussian<T>,
+        ntt_table: &Table,
+        modulus: M,
+        rng: &mut R,
+    ) -> Self
+    where
+        R: rand::Rng + rand::CryptoRng,
+        Table: NttTable<ValueT = T> + Ntt,
+        A: RawData<Elem = T> + Data,
+        M: FieldContext<T>,
+    {
+        let poly_length = secret_key.poly_length();
+
+        let mut data = Rlwe::zero(poly_length * 2);
+
+        let (a, b) = data.a_b_mut_slices();
+
+        Polynomial(ArrayBase(&mut *a)).random_assign(modulus, rng);
+
+        b.copy_from_slice(a);
+        ntt_table.transform_slice(b);
+        NttPolynomial(ArrayBase(&mut *b)).mul_assign(secret_key, modulus);
+        ntt_table.inverse_transform_slice(b);
+
+        Polynomial(ArrayBase(b)).add_random_gaussian_assign(gaussian, modulus, rng);
+
+        data
     }
 }
 
@@ -87,5 +169,56 @@ where
             ntt_table.transform_slice(poly);
             NttPolynomial(ArrayBase(poly)).mul_assign(ntt_polynomial, modulus);
         });
+    }
+
+    /// Extract an LWE sample from RLWE.
+    #[inline]
+    pub fn extract_lwe_with_index<M>(&self, index: usize, modulus: M) -> Lwe<T>
+    where
+        M: Copy + ReduceNegAssign<T>,
+    {
+        let split = index + 1;
+
+        let (a, b) = self.a_b_slices();
+
+        let mut a: Vec<T> = a.to_vec();
+
+        a[..split].reverse();
+        a[split..].reverse();
+        a[split..]
+            .iter_mut()
+            .for_each(|x| modulus.reduce_neg_assign(x));
+
+        Lwe::new(a, b[index])
+    }
+
+    /// Extract an LWE sample from RLWE.
+    #[inline]
+    pub fn extract_first_few_lwe<M>(&self, count: usize, modulus: M) -> MultiMsgLwe<T>
+    where
+        M: Copy + ReduceNeg<T, Output = T> + ReduceNegAssign<T>,
+    {
+        let (a, b) = self.a_b_slices();
+
+        let mut a: Vec<_> = a.iter().map(|&x| modulus.reduce_neg(x)).collect();
+        a[1..].reverse();
+        modulus.reduce_neg_assign(&mut a[0]);
+
+        MultiMsgLwe::new(a, b[..count].to_vec())
+    }
+
+    /// Extract an LWE sample from RLWE.
+    #[inline]
+    pub fn extract_lwe<M>(&self, modulus: M) -> Lwe<T>
+    where
+        M: Copy + ReduceNeg<T, Output = T> + ReduceNegAssign<T>,
+    {
+        let (a, b) = self.a_b_slices();
+
+        let mut a: Vec<_> = a.iter().map(|&x| modulus.reduce_neg(x)).collect();
+        a[1..].reverse();
+        modulus.reduce_neg_assign(&mut a[0]);
+
+        Lwe::new(a, b[0])
     }
 }

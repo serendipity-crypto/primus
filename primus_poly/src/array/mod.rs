@@ -48,6 +48,11 @@ where
     pub fn from_vec(data: Vec<T>) -> Self {
         Self(S::from_vec(data))
     }
+
+    #[inline]
+    pub fn to_ref(&self) -> ArrayBase<&[T], T> {
+        ArrayBase(self.0.to_ref())
+    }
 }
 
 impl<S, T> ArrayBase<S, T>
@@ -359,6 +364,8 @@ pub trait DataOwned: DataMut + FromIterator<Self::Elem> {
 
     /// Creates a consuming iterator, that is, one that moves each value out of the vector (from start to end).
     fn into_iter(self) -> std::vec::IntoIter<<Self as RawData>::Elem>;
+
+    fn to_ref(&self) -> &[Self::Elem];
 }
 
 impl<T: UnsignedInteger> DataOwned for Vec<T> {
@@ -380,5 +387,10 @@ impl<T: UnsignedInteger> DataOwned for Vec<T> {
     #[inline]
     fn into_iter(self) -> std::vec::IntoIter<<Self as RawData>::Elem> {
         <Vec<T> as IntoIterator>::into_iter(self)
+    }
+
+    #[inline]
+    fn to_ref(&self) -> &[Self::Elem] {
+        self
     }
 }
