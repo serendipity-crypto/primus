@@ -1,4 +1,4 @@
-/// Copy from [tfhe-fft](https://github.com/zama-ai/tfhe-rs/blob/4a73b7bb4b2a3e4209f8210c64521a96f0f0b0c1/tfhe/src/core_crypto/commons/utils.rs#L27)
+/// Copy from [tfhe-fft](https://github.com/zama-ai/tfhe-rs/blob/4a73b7bb4b2a3e4209f8210c64521a96f0f0b0c1/tfhe-fft/src/lib.rs#L89)
 #[macro_export]
 macro_rules! izip {
     // implemented this way to avoid a bug with type hints in rust-analyzer

@@ -6,7 +6,7 @@ pub trait LazyReduce<T> {
     /// Calculates `value (mod 2*modulus)` where `self` is modulus.
     ///
     /// If modulus doesn't support this special case,
-    /// just fall back to [crate::reduce::Reduce] trait.
+    /// just fall back to [crate::Reduce] trait.
     fn lazy_reduce(self, value: T) -> Self::Output;
 }
 
@@ -15,7 +15,7 @@ pub trait LazyReduceAssign<T> {
     /// Calculates `value (mod 2*modulus)` where `self` is modulus.
     ///
     /// If modulus doesn't support this special case,
-    /// just fall back to [crate::reduce::ReduceAssign] trait.
+    /// just fall back to [crate::ReduceAssign] trait.
     fn lazy_reduce_assign(self, value: &mut T);
 }
 
@@ -31,7 +31,7 @@ pub trait LazyReduceMul<T, B = T> {
     /// - `a*b < modulus²`
     ///
     /// If modulus doesn't support this special case,
-    /// just fall back to [crate::reduce::ReduceMul] trait.
+    /// just fall back to [crate::ReduceMul] trait.
     fn lazy_reduce_mul(self, a: T, b: B) -> Self::Output;
 }
 
@@ -44,7 +44,7 @@ pub trait LazyReduceMulAssign<T, B = T> {
     /// - `a*b < modulus²`
     ///
     /// If modulus doesn't support this special case,
-    /// just fall back to [crate::reduce::ReduceMulAssign] trait.
+    /// just fall back to [crate::ReduceMulAssign] trait.
     fn lazy_reduce_mul_assign(self, a: &mut T, b: B);
 }
 
@@ -62,7 +62,7 @@ pub trait LazyReduceMulAdd<T, B = T, C = T> {
     /// - `c < modulus`
     ///
     /// If modulus doesn't support this special case,
-    /// just fall back to [crate::reduce::ReduceMulAdd] trait.
+    /// just fall back to [crate::ReduceMulAdd] trait.
     fn lazy_reduce_mul_add(self, a: T, b: B, c: C) -> Self::Output;
 }
 
@@ -77,6 +77,6 @@ pub trait LazyReduceMulAddAssign<T, B = T, C = T> {
     /// - `c < modulus`
     ///
     /// If modulus doesn't support this special case,
-    /// just fall back to [crate::reduce::ReduceMulAddAssign] trait.
+    /// just fall back to [crate::ReduceMulAddAssign] trait.
     fn lazy_reduce_mul_add_assign(self, a: &mut T, b: B, c: C);
 }

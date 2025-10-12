@@ -79,7 +79,7 @@ impl<T: UnsignedInteger> CDTSampler<T> {
         }
     }
 
-    /// Returns the std dev of this [`CumulativeDistributionTableSampler<T>`].
+    /// Returns the std dev of this [`CDTSampler<T>`].
     pub fn std_dev(&self) -> f64 {
         self.std_dev
     }

@@ -46,61 +46,61 @@ pub struct UintNttTable<T: UnsignedInteger> {
 }
 
 impl<T: UnsignedInteger> UintNttTable<T> {
-    /// Returns the root of this [`TableWithShoupRoot<T>`].
+    /// Returns the root of this [`ShoupFactor<T>`].
     #[inline]
     pub fn root(&self) -> T {
         self.root
     }
 
-    /// Returns the inverse element of the root of this [`TableWithShoupRoot<T>`].
+    /// Returns the inverse element of the root of this [`ShoupFactor<T>`].
     #[inline]
     pub fn inv_root(&self) -> T {
         self.inv_root
     }
 
-    /// Returns the modulus of this [`TableWithShoupRoot<T>`].
+    /// Returns the modulus of this [`ShoupFactor<T>`].
     #[inline]
     pub fn modulus(&self) -> T {
         self.modulus
     }
 
-    /// Returns the log n of this [`TableWithShoupRoot<T>`].
+    /// Returns the log n of this [`ShoupFactor<T>`].
     #[inline]
     pub fn log_n(&self) -> u32 {
         self.log_n
     }
 
-    /// Returns the n of this [`TableWithShoupRoot<T>`].
+    /// Returns the n of this [`ShoupFactor<T>`].
     #[inline]
     pub fn n(&self) -> usize {
         self.n
     }
 
-    /// Returns the inverse element of the n of this [`TableWithShoupRoot<T>`].
+    /// Returns the inverse element of the n of this [`ShoupFactor<T>`].
     #[inline]
     pub fn inv_n(&self) -> ShoupFactor<T> {
         self.inv_n
     }
 
-    /// Returns a reference to the root powers of this [`TableWithShoupRoot<T>`].
+    /// Returns a reference to the root powers of this [`ShoupFactor<T>`].
     #[inline]
     pub fn root_powers(&self) -> &[ShoupFactor<T>] {
         &self.root_powers
     }
 
-    /// Returns a reference to the inverse elements of the root powers of this [`TableWithShoupRoot<T>`].
+    /// Returns a reference to the inverse elements of the root powers of this [`ShoupFactor<T>`].
     #[inline]
     pub fn inv_root_powers(&self) -> &[ShoupFactor<T>] {
         &self.inv_root_powers
     }
 
-    /// Returns a reference to the ordinal root powers of this [`TableWithShoupRoot<T>`].
+    /// Returns a reference to the ordinal root powers of this [`ShoupFactor<T>`].
     #[inline]
     pub fn ordinal_root_powers(&self) -> &[ShoupFactor<T>] {
         &self.ordinal_root_powers
     }
 
-    /// Returns a reference to the reverse lsbs of this [`TableWithShoupRoot<T>`].
+    /// Returns a reference to the reverse lsbs of this [`ShoupFactor<T>`].
     #[inline]
     pub fn reverse_lsbs(&self) -> &[usize] {
         &self.reverse_lsbs
