@@ -68,7 +68,7 @@ pub trait Dcrt: DcrtTable {
     /// # Arguments
     ///
     /// * `poly` - inputs in normal order, outputs in bit-reversed order
-    fn lazy_transform_slice<P: AsMut<[Self::ValueT]>>(&self, poly: &mut [P]);
+    fn lazy_transform_slice(&self, poly: &mut [Self::ValueT]);
 
     /// Perform a fast number theory transform in place.
     ///
@@ -78,7 +78,7 @@ pub trait Dcrt: DcrtTable {
     /// # Arguments
     ///
     /// * `poly` - inputs in normal order, outputs in bit-reversed order
-    fn transform_slice<P: AsMut<[Self::ValueT]>>(&self, poly: &mut [P]);
+    fn transform_slice(&self, poly: &mut [Self::ValueT]);
 
     /// Perform a fast inverse number theory transform in place.
     ///
@@ -88,7 +88,7 @@ pub trait Dcrt: DcrtTable {
     /// # Arguments
     ///
     /// * `values` - inputs in bit-reversed order, outputs in normal order
-    fn lazy_inverse_transform_slice<P: AsMut<[Self::ValueT]>>(&self, poly: &mut [P]);
+    fn lazy_inverse_transform_slice(&self, poly: &mut [Self::ValueT]);
 
     /// Perform a fast inverse number theory transform in place.
     ///
@@ -98,5 +98,5 @@ pub trait Dcrt: DcrtTable {
     /// # Arguments
     ///
     /// * `values` - inputs in bit-reversed order, outputs in normal order
-    fn inverse_transform_slice<P: AsMut<[Self::ValueT]>>(&self, poly: &mut [P]);
+    fn inverse_transform_slice(&self, poly: &mut [Self::ValueT]);
 }

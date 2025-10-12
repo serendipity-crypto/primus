@@ -81,30 +81,34 @@ impl<T: UnsignedInteger> Dcrt for UintCrtNttTable<T> {
     }
 
     #[inline]
-    fn lazy_transform_slice<P: AsMut<[Self::ValueT]>>(&self, poly: &mut [P]) {
+    fn lazy_transform_slice(&self, poly: &mut [Self::ValueT]) {
+        let poly_length = self.poly_length();
         self.iter()
-            .zip(poly)
-            .for_each(|(ntt_table, s)| ntt_table.lazy_transform_slice(s.as_mut()))
+            .zip(poly.chunks_exact_mut(poly_length))
+            .for_each(|(ntt_table, poly)| ntt_table.lazy_transform_slice(poly))
     }
 
     #[inline]
-    fn transform_slice<P: AsMut<[Self::ValueT]>>(&self, poly: &mut [P]) {
+    fn transform_slice(&self, poly: &mut [Self::ValueT]) {
+        let poly_length = self.poly_length();
         self.iter()
-            .zip(poly)
-            .for_each(|(ntt_table, s)| ntt_table.transform_slice(s.as_mut()))
+            .zip(poly.chunks_exact_mut(poly_length))
+            .for_each(|(ntt_table, poly)| ntt_table.transform_slice(poly))
     }
 
     #[inline]
-    fn lazy_inverse_transform_slice<P: AsMut<[Self::ValueT]>>(&self, poly: &mut [P]) {
+    fn lazy_inverse_transform_slice(&self, poly: &mut [Self::ValueT]) {
+        let poly_length = self.poly_length();
         self.iter()
-            .zip(poly)
-            .for_each(|(ntt_table, s)| ntt_table.lazy_inverse_transform_slice(s.as_mut()))
+            .zip(poly.chunks_exact_mut(poly_length))
+            .for_each(|(ntt_table, values)| ntt_table.lazy_inverse_transform_slice(values))
     }
 
     #[inline]
-    fn inverse_transform_slice<P: AsMut<[Self::ValueT]>>(&self, poly: &mut [P]) {
+    fn inverse_transform_slice(&self, poly: &mut [Self::ValueT]) {
+        let poly_length = self.poly_length();
         self.iter()
-            .zip(poly)
-            .for_each(|(ntt_table, s)| ntt_table.inverse_transform_slice(s.as_mut()))
+            .zip(poly.chunks_exact_mut(poly_length))
+            .for_each(|(ntt_table, values)| ntt_table.inverse_transform_slice(values))
     }
 }
