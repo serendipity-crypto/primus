@@ -15,18 +15,7 @@ where
     pub data: ArrayBase<S>,
 }
 
-impl<S, T> Rgsw<S, T>
-where
-    S: RawData<Elem = T>,
-    T: UnsignedInteger,
-{
-    /// Creates a new [`Rgsw<S, T>`].
-    #[inline]
-    pub fn new(data: ArrayBase<S>) -> Self {
-        Self { data }
-    }
-}
-
+impl_common!(Rgsw<S, T>);
 impl_bytes_conversion!(Rgsw<S, T>);
 impl_zero!(Rgsw<S, T>);
 impl_basic_operation_single_modulus!(Rgsw<S, T>);

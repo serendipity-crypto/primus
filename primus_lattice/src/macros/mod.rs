@@ -21,6 +21,47 @@
 //     };
 // }
 
+// macro_rules! impl_temp {
+//     ($cipher:ident < $s:ident, $t:ident >) => {
+//         impl<$s, $t> $cipher<$s, $t>
+//         where
+//             $s: RawData<Elem = $t> + DataOwned,
+//             $t: UnsignedInteger,
+//         {
+//         }
+
+//         impl<$s, $t> $cipher<$s, $t>
+//         where
+//             $s: RawData<Elem = $t> + DataMut,
+//             $t: UnsignedInteger,
+//         {
+//         }
+
+//         impl<$s, $t> $cipher<$s, $t>
+//         where
+//             $s: RawData<Elem = $t> + Data,
+//             $t: UnsignedInteger,
+//         {
+//         }
+//     };
+// }
+
+macro_rules! impl_common {
+    ($cipher:ident < $s:ident, $t:ident >) => {
+        impl<$s, $t> $cipher<$s, $t>
+        where
+            $s: RawData<Elem = $t>,
+            $t: UnsignedInteger,
+        {
+            #[doc = concat!(r" Creates a new [`",stringify!($cipher),"<",stringify!($s),", ",stringify!($t),">`].")]
+            #[inline]
+            pub fn new(data: ArrayBase<S>) -> Self {
+                Self { data }
+            }
+        }
+    };
+}
+
 macro_rules! impl_bytes_conversion {
     ($cipher:ident < $s:ident, $t:ident >) => {
         impl<$s, $t> $cipher<$s, $t>
@@ -28,7 +69,7 @@ macro_rules! impl_bytes_conversion {
             $s: RawData<Elem = $t> + DataOwned,
             $t: UnsignedInteger,
         {
-            /// Creates from bytes `data`.
+            #[doc = concat!(r" Creates a new [`",stringify!($cipher),"<",stringify!($s),", ",stringify!($t),">`] from bytes `data`.")]
             #[inline]
             pub fn from_bytes(data: &[u8]) -> Self {
                 let converted_data: &[$t] = bytemuck::cast_slice(data);
@@ -83,30 +124,35 @@ macro_rules! impl_bytes_conversion {
     };
 }
 
-// macro_rules! impl_temp {
-//     ($cipher:ident < $s:ident, $t:ident >) => {
-//         impl<$s, $t> $cipher<$s, $t>
-//         where
-//             $s: RawData<Elem = $t> + DataOwned,
-//             $t: UnsignedInteger,
-//         {
-//         }
+macro_rules! impl_zero {
+    ($cipher:ident < $s:ident, $t:ident >) => {
+        impl<$s, $t> $cipher<$s, $t>
+        where
+            $s: RawData<Elem = $t> + DataOwned,
+            $t: UnsignedInteger,
+        {
+            #[doc = concat!(r" Creates a new [`",stringify!($cipher),"<",stringify!($s),", ",stringify!($t),">`] with all values or coefficients equal to zero.")]
+            #[inline]
+            pub fn zero(cipher_len: usize) -> Self {
+                Self {
+                    data: ArrayBase::from_vec(vec![T::ZERO; cipher_len]),
+                }
+            }
+        }
 
-//         impl<$s, $t> $cipher<$s, $t>
-//         where
-//             $s: RawData<Elem = $t> + DataMut,
-//             $t: UnsignedInteger,
-//         {
-//         }
-
-//         impl<$s, $t> $cipher<$s, $t>
-//         where
-//             $s: RawData<Elem = $t> + Data,
-//             $t: UnsignedInteger,
-//         {
-//         }
-//     };
-// }
+        impl<$s, $t> $cipher<$s, $t>
+        where
+            $s: RawData<Elem = $t> + DataMut,
+            $t: UnsignedInteger,
+        {
+            /// Set all values or coefficients equal to zero.
+            #[inline]
+            pub fn set_zero(&mut self) {
+                self.data.set_zero();
+            }
+        }
+    };
+}
 
 macro_rules! impl_basic_operation_single_modulus {
     ($cipher:ident < $s:ident, $t:ident >) => {
@@ -343,7 +389,7 @@ macro_rules! impl_ntt {
             $s: RawData<Elem = $t> + DataOwned,
             $t: UnsignedInteger,
         {
-            /// ntt transform
+            /// Transforms `self` to ntt form.
             #[inline]
             pub fn into_ntt_form<Table>(mut self, ntt_table: &Table) -> $ntt_cipher<S>
             where
@@ -353,7 +399,6 @@ macro_rules! impl_ntt {
                 self.data.chunks_exact_mut(poly_length).for_each(|poly| {
                     ntt_table.transform_slice(poly);
                 });
-
                 $ntt_cipher::new(self.data)
             }
         }
@@ -363,7 +408,7 @@ macro_rules! impl_ntt {
             $s: RawData<Elem = $t> + Data,
             $t: UnsignedInteger,
         {
-            /// ntt transform
+            /// Transforms `self` to ntt form and stores in `result`.
             #[inline]
             pub fn to_ntt_form_inplace<Table, A>(
                 &self,
@@ -374,9 +419,7 @@ macro_rules! impl_ntt {
                 Table: NttTable<ValueT = $t> + Ntt,
             {
                 let poly_length = ntt_table.poly_length();
-
                 result.data.copy_from_slice(self.data.as_ref());
-
                 result.data.chunks_exact_mut(poly_length).for_each(|poly| {
                     ntt_table.transform_slice(poly);
                 });
@@ -392,18 +435,16 @@ macro_rules! impl_intt {
             $s: RawData<Elem = $t> + DataOwned,
             $t: UnsignedInteger,
         {
-            /// ntt inverse transform
+            /// Transforms `self` to coefficient form.
             #[inline]
             pub fn into_coeff_form<Table>(mut self, ntt_table: &Table) -> $cipher<S>
             where
                 Table: NttTable<ValueT = $t> + Ntt,
             {
                 let poly_length = ntt_table.poly_length();
-
                 self.data.chunks_exact_mut(poly_length).for_each(|poly| {
                     ntt_table.inverse_transform_slice(poly);
                 });
-
                 $cipher::new(self.data)
             }
         }
@@ -413,7 +454,7 @@ macro_rules! impl_intt {
             $s: RawData<Elem = $t> + Data,
             $t: UnsignedInteger,
         {
-            /// ntt inverse transform
+            /// Transforms `self` to coefficient form and stores in `result`.
             #[inline]
             pub fn to_coeff_form_inplace<Table, A>(
                 &self,
@@ -423,10 +464,8 @@ macro_rules! impl_intt {
                 A: RawData<Elem = $t> + DataMut,
                 Table: NttTable<ValueT = $t> + Ntt,
             {
-                result.data.copy_from_slice(self.data.as_ref());
-
                 let poly_length = ntt_table.poly_length();
-
+                result.data.copy_from_slice(self.data.as_ref());
                 result
                     .data
                     .chunks_exact_mut(poly_length)
@@ -445,7 +484,7 @@ macro_rules! impl_crt_ntt {
             $s: RawData<Elem = $t> + DataOwned,
             $t: UnsignedInteger,
         {
-            /// ntt transform
+            /// Transforms `self` to ntt form.
             #[inline]
             pub fn into_ntt_form<Table>(
                 self,
@@ -456,9 +495,7 @@ macro_rules! impl_crt_ntt {
                 Table: DcrtTable<ValueT = $t> + Dcrt,
             {
                 let poly_length = table.poly_length();
-
                 let Self { mut data } = self;
-
                 data.chunks_exact_mut(cipher_single_modulus_len)
                     .zip(table.iter())
                     .for_each(|(cipher, ntt_table)| {
@@ -466,7 +503,6 @@ macro_rules! impl_crt_ntt {
                             ntt_table.transform_slice(poly);
                         });
                     });
-
                 $ntt_cipher::new(data)
             }
         }
@@ -476,7 +512,7 @@ macro_rules! impl_crt_ntt {
             $s: RawData<Elem = $t> + Data,
             $t: UnsignedInteger,
         {
-            /// ntt transform
+            /// Transforms `self` to ntt form and stores in `result`.
             #[inline]
             pub fn to_ntt_form_inplace<Table, A>(
                 &self,
@@ -487,10 +523,8 @@ macro_rules! impl_crt_ntt {
                 Table: DcrtTable<ValueT = $t> + Dcrt,
                 A: RawData<Elem = $t> + DataMut,
             {
-                result.data.copy_from_slice(self.data.as_ref());
-
                 let poly_length = table.poly_length();
-
+                result.data.copy_from_slice(self.data.as_ref());
                 result
                     .data
                     .chunks_exact_mut(cipher_single_modulus_len)
@@ -512,7 +546,7 @@ macro_rules! impl_crt_intt {
             $s: RawData<Elem = $t> + DataOwned,
             $t: UnsignedInteger,
         {
-            /// ntt inverse transform
+            /// Transforms `self` to coefficient form.
             #[inline]
             pub fn into_coeff_form<Table>(
                 self,
@@ -523,9 +557,7 @@ macro_rules! impl_crt_intt {
                 Table: DcrtTable<ValueT = $t> + Dcrt,
             {
                 let poly_length = table.poly_length();
-
                 let Self { mut data } = self;
-
                 data.chunks_exact_mut(cipher_single_modulus_len)
                     .zip(table.iter())
                     .for_each(|(cipher, ntt_table)| {
@@ -533,7 +565,6 @@ macro_rules! impl_crt_intt {
                             ntt_table.inverse_transform_slice(poly);
                         });
                     });
-
                 $cipher::new(data)
             }
         }
@@ -543,7 +574,7 @@ macro_rules! impl_crt_intt {
             $s: RawData<Elem = $t> + Data,
             $t: UnsignedInteger,
         {
-            /// ntt inverse transform
+            /// Transforms `self` to coefficient form and stores in `result`.
             #[inline]
             pub fn to_coeff_form_inplace<Table, A>(
                 &self,
@@ -554,10 +585,8 @@ macro_rules! impl_crt_intt {
                 Table: DcrtTable<ValueT = $t> + Dcrt,
                 A: RawData<Elem = $t> + DataMut,
             {
-                result.data.copy_from_slice(self.data.as_ref());
-
                 let poly_length = table.poly_length();
-
+                result.data.copy_from_slice(self.data.as_ref());
                 result
                     .data
                     .chunks_exact_mut(cipher_single_modulus_len)
@@ -567,36 +596,6 @@ macro_rules! impl_crt_intt {
                             ntt_table.inverse_transform_slice(a);
                         });
                     });
-            }
-        }
-    };
-}
-
-macro_rules! impl_zero {
-    ($cipher:ident < $s:ident, $t:ident >) => {
-        impl<$s, $t> $cipher<$s, $t>
-        where
-            $s: RawData<Elem = $t> + DataOwned,
-            $t: UnsignedInteger,
-        {
-            /// Creates with all entries equal to zero.
-            #[inline]
-            pub fn zero(cipher_len: usize) -> Self {
-                Self {
-                    data: ArrayBase::from_vec(vec![T::ZERO; cipher_len]),
-                }
-            }
-        }
-
-        impl<$s, $t> $cipher<$s, $t>
-        where
-            $s: RawData<Elem = $t> + DataMut,
-            $t: UnsignedInteger,
-        {
-            /// Set all entries equal to zero.
-            #[inline]
-            pub fn set_zero(&mut self) {
-                self.data.set_zero();
             }
         }
     };

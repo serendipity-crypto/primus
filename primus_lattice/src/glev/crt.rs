@@ -5,7 +5,7 @@ use primus_reduce::FieldContext;
 
 use crate::DcrtGlev;
 
-/// A representation of Ring Learning with Errors (RLWE) ciphertexts with respect to different base,
+/// A representation of Module Learning with Errors (MLWE) ciphertexts with respect to different base,
 /// used to control noise growth in polynomial multiplications.
 #[derive(Clone)]
 pub struct CrtGlev<S, T = <S as RawData>::Elem>
@@ -16,18 +16,7 @@ where
     pub data: ArrayBase<S>,
 }
 
-impl<S, T> CrtGlev<S, T>
-where
-    S: RawData<Elem = T>,
-    T: UnsignedInteger,
-{
-    /// Creates a new [`CrtGlev<S, T>`].
-    #[inline]
-    pub fn new(data: ArrayBase<S>) -> Self {
-        Self { data }
-    }
-}
-
+impl_common!(CrtGlev<S, T>);
 impl_bytes_conversion!(CrtGlev<S, T>);
 impl_zero!(CrtGlev<S, T>);
 impl_basic_operation_multiple_modulus!(CrtGlev<S, T>);

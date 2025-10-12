@@ -5,8 +5,8 @@ use primus_reduce::FieldContext;
 
 use crate::NttRlev;
 
-/// A representation of Ring Learning with Errors (RLWE) ciphertexts with respect to different powers
-/// of a base, used to control noise growth in polynomial multiplications.
+/// A representation of Ring Learning with Errors (RLWE) ciphertexts with respect to different base,
+/// used to control noise growth in polynomial multiplications.
 #[derive(Clone)]
 pub struct Rlev<S, T = <S as RawData>::Elem>
 where
@@ -16,18 +16,7 @@ where
     pub data: ArrayBase<S>,
 }
 
-impl<S, T> Rlev<S>
-where
-    S: RawData<Elem = T>,
-    T: UnsignedInteger,
-{
-    /// Creates a new [`Rlev<S>`].
-    #[inline]
-    pub fn new(data: ArrayBase<S>) -> Self {
-        Self { data }
-    }
-}
-
+impl_common!(Rlev<S, T>);
 impl_bytes_conversion!(Rlev<S, T>);
 impl_zero!(Rlev<S, T>);
 impl_basic_operation_single_modulus!(Rlev<S, T>);

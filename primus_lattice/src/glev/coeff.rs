@@ -5,8 +5,8 @@ use primus_reduce::FieldContext;
 
 use crate::NttGlev;
 
-/// A representation of Ring Learning with Errors (RLWE) ciphertexts with respect to different powers
-/// of a base, used to control noise growth in polynomial multiplications.
+/// A representation of Module Learning with Errors (MLWE) ciphertexts with respect to different base,
+/// used to control noise growth in polynomial multiplications.
 #[derive(Clone)]
 pub struct Glev<S, T = <S as RawData>::Elem>
 where
@@ -16,18 +16,7 @@ where
     pub data: ArrayBase<S>,
 }
 
-impl<S, T> Glev<S, T>
-where
-    S: RawData<Elem = T>,
-    T: UnsignedInteger,
-{
-    /// Creates a new [`Glev<S, T>`].
-    #[inline]
-    pub fn new(data: ArrayBase<S>) -> Self {
-        Self { data }
-    }
-}
-
+impl_common!(Glev<S, T>);
 impl_bytes_conversion!(Glev<S, T>);
 impl_zero!(Glev<S, T>);
 impl_basic_operation_single_modulus!(Glev<S, T>);

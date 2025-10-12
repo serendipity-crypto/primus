@@ -6,8 +6,6 @@ use primus_reduce::FieldContext;
 use crate::NttGlwe;
 
 /// A cryptographic structure for Module(General) Learning with Errors (MLWE, GLWE).
-/// This structure is used in advanced cryptographic systems and protocols, particularly
-/// those that require efficient homomorphic encryption properties.
 #[derive(Clone)]
 pub struct Glwe<S, T = <S as RawData>::Elem>
 where
@@ -17,38 +15,27 @@ where
     pub data: ArrayBase<S>,
 }
 
-impl<S, T> Glwe<S>
-where
-    S: RawData<Elem = T>,
-    T: UnsignedInteger,
-{
-    /// Creates a new [`Glwe<S>`].
-    #[inline]
-    pub fn new(data: ArrayBase<S>) -> Self {
-        Self { data }
-    }
-}
-
+impl_common!(Glwe<S, T>);
 impl_bytes_conversion!(Glwe<S, T>);
 impl_zero!(Glwe<S, T>);
 impl_basic_operation_single_modulus!(Glwe<S, T>);
 impl_ntt!(Glwe<S, T>, NttGlwe);
 
-impl<S, T> Glwe<S>
+impl<S, T> Glwe<S, T>
 where
     S: RawData<Elem = T> + DataOwned,
     T: UnsignedInteger,
 {
 }
 
-impl<S, T> Glwe<S>
+impl<S, T> Glwe<S, T>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
 {
 }
 
-impl<S, T> Glwe<S>
+impl<S, T> Glwe<S, T>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,

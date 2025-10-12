@@ -8,8 +8,6 @@ use primus_reduce::FieldContext;
 use crate::DcrtRlwe;
 
 /// A cryptographic structure for Ring Learning with Errors (RLWE).
-/// This structure is used in advanced cryptographic systems and protocols, particularly
-/// those that require efficient homomorphic encryption properties.
 #[derive(Clone)]
 pub struct CrtRlwe<S, T = <S as RawData>::Elem>
 where
@@ -19,44 +17,33 @@ where
     pub data: ArrayBase<S>,
 }
 
-impl<S, T> CrtRlwe<S>
-where
-    S: RawData<Elem = T>,
-    T: UnsignedInteger,
-{
-    /// Creates a new [`CrtRlwe<S>`].
-    #[inline]
-    pub fn new(data: ArrayBase<S>) -> Self {
-        Self { data }
-    }
-}
-
+impl_common!(CrtRlwe<S, T>);
 impl_bytes_conversion!(CrtRlwe<S, T>);
 impl_zero!(CrtRlwe<S, T>);
 impl_basic_operation_multiple_modulus!(CrtRlwe<S, T>);
 impl_crt_ntt!(CrtRlwe<S, T>, DcrtRlwe);
 
-impl<S, T> CrtRlwe<S>
+impl<S, T> CrtRlwe<S, T>
 where
     S: RawData<Elem = T> + DataOwned,
     T: UnsignedInteger,
 {
 }
 
-impl<S, T> CrtRlwe<S>
+impl<S, T> CrtRlwe<S, T>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
 {
 }
 
-impl<S, T> CrtRlwe<S>
+impl<S, T> CrtRlwe<S, T>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
 {
-    /// Performs a multiplication on the `self` [`CrtRlwe<S>`] with another `dcrt_polynomial` [`DcrtPolynomial<T>`],
-    /// store the result into `result` [`DcrtRlwe<T>`].
+    /// Performs a multiplication on the `self` [`CrtRlwe<S>`] with another `dcrt_polynomial` [`DcrtPolynomial<A>`],
+    /// store the result into `result` [`DcrtRlwe<B>`].
     #[inline]
     pub fn mul_dcrt_polynomial_inplace<M, Table, A, B>(
         &self,
@@ -70,9 +57,9 @@ where
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + DataMut,
     {
-        result.data.copy_from_slice(self.data.as_ref());
-
         let poly_length = table.poly_length();
+
+        result.data.copy_from_slice(self.data.as_ref());
 
         izip!(
             result.data.chunks_exact_mut(poly_length * 2),

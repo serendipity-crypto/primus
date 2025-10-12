@@ -6,8 +6,6 @@ use primus_reduce::FieldContext;
 use crate::NttRlwe;
 
 /// A cryptographic structure for Ring Learning with Errors (RLWE).
-/// This structure is used in advanced cryptographic systems and protocols, particularly
-/// those that require efficient homomorphic encryption properties.
 #[derive(Clone)]
 pub struct Rlwe<S, T = <S as RawData>::Elem>
 where
@@ -17,18 +15,7 @@ where
     pub data: ArrayBase<S>,
 }
 
-impl<S, T> Rlwe<S>
-where
-    S: RawData<Elem = T>,
-    T: UnsignedInteger,
-{
-    /// Creates a new [`Rlwe<S>`].
-    #[inline]
-    pub fn new(data: ArrayBase<S>) -> Self {
-        Self { data }
-    }
-}
-
+impl_common!(Rlwe<S, T>);
 impl_bytes_conversion!(Rlwe<S, T>);
 impl_zero!(Rlwe<S, T>);
 impl_basic_operation_single_modulus!(Rlwe<S, T>);

@@ -16,18 +16,7 @@ where
     pub data: ArrayBase<S>,
 }
 
-impl<S, T> DcrtRlev<S, T>
-where
-    S: RawData<Elem = T>,
-    T: UnsignedInteger,
-{
-    /// Creates a new [`DcrtRlev<S, T>`].
-    #[inline]
-    pub fn new(data: ArrayBase<S>) -> Self {
-        Self { data }
-    }
-}
-
+impl_common!(DcrtRlev<S, T>);
 impl_bytes_conversion!(DcrtRlev<S, T>);
 impl_zero!(DcrtRlev<S, T>);
 impl_basic_operation_multiple_modulus!(DcrtRlev<S, T>);

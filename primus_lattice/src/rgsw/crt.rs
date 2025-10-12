@@ -15,18 +15,7 @@ where
     pub data: ArrayBase<S>,
 }
 
-impl<S, T> CrtRgsw<S, T>
-where
-    S: RawData<Elem = T>,
-    T: UnsignedInteger,
-{
-    /// Creates a new [`CrtRgsw<S, T>`].
-    #[inline]
-    pub fn new(data: ArrayBase<S>) -> Self {
-        Self { data }
-    }
-}
-
+impl_common!(CrtRgsw<S, T>);
 impl_bytes_conversion!(CrtRgsw<S, T>);
 impl_zero!(CrtRgsw<S, T>);
 impl_basic_operation_multiple_modulus!(CrtRgsw<S, T>);

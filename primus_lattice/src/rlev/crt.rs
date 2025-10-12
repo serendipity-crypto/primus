@@ -16,18 +16,7 @@ where
     pub data: ArrayBase<S>,
 }
 
-impl<S, T> CrtRlev<S, T>
-where
-    S: RawData<Elem = T>,
-    T: UnsignedInteger,
-{
-    /// Creates a new [`CrtRlev<S, T>`].
-    #[inline]
-    pub fn new(data: ArrayBase<S>) -> Self {
-        Self { data }
-    }
-}
-
+impl_common!(CrtRlev<S, T>);
 impl_bytes_conversion!(CrtRlev<S, T>);
 impl_zero!(CrtRlev<S, T>);
 impl_basic_operation_multiple_modulus!(CrtRlev<S, T>);
