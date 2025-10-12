@@ -1,59 +1,22 @@
-use primus_integer::UnsignedInteger;
-use serde::{Deserialize, Serialize};
+use primus_integer::{UnsignedInteger, izip};
+use primus_ntt::{Dcrt, DcrtTable, Ntt};
+use primus_poly::{ArrayBase, Data, DataMut, DataOwned, RawData};
+use primus_reduce::FieldContext;
 
-use crate::CrtGlev;
+use crate::DcrtGgsw;
 
-/// Represents a ciphertext in the Ring-GSW (Ring Learning With Errors) homomorphic encryption scheme.
-#[derive(Clone, Serialize, Deserialize)]
-#[serde(bound = "T: UnsignedInteger")]
-pub struct CrtGgsw<T: UnsignedInteger> {
-    a: Vec<CrtGlev<T>>,
-    b: CrtGlev<T>,
+/// Represents a ciphertext in the General-GSW homomorphic encryption scheme.
+#[derive(Clone)]
+pub struct CrtGgsw<S, T = <S as RawData>::Elem>
+where
+    S: RawData<Elem = T>,
+    T: UnsignedInteger,
+{
+    pub data: ArrayBase<S>,
 }
 
-impl<T: UnsignedInteger> CrtGgsw<T> {
-    /// Creates a new [`CrtGgsw<T>`].
-    #[inline]
-    pub fn new(a: Vec<CrtGlev<T>>, b: CrtGlev<T>) -> Self {
-        Self { a, b }
-    }
-
-    /// Creates a [`CrtGgsw<T>`] with all entries equal to zero.
-    #[inline]
-    pub fn zero(
-        decompose_length: usize,
-        dimension: usize,
-        moduli_count: usize,
-        poly_length: usize,
-    ) -> Self {
-        Self {
-            a: (0..dimension)
-                .map(|_| CrtGlev::zero(decompose_length, dimension, moduli_count, poly_length))
-                .collect(),
-            b: CrtGlev::zero(decompose_length, dimension, moduli_count, poly_length),
-        }
-    }
-
-    /// Set all entries equal to zero.
-    #[inline]
-    pub fn set_zero(&mut self) {
-        self.a.iter_mut().for_each(|glev| glev.set_zero());
-        self.b.set_zero();
-    }
-
-    pub fn a(&self) -> &[CrtGlev<T>] {
-        &self.a
-    }
-
-    pub fn a_mut(&mut self) -> &mut [CrtGlev<T>] {
-        &mut self.a
-    }
-
-    pub fn b(&self) -> &CrtGlev<T> {
-        &self.b
-    }
-
-    pub fn b_mut(&mut self) -> &mut CrtGlev<T> {
-        &mut self.b
-    }
-}
+impl_common!(CrtGgsw<S, T>);
+impl_bytes_conversion!(CrtGgsw<S, T>);
+impl_zero!(CrtGgsw<S, T>);
+impl_basic_operation_multiple_modulus!(CrtGgsw<S, T>);
+impl_crt_ntt!(CrtGgsw<S, T>, DcrtGgsw);

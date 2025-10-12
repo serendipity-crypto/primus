@@ -10,7 +10,7 @@ mod rlwe;
 mod glev;
 mod rlev;
 
-// mod ggsw;
+mod ggsw;
 mod rgsw;
 
 pub use glwe::{CrtGlwe, DcrtGlwe, Glwe, NttGlwe};
@@ -20,5 +20,5 @@ pub use rlwe::{CrtRlwe, DcrtRlwe, NttRlwe, Rlwe};
 pub use glev::{CrtGlev, DcrtGlev, Glev, NttGlev};
 pub use rlev::{CrtRlev, DcrtRlev, NttRlev, Rlev};
 
-// pub use ggsw::{CrtGgsw, DcrtGgsw, Ggsw, NttGgsw};
+pub use ggsw::{CrtGgsw, DcrtGgsw, Ggsw, NttGgsw};
 pub use rgsw::{CrtRgsw, DcrtRgsw, NttRgsw, Rgsw};
