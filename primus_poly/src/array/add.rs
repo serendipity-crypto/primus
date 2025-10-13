@@ -38,10 +38,15 @@ where
 {
     /// Performs `result = self + rhs` according to `modulus`.
     #[inline]
-    pub fn add_element_wise_inplace<M, A>(&self, rhs: &Self, result: &mut ArrayBase<A>, modulus: M)
-    where
+    pub fn add_element_wise_inplace<M, A, B>(
+        &self,
+        rhs: &ArrayBase<A>,
+        result: &mut ArrayBase<B>,
+        modulus: M,
+    ) where
         M: Copy + ReduceAdd<T, Output = T>,
-        A: RawData<Elem = T> + DataMut,
+        A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + DataMut,
     {
         debug_assert_eq!(self.len(), rhs.len());
         debug_assert_eq!(self.len(), result.len());

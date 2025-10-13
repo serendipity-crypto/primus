@@ -158,7 +158,7 @@ macro_rules! impl_basic_operation_single_modulus {
     ($cipher:ident < $s:ident, $t:ident >) => {
         impl<$s, $t> $cipher<$s, $t>
         where
-            $s: RawData<Elem = $t> + DataOwned,
+            $s: RawData<Elem = $t> + DataMut,
             $t: UnsignedInteger,
         {
             /// Perform element-wise modular addition `self + rhs`.
@@ -182,13 +182,7 @@ macro_rules! impl_basic_operation_single_modulus {
                 self.data.sub_element_wise_assign(&rhs.data, modulus);
                 self
             }
-        }
 
-        impl<$s, $t> $cipher<$s, $t>
-        where
-            $s: RawData<Elem = $t> + DataMut,
-            $t: UnsignedInteger,
-        {
             /// Performs an element-wise modular addition assignment `self += rhs`.
             #[inline]
             pub fn add_element_wise_assign<M, A>(&mut self, rhs: &$cipher<A>, modulus: M)
@@ -217,10 +211,15 @@ macro_rules! impl_basic_operation_single_modulus {
         {
             /// Performs in-place element-wise modular addition:`result = self + rhs`,
             #[inline]
-            pub fn add_inplace<M, A>(&self, rhs: &Self, result: &mut $cipher<A>, modulus: M)
-            where
+            pub fn add_inplace<M, A, B>(
+                &self,
+                rhs: &$cipher<A>,
+                result: &mut $cipher<B>,
+                modulus: M,
+            ) where
                 M: FieldContext<$t>,
-                A: RawData<Elem = $t> + DataMut,
+                A: RawData<Elem = $t> + Data,
+                B: RawData<Elem = $t> + DataMut,
             {
                 self.data
                     .add_element_wise_inplace(&rhs.data, &mut result.data, modulus)
@@ -228,10 +227,15 @@ macro_rules! impl_basic_operation_single_modulus {
 
             /// Performs in-place element-wise modular addition:`result = self - rhs`,
             #[inline]
-            pub fn sub_inplace<M, A>(&self, rhs: &Self, result: &mut $cipher<A>, modulus: M)
-            where
+            pub fn sub_inplace<M, A, B>(
+                &self,
+                rhs: &$cipher<A>,
+                result: &mut $cipher<B>,
+                modulus: M,
+            ) where
                 M: FieldContext<$t>,
-                A: RawData<Elem = $t> + DataMut,
+                A: RawData<Elem = $t> + Data,
+                B: RawData<Elem = $t> + DataMut,
             {
                 self.data
                     .sub_element_wise_inplace(&rhs.data, &mut result.data, modulus)
@@ -244,7 +248,7 @@ macro_rules! impl_basic_operation_multiple_modulus {
     ($cipher:ident < $s:ident, $t:ident >) => {
         impl<$s, $t> $cipher<$s, $t>
         where
-            $s: RawData<Elem = $t> + DataOwned,
+            $s: RawData<Elem = $t> + DataMut,
             $t: UnsignedInteger,
         {
             /// Perform element-wise modular addition `self + rhs`.
@@ -278,13 +282,7 @@ macro_rules! impl_basic_operation_multiple_modulus {
                 self.sub_element_wise_assign(rhs, cipher_single_modulus_len, moduli);
                 self
             }
-        }
 
-        impl<$s, $t> $cipher<$s, $t>
-        where
-            $s: RawData<Elem = $t> + DataMut,
-            $t: UnsignedInteger,
-        {
             /// Performs an element-wise modular addition assignment `self += rhs`.
             #[inline]
             pub fn add_element_wise_assign<M, A>(
@@ -388,7 +386,7 @@ macro_rules! impl_ntt {
     ($cipher:ident < $s:ident, $t:ident >,$ntt_cipher:ident) => {
         impl<$s, $t> $cipher<$s, $t>
         where
-            $s: RawData<Elem = $t> + DataOwned,
+            $s: RawData<Elem = $t> + DataMut,
             $t: UnsignedInteger,
         {
             /// Transforms `self` to ntt form.
@@ -434,7 +432,7 @@ macro_rules! impl_intt {
     ($ntt_cipher:ident < $s:ident, $t:ident >,$cipher:ident) => {
         impl<$s, $t> $ntt_cipher<$s, $t>
         where
-            $s: RawData<Elem = $t> + DataOwned,
+            $s: RawData<Elem = $t> + DataMut,
             $t: UnsignedInteger,
         {
             /// Transforms `self` to coefficient form.
@@ -483,7 +481,7 @@ macro_rules! impl_crt_ntt {
     ($cipher:ident < $s:ident, $t:ident >,$ntt_cipher:ident) => {
         impl<$s, $t> $cipher<$s, $t>
         where
-            $s: RawData<Elem = $t> + DataOwned,
+            $s: RawData<Elem = $t> + DataMut,
             $t: UnsignedInteger,
         {
             /// Transforms `self` to ntt form.
@@ -545,7 +543,7 @@ macro_rules! impl_crt_intt {
     ($ntt_cipher:ident < $s:ident, $t:ident >,$cipher:ident) => {
         impl<$s, $t> $ntt_cipher<$s, $t>
         where
-            $s: RawData<Elem = $t> + DataOwned,
+            $s: RawData<Elem = $t> + DataMut,
             $t: UnsignedInteger,
         {
             /// Transforms `self` to coefficient form.
