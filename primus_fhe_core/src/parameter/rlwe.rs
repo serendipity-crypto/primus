@@ -29,6 +29,31 @@ where
     ValueT: UnsignedInteger,
     ModulusT: FieldContext<ValueT>,
 {
+    /// Creates a new [`RlweParameters<ValueT, ModulusT>`].
+    #[inline]
+    pub fn new(
+        poly_length: usize,
+        plain_modulus_value: ValueT,
+        modulus: ModulusT,
+        secret_key_type: RingSecretKeyType,
+        noise_standard_deviation: f64,
+    ) -> Self {
+        let modulus_minus_one = modulus.minus_one();
+        Self {
+            poly_length,
+            plain_modulus_value,
+            modulus_minus_one,
+            modulus,
+            secret_key_type,
+            noise_standard_deviation,
+            noise_distribution: DiscreteGaussian::new(
+                0.0,
+                noise_standard_deviation,
+                modulus_minus_one,
+            )
+            .unwrap(),
+        }
+    }
     /// Returns the poly length of this [`RlweParameters<ValueT, ModulusT>`].
     #[inline]
     pub fn poly_length(&self) -> usize {

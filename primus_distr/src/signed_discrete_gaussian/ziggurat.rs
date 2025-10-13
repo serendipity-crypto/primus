@@ -1,22 +1,21 @@
 use std::f64::consts::{FRAC_1_SQRT_2, FRAC_2_SQRT_PI};
 
-use primus_integer::UnsignedInteger;
+use primus_integer::Integer;
 use rand::distr::{Distribution, Uniform};
 
 /// Discrete Ziggurat
 #[derive(Clone)]
-pub struct DiscreteZiggurat<T: UnsignedInteger> {
+pub struct DiscreteZiggurat<T: Integer> {
     std_dev: f64,
     x: Vec<f64>,
     y: Vec<f64>,
     sample_m: Uniform<usize>,
     sample_x: Vec<Uniform<T>>,
-    modulus_minus_one: T,
 }
 
-impl<T: UnsignedInteger> DiscreteZiggurat<T> {
+impl<T: Integer> DiscreteZiggurat<T> {
     /// Generate a [`DiscreteZiggurat<T>`]
-    pub fn new(std_dev: f64, tail_cut: f64, modulus_minus_one: T) -> Self {
+    pub fn new(std_dev: f64, tail_cut: f64) -> Self {
         let x_m = (tail_cut * std_dev).floor();
         let sigma_square_mul_minus_two = std_dev * std_dev * (-2.0f64);
 
@@ -65,11 +64,10 @@ impl<T: UnsignedInteger> DiscreteZiggurat<T> {
                 y,
                 sample_m: Uniform::new_inclusive(1, m).unwrap(),
                 sample_x,
-                modulus_minus_one,
             };
         }
     }
-    
+
     /// Returns the std dev of this [`DiscreteZiggurat<T>`].
     #[inline]
     pub fn std_dev(&self) -> f64 {
@@ -77,15 +75,11 @@ impl<T: UnsignedInteger> DiscreteZiggurat<T> {
     }
 }
 
-impl<T: UnsignedInteger> Distribution<T> for DiscreteZiggurat<T> {
+impl<T: Integer> Distribution<T> for DiscreteZiggurat<T> {
     fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> T {
         let pdf = |x: f64| ((x * x) / (-2.0 * self.std_dev * self.std_dev)).exp();
         let combine = |sign: bool, x: T| {
-            if sign {
-                x
-            } else {
-                self.modulus_minus_one - x + T::ONE
-            }
+            if sign { x } else { T::ZERO - x }
         };
 
         loop {

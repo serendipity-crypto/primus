@@ -24,6 +24,6 @@ pub enum RingSecretKeyType {
     Gaussian,
 }
 
-pub use glwe::{GlweSecretKey, NttGlweSecretKey};
+pub use glwe::{CrtGlweSecretKey, DcrtGlweSecretKey, GlweSecretKey, NttGlweSecretKey};
 pub use lwe::LweSecretKey;
 pub use rlwe::{NttRlweSecretKey, RlweSecretKey};

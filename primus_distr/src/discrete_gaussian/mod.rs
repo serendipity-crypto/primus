@@ -17,12 +17,12 @@ use crate::DistrErr;
 #[derive(Clone)]
 pub enum DiscreteGaussian<T: UnsignedInteger> {
     /// CDTSampler
-    Cdt(super::CDTSampler<T>),
+    Cdt(cdt::CDTSampler<T>),
     /// UnixCDTSampler
     #[cfg(target_os = "linux")]
-    Unix(super::UnixCDTSampler<T>),
+    Unix(unix_cdt::UnixCDTSampler<T>),
     /// DiscreteZiggurat
-    Ziggurat(super::DiscreteZiggurat<T>),
+    Ziggurat(ziggurat::DiscreteZiggurat<T>),
 }
 
 impl<T: UnsignedInteger> DiscreteGaussian<T> {
@@ -41,7 +41,7 @@ impl<T: UnsignedInteger> DiscreteGaussian<T> {
         if std_dev < 3.0 {
             #[cfg(target_os = "linux")]
             {
-                Ok(DiscreteGaussian::Unix(super::UnixCDTSampler::new(
+                Ok(DiscreteGaussian::Unix(unix_cdt::UnixCDTSampler::new(
                     std_dev,
                     6.0,
                     modulus_minus_one,
@@ -49,13 +49,13 @@ impl<T: UnsignedInteger> DiscreteGaussian<T> {
             }
 
             #[cfg(not(target_os = "linux"))]
-            Ok(DiscreteGaussian::Cdt(super::CDTSampler::new(
+            Ok(DiscreteGaussian::Cdt(cdt::CDTSampler::new(
                 std_dev,
                 12.0,
                 modulus_minus_one,
             )))
         } else {
-            Ok(DiscreteGaussian::Ziggurat(super::DiscreteZiggurat::new(
+            Ok(DiscreteGaussian::Ziggurat(ziggurat::DiscreteZiggurat::new(
                 std_dev,
                 12.0,
                 modulus_minus_one,
@@ -84,6 +84,16 @@ impl<T: UnsignedInteger> DiscreteGaussian<T> {
             });
         }
         unimplemented!()
+    }
+
+    /// Returns the std dev of this [`DiscreteGaussian<T>`].
+    pub fn std_dev(&self) -> f64 {
+        match self {
+            DiscreteGaussian::Cdt(cdtsampler) => cdtsampler.std_dev(),
+            #[cfg(target_os = "linux")]
+            DiscreteGaussian::Unix(sampler) => sampler.std_dev(),
+            DiscreteGaussian::Ziggurat(discrete_ziggurat) => discrete_ziggurat.std_dev(),
+        }
     }
 }
 
