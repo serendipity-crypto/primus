@@ -3,21 +3,28 @@ use std::slice::IterMut;
 use primus_distr::SignedDiscreteGaussian;
 use primus_integer::{UnsignedInteger, izip};
 use primus_lattice::DcrtGlwe;
+use primus_modulo::AddModulo;
 use primus_ntt::{Dcrt, DcrtTable, Ntt};
-use primus_poly::{ArrayBase, Data, NttPolynomial, RawData, crt::CrtPolynomial};
+use primus_poly::{
+    ArrayBase, Data, DataMut, NttPolynomial, Polynomial, RawData, crt::CrtPolynomial,
+    dcrt::DcrtPolynomial,
+};
 use primus_reduce::FieldContext;
 use rand::distr::Uniform;
 
 use crate::DcrtGlweSecretKey;
 
-pub struct DcrtGlwePublicKey<T: UnsignedInteger> {
+#[derive(Clone)]
+pub struct DcrtGlwePublicKey<T: UnsignedInteger, M: FieldContext<T>> {
     key: DcrtGlwe<Vec<T>>,
     moduli_count: usize,
     poly_length: usize,
     dimension: usize,
+    moduli: Vec<M>,
+    modulus_values: Vec<T>,
 }
 
-impl<T: UnsignedInteger> DcrtGlwePublicKey<T> {
+impl<T: UnsignedInteger, M: FieldContext<T>> DcrtGlwePublicKey<T, M> {
     /// Creates a new [`DcrtGlwePublicKey<T>`] from bytes `data`.
     #[inline]
     pub fn from_bytes_assign(&mut self, data: &[u8]) {
@@ -48,17 +55,24 @@ impl<T: UnsignedInteger> DcrtGlwePublicKey<T> {
         self.dimension
     }
 
-    pub fn new<Table, M, R>(
+    pub fn moduli(&self) -> &[M] {
+        &self.moduli
+    }
+
+    pub fn modulus_values(&self) -> &[T] {
+        &self.modulus_values
+    }
+
+    pub fn new<Table, R>(
         secret_key: &DcrtGlweSecretKey<T>,
         gaussian: &SignedDiscreteGaussian<T::SignedInteger>,
         table: &Table,
         moduli: &[M],
         rng: &mut R,
-    ) -> DcrtGlwePublicKey<T>
+    ) -> DcrtGlwePublicKey<T, M>
     where
         R: rand::Rng + rand::CryptoRng,
         Table: DcrtTable<ValueT = T> + Dcrt,
-        M: FieldContext<T>,
     {
         let moduli_count = secret_key.moduli_count;
         let poly_length = secret_key.poly_length;
@@ -110,22 +124,22 @@ impl<T: UnsignedInteger> DcrtGlwePublicKey<T> {
             moduli_count,
             poly_length,
             dimension,
+            moduli: moduli.to_vec(),
+            modulus_values,
         }
     }
 
-    pub fn encrypt<Table, M, R, A>(
+    pub fn encrypt<Table, R, A>(
         &self,
         message: &CrtPolynomial<A>,
         gaussian: &SignedDiscreteGaussian<T::SignedInteger>,
         table: &Table,
-        moduli: &[M],
         rng: &mut R,
     ) -> DcrtGlwe<Vec<T>>
     where
         R: rand::Rng + rand::CryptoRng,
         A: RawData<Elem = T> + Data,
         Table: DcrtTable<ValueT = T> + Dcrt,
-        M: FieldContext<T>,
     {
         let moduli_count = self.moduli_count;
         let poly_length = self.poly_length;
@@ -137,12 +151,11 @@ impl<T: UnsignedInteger> DcrtGlwePublicKey<T> {
 
         let mut result = vec![T::ZERO; key_len];
         let mut temp = vec![T::ZERO; moduli_count * poly_length];
-        let modulus_values: Vec<T> = moduli.iter().map(|m| m.value_unchecked()).collect();
 
         primus_distr::sample_crt_gaussian_values_inplace(
             &mut result,
             glwe_len,
-            &modulus_values,
+            self.modulus_values(),
             gaussian,
             rng,
         );
@@ -151,18 +164,24 @@ impl<T: UnsignedInteger> DcrtGlwePublicKey<T> {
         izip!(
             result.chunks_exact_mut(glwe_len),
             self.key.data.chunks_exact(glwe_len),
+            message.0.chunks_exact(poly_length),
             temp.chunks_exact_mut(poly_length),
             table.iter(),
-            moduli
+            self.moduli()
         )
-        .for_each(|(glwe, key, v, ntt_table, modulus)| {
+        .for_each(|(glwe, key, msg, v, ntt_table, modulus)| {
             ntt_table.transform_slice(v);
             let v_poly = NttPolynomial(ArrayBase(v));
+
+            Polynomial(ArrayBase(&mut glwe[mid..]))
+                .add_assign(&Polynomial(ArrayBase(msg)), *modulus);
+
             izip!(
                 glwe.chunks_exact_mut(poly_length),
                 key.chunks_exact(poly_length)
             )
             .for_each(|(a, k)| {
+                ntt_table.transform_slice(a);
                 NttPolynomial(ArrayBase(a)).add_mul_assign(
                     &NttPolynomial(ArrayBase(k)),
                     &v_poly,
@@ -171,19 +190,68 @@ impl<T: UnsignedInteger> DcrtGlwePublicKey<T> {
             });
         });
 
-        temp.copy_from_slice(message.0.as_ref());
+        DcrtGlwe::new(ArrayBase(result))
+    }
+
+    fn encrypt_monomial_inner<Table, R, A>(
+        &self,
+        coeff_residue: &[T],
+        degree: usize,
+        gaussian: &SignedDiscreteGaussian<T::SignedInteger>,
+        table: &Table,
+        v: &mut DcrtPolynomial<A>,
+        rng: &mut R,
+    ) -> DcrtGlwe<Vec<T>>
+    where
+        R: rand::Rng + rand::CryptoRng,
+        Table: DcrtTable<ValueT = T> + Dcrt,
+        A: RawData<Elem = T> + DataMut,
+    {
+        let moduli_count = self.moduli_count;
+        let poly_length = self.poly_length;
+        let dimension = self.dimension;
+
+        let mid = poly_length * dimension;
+        let glwe_len = mid + poly_length;
+        let key_len = moduli_count * glwe_len;
+
+        let mut result = vec![T::ZERO; key_len];
+        // let mut temp = vec![T::ZERO; moduli_count * poly_length];
+
+        primus_distr::sample_crt_gaussian_values_inplace(
+            &mut result,
+            glwe_len,
+            self.modulus_values(),
+            gaussian,
+            rng,
+        );
+        primus_distr::sample_crt_binary_values_inplace(v.0.as_mut(), poly_length, rng);
 
         izip!(
             result.chunks_exact_mut(glwe_len),
-            temp.chunks_exact_mut(poly_length),
+            self.key.data.chunks_exact(glwe_len),
+            v.iter_mut(poly_length),
+            coeff_residue,
             table.iter(),
-            moduli
+            self.moduli()
         )
-        .for_each(|(glwe, v, ntt_table, modulus)| {
-            ntt_table.transform_slice(v);
-            let v_poly = NttPolynomial(ArrayBase(v));
-            glwe.chunks_exact_mut(poly_length).for_each(|a| {
-                NttPolynomial(ArrayBase(a)).add_assign(&v_poly, *modulus);
+        .for_each(|(glwe, key, v_r, &residue, ntt_table, modulus)| {
+            ntt_table.transform_slice(v_r);
+            let v_poly = NttPolynomial(ArrayBase(v_r));
+
+            glwe[mid + degree].add_modulo(residue, *modulus);
+
+            izip!(
+                glwe.chunks_exact_mut(poly_length),
+                key.chunks_exact(poly_length)
+            )
+            .for_each(|(a, k)| {
+                ntt_table.transform_slice(a);
+                NttPolynomial(ArrayBase(a)).add_mul_assign(
+                    &NttPolynomial(ArrayBase(k)),
+                    &v_poly,
+                    *modulus,
+                );
             });
         });
 
