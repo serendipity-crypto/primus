@@ -12,6 +12,7 @@ pub use error::FheError;
 
 pub use parameter::*;
 
+pub use public_key::*;
 pub use secret_key::*;
 
 pub use ciphertext::*;
