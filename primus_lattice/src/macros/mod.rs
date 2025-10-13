@@ -211,7 +211,7 @@ macro_rules! impl_basic_operation_single_modulus {
         {
             /// Performs in-place element-wise modular addition:`result = self + rhs`,
             #[inline]
-            pub fn add_inplace<M, A, B>(
+            pub fn add_element_wise_inplace<M, A, B>(
                 &self,
                 rhs: &$cipher<A>,
                 result: &mut $cipher<B>,
@@ -227,7 +227,7 @@ macro_rules! impl_basic_operation_single_modulus {
 
             /// Performs in-place element-wise modular addition:`result = self - rhs`,
             #[inline]
-            pub fn sub_inplace<M, A, B>(
+            pub fn sub_element_wise_inplace<M, A, B>(
                 &self,
                 rhs: &$cipher<A>,
                 result: &mut $cipher<B>,
@@ -333,7 +333,7 @@ macro_rules! impl_basic_operation_multiple_modulus {
         {
             /// Performs element-wise modular addition `result = self + rhs`.
             #[inline]
-            pub fn add_inplace<M, A, B>(
+            pub fn add_element_wise_inplace<M, A, B>(
                 &self,
                 rhs: &$cipher<A>,
                 result: &mut $cipher<B>,
@@ -357,7 +357,7 @@ macro_rules! impl_basic_operation_multiple_modulus {
 
             /// Performs element-wise modular subtraction `result = self - rhs`.
             #[inline]
-            pub fn sub_inplace<M, A, B>(
+            pub fn sub_element_wise_inplace<M, A, B>(
                 &self,
                 rhs: &$cipher<A>,
                 result: &mut $cipher<B>,
