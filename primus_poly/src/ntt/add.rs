@@ -1,13 +1,13 @@
 use primus_integer::UnsignedInteger;
 use primus_reduce::ops::{ReduceAdd, ReduceAddAssign};
 
-use crate::{Data, DataMut, DataOwned, RawData};
+use crate::{Data, DataMut, RawData};
 
 use super::NttPolynomial;
 
 impl<S, T> NttPolynomial<S, T>
 where
-    S: RawData<Elem = T> + DataOwned,
+    S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
 {
     /// Performs `self + rhs` according to `modulus`.
@@ -23,13 +23,7 @@ where
         self.add_assign(rhs, modulus);
         self
     }
-}
 
-impl<S, T> NttPolynomial<S, T>
-where
-    S: RawData<Elem = T> + DataMut,
-    T: UnsignedInteger,
-{
     /// Performs `self += rhs` according to `modulus`.
     #[inline]
     pub fn add_assign<M, A: RawData<Elem = T> + Data>(

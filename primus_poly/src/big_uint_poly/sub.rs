@@ -1,12 +1,12 @@
 use primus_integer::{BigIntegerOps, UnsignedInteger, izip};
 
-use crate::{Data, DataMut, DataOwned, RawData};
+use crate::{Data, DataMut, RawData};
 
 use super::BigUintPolynomial;
 
 impl<S, T> BigUintPolynomial<S, T>
 where
-    S: RawData<Elem = T> + DataOwned,
+    S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
 {
     /// Performs `self - rhs` according to `modulus`.
@@ -18,13 +18,7 @@ where
         self.sub_assign(rhs, modulus);
         self
     }
-}
 
-impl<S, T> BigUintPolynomial<S, T>
-where
-    S: RawData<Elem = T> + DataMut,
-    T: UnsignedInteger,
-{
     /// Performs `self -= rhs` according to `modulus`.
     #[inline]
     pub fn sub_assign<A>(&mut self, rhs: &BigUintPolynomial<A>, modulus: &[T])

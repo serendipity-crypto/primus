@@ -1,12 +1,12 @@
 use primus_integer::{BigIntegerOps, UnsignedInteger};
 
-use crate::{Data, DataMut, DataOwned, RawData};
+use crate::{Data, DataMut, RawData};
 
 use super::BigUintPolynomial;
 
 impl<S, T> BigUintPolynomial<S, T>
 where
-    S: RawData<Elem = T> + DataOwned,
+    S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
 {
     /// Performs the unary `-` operation.
@@ -15,13 +15,7 @@ where
         self.neg_assign(modulus);
         self
     }
-}
 
-impl<S, T> BigUintPolynomial<S, T>
-where
-    S: RawData<Elem = T> + DataMut,
-    T: UnsignedInteger,
-{
     /// Performs the unary `-` operation.
     #[inline]
     pub fn neg_assign(&mut self, modulus: &[T]) {

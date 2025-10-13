@@ -2,13 +2,13 @@ use num_traits::Zero;
 use primus_integer::UnsignedInteger;
 use primus_reduce::ops::ReduceInvAssign;
 
-use crate::{DataOwned, RawData};
+use crate::{DataMut, RawData};
 
 use super::NttPolynomial;
 
 impl<S, T> NttPolynomial<S, T>
 where
-    S: RawData<Elem = T> + DataOwned,
+    S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
 {
     /// Try to calculate the inverse of the polynomial.

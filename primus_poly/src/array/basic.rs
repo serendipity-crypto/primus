@@ -66,24 +66,24 @@ where
 
 impl<S, T, I: SliceIndex<[T]>> Index<I> for ArrayBase<S, T>
 where
-    S: RawData<Elem = T> + Data + Index<I, Output = I::Output>,
+    S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
 {
     type Output = I::Output;
 
     fn index(&self, index: I) -> &Self::Output {
-        Index::index(&self.0, index)
+        Index::index(self.0.as_ref(), index)
     }
 }
 
 impl<S, T, I: SliceIndex<[T]>> IndexMut<I> for ArrayBase<S, T>
 where
-    S: RawData<Elem = T> + DataMut + IndexMut<I, Output = I::Output>,
+    S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
 {
     #[inline]
     fn index_mut(&mut self, index: I) -> &mut Self::Output {
-        IndexMut::index_mut(&mut self.0, index)
+        IndexMut::index_mut(self.0.as_mut(), index)
     }
 }
 
