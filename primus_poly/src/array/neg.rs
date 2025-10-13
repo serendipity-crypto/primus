@@ -3,7 +3,7 @@ use primus_reduce::ops::{ReduceNeg, ReduceNegAssign};
 
 use super::{ArrayBase, Data, DataMut, RawData};
 
-impl<S, T> ArrayBase<S>
+impl<S, T> ArrayBase<S, T>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
@@ -24,11 +24,11 @@ where
     where
         M: Copy + ReduceNegAssign<T>,
     {
-        self.iter_mut().for_each(|v| modulus.reduce_neg_assign(v));
+        self.iter_mut().for_each(|a| modulus.reduce_neg_assign(a));
     }
 }
 
-impl<S, T> ArrayBase<S>
+impl<S, T> ArrayBase<S, T>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
@@ -40,9 +40,9 @@ where
         M: Copy + ReduceNeg<T, Output = T>,
         A: RawData<Elem = T> + DataMut,
     {
-        debug_assert_eq!(self.0.len(), result.0.len());
+        debug_assert_eq!(self.len(), result.len());
         self.iter()
             .zip(result)
-            .for_each(|(&v, d)| *d = modulus.reduce_neg(v));
+            .for_each(|(&a, b)| *b = modulus.reduce_neg(a));
     }
 }

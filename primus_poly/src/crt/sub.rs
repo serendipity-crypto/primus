@@ -36,7 +36,7 @@ where
     {
         izip!(self.iter_mut(poly_length), rhs.iter(poly_length), moduli).for_each(
             |(xs, ys, modulus)| {
-                ArrayBase(xs).sub_assign(&ArrayBase(ys), *modulus);
+                ArrayBase(xs).sub_element_wise_assign(&ArrayBase(ys), *modulus);
             },
         );
     }
@@ -66,7 +66,7 @@ where
             moduli
         )
         .for_each(|(xs, ys, zs, modulus)| {
-            ArrayBase(xs).sub_inplace(&ArrayBase(ys), &mut ArrayBase(zs), *modulus);
+            ArrayBase(xs).sub_element_wise_inplace(&ArrayBase(ys), &mut ArrayBase(zs), *modulus);
         });
     }
 }

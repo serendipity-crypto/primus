@@ -8,7 +8,7 @@ use primus_integer::{ByteCount, UnsignedInteger, size::Size};
 
 use super::{ArrayBase, Data, DataMut, DataOwned, RawData};
 
-impl<S, T> ArrayBase<S>
+impl<S, T> ArrayBase<S, T>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
@@ -25,7 +25,7 @@ where
     }
 }
 
-impl<S, T> ArrayBase<S>
+impl<S, T> ArrayBase<S, T>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
@@ -42,7 +42,7 @@ where
     }
 }
 
-impl<S, T> ArrayBase<S>
+impl<S, T> ArrayBase<S, T>
 where
     S: RawData<Elem = T> + DataOwned,
     T: UnsignedInteger,
@@ -53,7 +53,7 @@ where
     }
 }
 
-impl<S, T> Size for ArrayBase<S>
+impl<S, T> Size for ArrayBase<S, T>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
@@ -64,7 +64,7 @@ where
     }
 }
 
-impl<S, T, I: SliceIndex<[T]>> Index<I> for ArrayBase<S>
+impl<S, T, I: SliceIndex<[T]>> Index<I> for ArrayBase<S, T>
 where
     S: RawData<Elem = T> + Data + Index<I, Output = I::Output>,
     T: UnsignedInteger,
@@ -76,7 +76,7 @@ where
     }
 }
 
-impl<S, T, I: SliceIndex<[T]>> IndexMut<I> for ArrayBase<S>
+impl<S, T, I: SliceIndex<[T]>> IndexMut<I> for ArrayBase<S, T>
 where
     S: RawData<Elem = T> + DataMut + IndexMut<I, Output = I::Output>,
     T: UnsignedInteger,
@@ -87,7 +87,7 @@ where
     }
 }
 
-impl<S, T> AsRef<[T]> for ArrayBase<S>
+impl<S, T> AsRef<[T]> for ArrayBase<S, T>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
@@ -98,25 +98,25 @@ where
     }
 }
 
-impl<S, A> AsMut<[A]> for ArrayBase<S>
+impl<S, T> AsMut<[T]> for ArrayBase<S, T>
 where
-    S: RawData<Elem = A> + DataMut,
-    A: UnsignedInteger,
+    S: RawData<Elem = T> + DataMut,
+    T: UnsignedInteger,
 {
     #[inline]
-    fn as_mut(&mut self) -> &mut [A] {
+    fn as_mut(&mut self) -> &mut [T] {
         self.0.as_mut()
     }
 }
 
-impl<'t, S, A> IntoIterator for &'t ArrayBase<S>
+impl<'t, S, T> IntoIterator for &'t ArrayBase<S, T>
 where
-    S: RawData<Elem = A> + Data,
-    A: UnsignedInteger,
+    S: RawData<Elem = T> + Data,
+    T: UnsignedInteger,
 {
-    type Item = &'t A;
+    type Item = &'t T;
 
-    type IntoIter = core::slice::Iter<'t, A>;
+    type IntoIter = core::slice::Iter<'t, T>;
 
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
@@ -124,14 +124,14 @@ where
     }
 }
 
-impl<'t, S, A> IntoIterator for &'t mut ArrayBase<S>
+impl<'t, S, T> IntoIterator for &'t mut ArrayBase<S, T>
 where
-    S: RawData<Elem = A> + DataMut,
-    A: UnsignedInteger,
+    S: RawData<Elem = T> + DataMut,
+    T: UnsignedInteger,
 {
-    type Item = &'t mut A;
+    type Item = &'t mut T;
 
-    type IntoIter = core::slice::IterMut<'t, A>;
+    type IntoIter = core::slice::IterMut<'t, T>;
 
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
@@ -139,15 +139,16 @@ where
     }
 }
 
-impl<S, A> IntoIterator for ArrayBase<S>
+impl<S, T> IntoIterator for ArrayBase<S, T>
 where
-    S: RawData<Elem = A> + DataOwned,
-    A: UnsignedInteger,
+    S: RawData<Elem = T> + DataOwned,
+    T: UnsignedInteger,
 {
-    type Item = A;
+    type Item = T;
 
-    type IntoIter = std::vec::IntoIter<A>;
+    type IntoIter = std::vec::IntoIter<T>;
 
+    #[inline]
     fn into_iter(self) -> Self::IntoIter {
         <S as DataOwned>::into_iter(self.0)
     }

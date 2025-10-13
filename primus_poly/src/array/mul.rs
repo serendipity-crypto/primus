@@ -5,7 +5,7 @@ use primus_reduce::ops::{ReduceAddAssign, ReduceMul, ReduceMulAdd, ReduceMulAssi
 
 use super::{ArrayBase, Data, DataMut, RawData};
 
-impl<S, T> ArrayBase<S>
+impl<S, T> ArrayBase<S, T>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
@@ -17,7 +17,7 @@ where
         M: Copy + ReduceMulAssign<T>,
     {
         self.iter_mut()
-            .for_each(|v| modulus.reduce_mul_assign(v, scalar))
+            .for_each(|a| modulus.reduce_mul_assign(a, scalar))
     }
 
     /// Performs `self += scalar * rhs` according to `modulus`.
@@ -27,9 +27,10 @@ where
         M: Copy + ReduceMulAdd<T, Output = T>,
         A: RawData<Elem = T> + Data,
     {
+        debug_assert_eq!(self.len(), rhs.len());
         self.iter_mut()
             .zip(rhs)
-            .for_each(|(r, &v)| *r = modulus.reduce_mul_add(v, scalar, *r));
+            .for_each(|(a, &b)| *a = modulus.reduce_mul_add(b, scalar, *a));
     }
 
     #[inline]
@@ -38,6 +39,7 @@ where
         M: Copy + ReduceMulAssign<T>,
         A: RawData<Elem = T> + Data,
     {
+        debug_assert_eq!(self.len(), rhs.len());
         self.iter_mut()
             .zip(rhs)
             .for_each(|(a, &b)| modulus.reduce_mul_assign(a, b));
@@ -47,7 +49,7 @@ where
     #[inline]
     pub fn mul_factor_assign(&mut self, scalar: ShoupFactor<T>, modulus: T) {
         self.iter_mut()
-            .for_each(|v| *v = scalar.factor_mul_modulo(*v, modulus))
+            .for_each(|a| *a = scalar.factor_mul_modulo(*a, modulus))
     }
 
     /// Performs `self += scalar * rhs` according to `modulus`.
@@ -60,17 +62,19 @@ where
     ) where
         A: RawData<Elem = T> + Data,
     {
-        self.iter_mut().zip(rhs).for_each(|(r, &v)| {
-            UintModulus(modulus).reduce_add_assign(r, scalar.factor_mul_modulo(v, modulus))
+        debug_assert_eq!(self.len(), rhs.len());
+        self.iter_mut().zip(rhs).for_each(|(a, &b)| {
+            UintModulus(modulus).reduce_add_assign(a, scalar.factor_mul_modulo(b, modulus))
         });
     }
 }
 
-impl<S, T> ArrayBase<S>
+impl<S, T> ArrayBase<S, T>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
 {
+    /// Performs element wise modular multiplication operation `result = self * rhs` according to `modulus`.
     #[inline]
     pub fn mul_element_wise_inplace<M, A, B>(
         &self,
@@ -82,6 +86,8 @@ where
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + DataMut,
     {
+        debug_assert_eq!(self.len(), rhs.len());
+        debug_assert_eq!(self.len(), result.len());
         izip!(self, rhs, result).for_each(|(&a, &b, c)| *c = modulus.reduce_mul(a, b));
     }
 }

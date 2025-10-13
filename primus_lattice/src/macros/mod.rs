@@ -168,7 +168,7 @@ macro_rules! impl_basic_operation_single_modulus {
                 M: FieldContext<$t>,
                 A: RawData<Elem = $t> + Data,
             {
-                self.data.add_assign(&rhs.data, modulus);
+                self.data.add_element_wise_assign(&rhs.data, modulus);
                 self
             }
 
@@ -179,7 +179,7 @@ macro_rules! impl_basic_operation_single_modulus {
                 M: FieldContext<$t>,
                 A: RawData<Elem = $t> + Data,
             {
-                self.data.sub_assign(&rhs.data, modulus);
+                self.data.sub_element_wise_assign(&rhs.data, modulus);
                 self
             }
         }
@@ -196,7 +196,7 @@ macro_rules! impl_basic_operation_single_modulus {
                 M: FieldContext<$t>,
                 A: RawData<Elem = $t> + Data,
             {
-                self.data.add_assign(&rhs.data, modulus);
+                self.data.add_element_wise_assign(&rhs.data, modulus);
             }
 
             /// Performs an element-wise modular subtraction assignment `self -= rhs`
@@ -206,7 +206,7 @@ macro_rules! impl_basic_operation_single_modulus {
                 M: FieldContext<$t>,
                 A: RawData<Elem = $t> + Data,
             {
-                self.data.sub_assign(&rhs.data, modulus);
+                self.data.sub_element_wise_assign(&rhs.data, modulus);
             }
         }
 
@@ -222,7 +222,8 @@ macro_rules! impl_basic_operation_single_modulus {
                 M: FieldContext<$t>,
                 A: RawData<Elem = $t> + DataMut,
             {
-                self.data.add_inplace(&rhs.data, &mut result.data, modulus)
+                self.data
+                    .add_element_wise_inplace(&rhs.data, &mut result.data, modulus)
             }
 
             /// Performs in-place element-wise modular addition:`result = self - rhs`,
@@ -232,7 +233,8 @@ macro_rules! impl_basic_operation_single_modulus {
                 M: FieldContext<$t>,
                 A: RawData<Elem = $t> + DataMut,
             {
-                self.data.sub_inplace(&rhs.data, &mut result.data, modulus)
+                self.data
+                    .sub_element_wise_inplace(&rhs.data, &mut result.data, modulus)
             }
         }
     };
@@ -300,7 +302,7 @@ macro_rules! impl_basic_operation_multiple_modulus {
                     moduli
                 )
                 .for_each(|(x, y, m)| {
-                    ArrayBase(x).add_assign(&ArrayBase(y), *m);
+                    ArrayBase(x).add_element_wise_assign(&ArrayBase(y), *m);
                 });
             }
 
@@ -321,7 +323,7 @@ macro_rules! impl_basic_operation_multiple_modulus {
                     moduli
                 )
                 .for_each(|(x, y, m)| {
-                    ArrayBase(x).add_assign(&ArrayBase(y), *m);
+                    ArrayBase(x).sub_element_wise_assign(&ArrayBase(y), *m);
                 });
             }
         }
@@ -351,7 +353,7 @@ macro_rules! impl_basic_operation_multiple_modulus {
                     moduli
                 )
                 .for_each(|(x, y, z, m)| {
-                    ArrayBase(x).add_inplace(&ArrayBase(y), &mut ArrayBase(z), *m);
+                    ArrayBase(x).add_element_wise_inplace(&ArrayBase(y), &mut ArrayBase(z), *m);
                 });
             }
 
@@ -375,7 +377,7 @@ macro_rules! impl_basic_operation_multiple_modulus {
                     moduli
                 )
                 .for_each(|(x, y, z, m)| {
-                    ArrayBase(x).sub_inplace(&ArrayBase(y), &mut ArrayBase(z), *m);
+                    ArrayBase(x).sub_element_wise_inplace(&ArrayBase(y), &mut ArrayBase(z), *m);
                 });
             }
         }
