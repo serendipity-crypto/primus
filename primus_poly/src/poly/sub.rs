@@ -1,13 +1,13 @@
 use primus_integer::UnsignedInteger;
 use primus_reduce::ops::{ReduceSub, ReduceSubAssign};
 
-use crate::{Data, DataMut, DataOwned, RawData};
+use crate::{Data, DataMut, RawData};
 
 use super::Polynomial;
 
 impl<S, T> Polynomial<S, T>
 where
-    S: RawData<Elem = T> + DataOwned,
+    S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
 {
     /// Performs `self - rhs` according to `modulus`.
@@ -20,13 +20,7 @@ where
         self.sub_assign(rhs, modulus);
         self
     }
-}
 
-impl<S, T> Polynomial<S, T>
-where
-    S: RawData<Elem = T> + DataMut,
-    T: UnsignedInteger,
-{
     /// Performs `self -= rhs` according to `modulus`.
     #[inline]
     pub fn sub_assign<M, A>(&mut self, rhs: &Polynomial<A, T>, modulus: M)
