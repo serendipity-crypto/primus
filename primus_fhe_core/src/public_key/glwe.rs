@@ -5,13 +5,13 @@ use primus_distr::SignedDiscreteGaussian;
 use primus_integer::{UnsignedInteger, izip};
 use primus_lattice::{DcrtGgsw, DcrtGlwe};
 use primus_modulo::AddModulo;
+use primus_modulo::MulAddModulo;
 use primus_ntt::{Dcrt, DcrtTable, Ntt};
 use primus_poly::{
     ArrayBase, Data, DataMut, NttPolynomial, Polynomial, RawData, crt::CrtPolynomial,
     dcrt::DcrtPolynomial,
 };
 use primus_reduce::FieldContext;
-use primus_rns::RNSBase;
 use rand::distr::Uniform;
 
 use crate::DcrtGlweSecretKey;
@@ -337,7 +337,6 @@ impl<T: UnsignedInteger, M: FieldContext<T>> DcrtGlwePublicKey<T, M> {
         basis: &BigUintApproxSignedBasis<T>,
         gaussian: &SignedDiscreteGaussian<T::SignedInteger>,
         table: &Table,
-        rns_base: &RNSBase<T, M>,
         rng: &mut R,
     ) -> DcrtGgsw<Vec<T>>
     where
@@ -354,8 +353,13 @@ impl<T: UnsignedInteger, M: FieldContext<T>> DcrtGlwePublicKey<T, M> {
         let glev_len = decompose_length * glwe_len;
         let ggsw_len = (dimension + 1) * decompose_length * glwe_len;
 
+        let v_glev_len = decompose_length * poly_length;
+        let v_ggsw_len = (dimension + 1) * v_glev_len;
+
         let mut result = vec![T::ZERO; crt_ggsw_len];
-        let mut v: DcrtPolynomial<Vec<T>> = DcrtPolynomial::zero(moduli_count, poly_length);
+
+        let mut all_v: Vec<T> =
+            primus_distr::sample_crt_binary_values(v_ggsw_len, moduli_count, rng);
 
         primus_distr::sample_crt_gaussian_values_inplace(
             &mut result,
@@ -367,15 +371,41 @@ impl<T: UnsignedInteger, M: FieldContext<T>> DcrtGlwePublicKey<T, M> {
 
         izip!(
             result.chunks_exact_mut(ggsw_len),
+            self.iter_each_modulus(),
+            all_v.chunks_exact_mut(v_ggsw_len),
+            coeff_residue,
+            basis.scalars_residue().chunks_exact(decompose_length),
             table.iter(),
             self.moduli()
         )
-        .for_each(|(ggsw, ntt_table, modulus)| {
+        .for_each(|(ggsw, key, v_ggsw, &coeff, scalars, ntt_table, modulus)| {
             ggsw.chunks_exact_mut(glev_len)
+                .zip(v_ggsw.chunks_exact_mut(v_glev_len))
                 .enumerate()
-                .for_each(|(i, glev)| {
-                    glev.chunks_exact_mut(glwe_len).for_each(|glwe| {
-                        // glwe[i*poly_length+degree].add_modulo(b, *modulus);
+                .for_each(|(i, (glev, v_glev))| {
+                    izip!(
+                        glev.chunks_exact_mut(glwe_len),
+                        v_glev.chunks_exact_mut(poly_length),
+                        scalars
+                    )
+                    .for_each(|(glwe, v_glwe, &scalar)| {
+                        glwe[i * poly_length + degree] =
+                            coeff.mul_add_modulo(scalar, glwe[i * poly_length + degree], *modulus);
+
+                        ntt_table.transform_slice(v_glwe);
+                        let v_poly = NttPolynomial(ArrayBase(&*v_glwe));
+
+                        glwe.chunks_exact_mut(poly_length)
+                            .zip(key.chunks_exact(poly_length))
+                            .for_each(|(a, s)| {
+                                ntt_table.transform_slice(a);
+                                NttPolynomial(ArrayBase(a)).add_mul_assign(
+                                    &v_poly,
+                                    &NttPolynomial(ArrayBase(s)),
+                                    *modulus,
+                                );
+                            });
+
                         todo!()
                     });
                 });
