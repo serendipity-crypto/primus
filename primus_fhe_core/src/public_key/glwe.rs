@@ -2,7 +2,7 @@ use std::slice::IterMut;
 
 use primus_distr::SignedDiscreteGaussian;
 use primus_integer::{UnsignedInteger, izip};
-use primus_lattice::DcrtGlwe;
+use primus_lattice::{DcrtGgsw, DcrtGlwe};
 use primus_modulo::AddModulo;
 use primus_ntt::{Dcrt, DcrtTable, Ntt};
 use primus_poly::{
@@ -20,6 +20,9 @@ pub struct DcrtGlwePublicKey<T: UnsignedInteger, M: FieldContext<T>> {
     moduli_count: usize,
     poly_length: usize,
     dimension: usize,
+    a_b_mid: usize,        // poly_length * dimension
+    glwe_len: usize,       // poly_length * (dimension + 1)
+    ciphertext_len: usize, // moduli_count * poly_length * (dimension + 1)
     moduli: Vec<M>,
     modulus_values: Vec<T>,
 }
@@ -63,6 +66,10 @@ impl<T: UnsignedInteger, M: FieldContext<T>> DcrtGlwePublicKey<T, M> {
         &self.modulus_values
     }
 
+    pub fn iter_each_modulus(&self) -> std::slice::ChunksExact<'_, T> {
+        self.key.as_ref().chunks_exact(self.glwe_len)
+    }
+
     pub fn new<Table, R>(
         secret_key: &DcrtGlweSecretKey<T>,
         gaussian: &SignedDiscreteGaussian<T::SignedInteger>,
@@ -78,9 +85,9 @@ impl<T: UnsignedInteger, M: FieldContext<T>> DcrtGlwePublicKey<T, M> {
         let poly_length = secret_key.poly_length;
         let dimension = secret_key.dimension;
 
-        let mid = poly_length * dimension;
-        let glwe_len = mid + poly_length;
-        let key_len = moduli_count * poly_length * (dimension + 1);
+        let a_b_mid = poly_length * dimension;
+        let glwe_len = a_b_mid + poly_length;
+        let key_len = moduli_count * glwe_len;
 
         let modulus_values: Vec<T> = moduli.iter().map(|m| m.value_unchecked()).collect();
         let uniform_distrs: Vec<Uniform<T>> =
@@ -88,42 +95,49 @@ impl<T: UnsignedInteger, M: FieldContext<T>> DcrtGlwePublicKey<T, M> {
 
         let mut data = vec![T::ZERO; key_len];
 
-        let (mut a, mut b): (Vec<IterMut<'_, T>>, Vec<IterMut<'_, T>>) = data
+        let (a_iters, b_iters): (Vec<IterMut<'_, T>>, Vec<IterMut<'_, T>>) = data
             .chunks_exact_mut(glwe_len)
-            .map(|s| {
-                let (a, b) = s.split_at_mut(mid);
+            .map(|glwe| {
+                let (a, b) = unsafe { glwe.split_at_mut_unchecked(a_b_mid) };
                 (a.iter_mut(), b.iter_mut())
             })
             .collect();
 
-        primus_distr::sample_crt_uniform_values_iter_mut(&mut a, &uniform_distrs, rng);
-        primus_distr::sample_crt_gaussian_values_iter_mut(&mut b, &modulus_values, gaussian, rng);
+        primus_distr::sample_crt_uniform_values_iter_mut(a_iters, &uniform_distrs, rng);
+        primus_distr::sample_crt_gaussian_values_iter_mut(b_iters, &modulus_values, gaussian, rng);
 
-        izip!(data.chunks_exact_mut(glwe_len), table.iter(), moduli).for_each(
-            |(glwe, ntt_table, modulus)| {
-                let (a, b) = glwe.split_at_mut(mid);
+        izip!(
+            data.chunks_exact_mut(glwe_len),
+            secret_key.iter_each_modulus(),
+            table.iter(),
+            moduli
+        )
+        .for_each(|(glwe, key, ntt_table, modulus)| {
+            let (a, b) = glwe.split_at_mut(a_b_mid);
 
-                ntt_table.transform_slice(b);
+            ntt_table.transform_slice(b);
 
-                let mut res = NttPolynomial(ArrayBase(b));
+            let mut res = NttPolynomial(ArrayBase(b));
 
-                a.chunks_exact(poly_length)
-                    .zip(secret_key.key.chunks_exact(poly_length))
-                    .for_each(|(a, s)| {
-                        res.add_mul_assign(
-                            &NttPolynomial(ArrayBase(a)),
-                            &NttPolynomial(ArrayBase(s)),
-                            *modulus,
-                        );
-                    });
-            },
-        );
+            a.chunks_exact(poly_length)
+                .zip(key.chunks_exact(poly_length))
+                .for_each(|(a, s)| {
+                    res.add_mul_assign(
+                        &NttPolynomial(ArrayBase(a)),
+                        &NttPolynomial(ArrayBase(s)),
+                        *modulus,
+                    );
+                });
+        });
 
         Self {
             key: DcrtGlwe::new(ArrayBase(data)),
             moduli_count,
             poly_length,
             dimension,
+            a_b_mid,
+            glwe_len,
+            ciphertext_len: key_len,
             moduli: moduli.to_vec(),
             modulus_values,
         }
@@ -143,13 +157,11 @@ impl<T: UnsignedInteger, M: FieldContext<T>> DcrtGlwePublicKey<T, M> {
     {
         let moduli_count = self.moduli_count;
         let poly_length = self.poly_length;
-        let dimension = self.dimension;
+        let a_b_mid = self.a_b_mid;
+        let glwe_len = self.glwe_len;
+        let crt_glwe_len = self.ciphertext_len;
 
-        let mid = poly_length * dimension;
-        let glwe_len = mid + poly_length;
-        let key_len = moduli_count * glwe_len;
-
-        let mut result = vec![T::ZERO; key_len];
+        let mut result = vec![T::ZERO; crt_glwe_len];
         let mut temp = vec![T::ZERO; moduli_count * poly_length];
 
         primus_distr::sample_crt_gaussian_values_inplace(
@@ -163,8 +175,8 @@ impl<T: UnsignedInteger, M: FieldContext<T>> DcrtGlwePublicKey<T, M> {
 
         izip!(
             result.chunks_exact_mut(glwe_len),
-            self.key.data.chunks_exact(glwe_len),
-            message.0.chunks_exact(poly_length),
+            self.iter_each_modulus(),
+            message.iter_each_modulus(poly_length),
             temp.chunks_exact_mut(poly_length),
             table.iter(),
             self.moduli()
@@ -173,7 +185,7 @@ impl<T: UnsignedInteger, M: FieldContext<T>> DcrtGlwePublicKey<T, M> {
             ntt_table.transform_slice(v);
             let v_poly = NttPolynomial(ArrayBase(v));
 
-            Polynomial(ArrayBase(&mut glwe[mid..]))
+            Polynomial(ArrayBase(&mut glwe[a_b_mid..]))
                 .add_assign(&Polynomial(ArrayBase(msg)), *modulus);
 
             izip!(
@@ -207,16 +219,12 @@ impl<T: UnsignedInteger, M: FieldContext<T>> DcrtGlwePublicKey<T, M> {
         Table: DcrtTable<ValueT = T> + Dcrt,
         A: RawData<Elem = T> + DataMut,
     {
-        let moduli_count = self.moduli_count;
         let poly_length = self.poly_length;
-        let dimension = self.dimension;
+        let a_b_mid = self.a_b_mid;
+        let glwe_len = self.glwe_len;
+        let crt_glwe_len = self.ciphertext_len;
 
-        let mid = poly_length * dimension;
-        let glwe_len = mid + poly_length;
-        let key_len = moduli_count * glwe_len;
-
-        let mut result = vec![T::ZERO; key_len];
-        // let mut temp = vec![T::ZERO; moduli_count * poly_length];
+        let mut result = vec![T::ZERO; crt_glwe_len];
 
         primus_distr::sample_crt_gaussian_values_inplace(
             &mut result,
@@ -229,17 +237,17 @@ impl<T: UnsignedInteger, M: FieldContext<T>> DcrtGlwePublicKey<T, M> {
 
         izip!(
             result.chunks_exact_mut(glwe_len),
-            self.key.data.chunks_exact(glwe_len),
-            v.iter_mut(poly_length),
+            self.iter_each_modulus(),
+            v.iter_each_modulus_mut(poly_length),
             coeff_residue,
             table.iter(),
             self.moduli()
         )
-        .for_each(|(glwe, key, v_r, &residue, ntt_table, modulus)| {
+        .for_each(|(glwe, key, v_r, &coeff, ntt_table, modulus)| {
             ntt_table.transform_slice(v_r);
             let v_poly = NttPolynomial(ArrayBase(v_r));
 
-            glwe[mid + degree].add_modulo(residue, *modulus);
+            glwe[a_b_mid + degree].add_modulo(coeff, *modulus);
 
             izip!(
                 glwe.chunks_exact_mut(poly_length),
@@ -256,5 +264,82 @@ impl<T: UnsignedInteger, M: FieldContext<T>> DcrtGlwePublicKey<T, M> {
         });
 
         DcrtGlwe::new(ArrayBase(result))
+    }
+
+    fn encrypt_neg_secret_monomial_inner<Table, R, A>(
+        &self,
+        s_index: usize,
+        coeff_residue: &[T],
+        degree: usize,
+        gaussian: &SignedDiscreteGaussian<T::SignedInteger>,
+        table: &Table,
+        v: &mut DcrtPolynomial<A>,
+        rng: &mut R,
+    ) -> DcrtGlwe<Vec<T>>
+    where
+        R: rand::Rng + rand::CryptoRng,
+        Table: DcrtTable<ValueT = T> + Dcrt,
+        A: RawData<Elem = T> + DataMut,
+    {
+        let poly_length = self.poly_length;
+        let glwe_len = self.glwe_len;
+        let crt_glwe_len = self.ciphertext_len;
+
+        let mut result = vec![T::ZERO; crt_glwe_len];
+
+        primus_distr::sample_crt_gaussian_values_inplace(
+            &mut result,
+            glwe_len,
+            self.modulus_values(),
+            gaussian,
+            rng,
+        );
+        primus_distr::sample_crt_binary_values_inplace(v.0.as_mut(), poly_length, rng);
+
+        izip!(
+            result.chunks_exact_mut(glwe_len),
+            self.iter_each_modulus(),
+            v.iter_each_modulus_mut(poly_length),
+            coeff_residue,
+            table.iter(),
+            self.moduli()
+        )
+        .for_each(|(glwe, key, v_r, &coeff, ntt_table, modulus)| {
+            ntt_table.transform_slice(v_r);
+            let v_poly = NttPolynomial(ArrayBase(v_r));
+
+            glwe[s_index * poly_length + degree].add_modulo(coeff, *modulus);
+
+            izip!(
+                glwe.chunks_exact_mut(poly_length),
+                key.chunks_exact(poly_length)
+            )
+            .for_each(|(a, k)| {
+                ntt_table.transform_slice(a);
+                NttPolynomial(ArrayBase(a)).add_mul_assign(
+                    &NttPolynomial(ArrayBase(k)),
+                    &v_poly,
+                    *modulus,
+                );
+            });
+        });
+
+        DcrtGlwe::new(ArrayBase(result))
+    }
+
+    /// Generate a RGSW ciphertext which encrypted `coeff*X^degree`.
+    pub fn encrypt_monomial_rgsw<Table, R, A>(
+        &self,
+        coeff_residue: &[T],
+        degree: usize,
+        // basis: NonPowOf2ApproxSignedBasis<<F as Field>::ValueT>,
+        gaussian: &SignedDiscreteGaussian<T::SignedInteger>,
+        table: &Table,
+        rng: &mut R,
+    ) -> DcrtGgsw<Vec<T>>
+    where
+        R: rand::Rng + rand::CryptoRng,
+    {
+        todo!()
     }
 }

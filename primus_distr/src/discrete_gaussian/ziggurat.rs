@@ -69,7 +69,7 @@ impl<T: UnsignedInteger> DiscreteZiggurat<T> {
             };
         }
     }
-    
+
     /// Returns the std dev of this [`DiscreteZiggurat<T>`].
     #[inline]
     pub fn std_dev(&self) -> f64 {

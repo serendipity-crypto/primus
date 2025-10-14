@@ -62,7 +62,10 @@ where
 {
     /// Returns an iterator that allows modifying each value or coefficient of the polynomial.
     #[inline]
-    pub fn iter_mut(&mut self, poly_length: usize) -> std::slice::ChunksExactMut<'_, T> {
+    pub fn iter_each_modulus_mut(
+        &mut self,
+        poly_length: usize,
+    ) -> std::slice::ChunksExactMut<'_, T> {
         self.0.chunks_exact_mut(poly_length)
     }
 
@@ -89,7 +92,7 @@ where
 {
     /// Returns an iterator that allows reading each value or coefficient of the polynomial.
     #[inline]
-    pub fn iter(&self, poly_length: usize) -> std::slice::ChunksExact<'_, T> {
+    pub fn iter_each_modulus(&self, poly_length: usize) -> std::slice::ChunksExact<'_, T> {
         self.0.chunks_exact(poly_length)
     }
 

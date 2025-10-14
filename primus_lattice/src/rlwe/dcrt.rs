@@ -59,7 +59,7 @@ where
         izip!(
             self.data.chunks_exact(poly_length * 2),
             result.data.chunks_exact_mut(poly_length * 2),
-            dcrt_polynomial.iter(poly_length),
+            dcrt_polynomial.iter_each_modulus(poly_length),
             moduli
         )
         .for_each(|(rlwe0, rlwe1, poly, modulus)| {

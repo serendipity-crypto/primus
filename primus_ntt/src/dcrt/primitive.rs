@@ -60,7 +60,7 @@ impl<T: UnsignedInteger> Dcrt for UintCrtNttTable<T> {
         let poly_length = self.poly_length();
 
         self.iter()
-            .zip(crt_poly.iter_mut(poly_length))
+            .zip(crt_poly.iter_each_modulus_mut(poly_length))
             .for_each(|(t, p)| t.transform_slice(p));
 
         DcrtPolynomial::new(crt_poly.0)
@@ -74,7 +74,7 @@ impl<T: UnsignedInteger> Dcrt for UintCrtNttTable<T> {
         let poly_length = self.poly_length();
 
         self.iter()
-            .zip(dcrt_poly.iter_mut(poly_length))
+            .zip(dcrt_poly.iter_each_modulus_mut(poly_length))
             .for_each(|(t, p)| t.inverse_transform_slice(p));
 
         CrtPolynomial::new(dcrt_poly.0)

@@ -43,7 +43,7 @@ where
     where
         M: Copy + ReduceMulAssign<T>,
     {
-        self.iter_mut(poly_length)
+        self.iter_each_modulus_mut(poly_length)
             .zip(moduli)
             .for_each(|(poly, modulus)| ArrayBase(poly).mul_scalar_assign(scalar, *modulus))
     }
@@ -59,11 +59,14 @@ where
     ) where
         M: Copy + ReduceMulAdd<T, Output = T>,
     {
-        izip!(self.iter_mut(poly_length), rhs.iter(poly_length), moduli).for_each(
-            |(xs, ys, modulus)| {
-                ArrayBase(xs).add_mul_scalar_assign(&ArrayBase(ys), scalar, *modulus);
-            },
-        );
+        izip!(
+            self.iter_each_modulus_mut(poly_length),
+            rhs.iter_each_modulus(poly_length),
+            moduli
+        )
+        .for_each(|(xs, ys, modulus)| {
+            ArrayBase(xs).add_mul_scalar_assign(&ArrayBase(ys), scalar, *modulus);
+        });
     }
 
     /// Performs `self *= rhs` according to `moduli`.
@@ -73,9 +76,14 @@ where
         M: Copy + ReduceMulAssign<T>,
         A: RawData<Elem = T> + Data,
     {
-        izip!(self.iter_mut(poly_length), rhs.iter(poly_length), moduli).for_each(
-            |(xs, ys, modulus)| ArrayBase(xs).mul_element_wise_assign(&ArrayBase(ys), *modulus),
+        izip!(
+            self.iter_each_modulus_mut(poly_length),
+            rhs.iter_each_modulus(poly_length),
+            moduli
         )
+        .for_each(|(xs, ys, modulus)| {
+            ArrayBase(xs).mul_element_wise_assign(&ArrayBase(ys), *modulus)
+        })
     }
 
     /// Performs `result = self * rhs` according to `moduli`.
@@ -85,9 +93,9 @@ where
         M: Copy + ReduceMul<T, Output = T>,
     {
         izip!(
-            self.iter(poly_length),
-            rhs.iter(poly_length),
-            result.iter_mut(poly_length),
+            self.iter_each_modulus(poly_length),
+            rhs.iter_each_modulus(poly_length),
+            result.iter_each_modulus_mut(poly_length),
             moduli
         )
         .for_each(|(xs, ys, zs, modulus)| {

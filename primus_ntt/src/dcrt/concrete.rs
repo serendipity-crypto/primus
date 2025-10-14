@@ -56,7 +56,7 @@ pub mod prime32 {
             let poly_length = self.poly_length();
 
             self.iter()
-                .zip(crt_poly.iter_mut(poly_length))
+                .zip(crt_poly.iter_each_modulus_mut(poly_length))
                 .for_each(|(t, p)| t.transform_slice(p));
 
             DcrtPolynomial::new(crt_poly.0)
@@ -70,7 +70,7 @@ pub mod prime32 {
             let poly_length = self.poly_length();
 
             self.iter()
-                .zip(dcrt_poly.iter_mut(poly_length))
+                .zip(dcrt_poly.iter_each_modulus_mut(poly_length))
                 .for_each(|(t, p)| t.inverse_transform_slice(p));
 
             CrtPolynomial::new(dcrt_poly.0)
@@ -168,7 +168,7 @@ pub mod prime64 {
             let poly_length = self.poly_length();
 
             self.iter()
-                .zip(crt_poly.iter_mut(poly_length))
+                .zip(crt_poly.iter_each_modulus_mut(poly_length))
                 .for_each(|(t, p)| t.transform_slice(p));
 
             DcrtPolynomial::new(crt_poly.0)
@@ -182,7 +182,7 @@ pub mod prime64 {
             let poly_length = self.poly_length();
 
             self.iter()
-                .zip(dcrt_poly.iter_mut(poly_length))
+                .zip(dcrt_poly.iter_each_modulus_mut(poly_length))
                 .for_each(|(t, p)| t.inverse_transform_slice(p));
 
             CrtPolynomial::new(dcrt_poly.0)

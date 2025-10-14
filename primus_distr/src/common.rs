@@ -269,16 +269,16 @@ pub fn sample_crt_gaussian_values_inplace<T, R>(
     T: UnsignedInteger,
     R: Rng + CryptoRng,
 {
-    let mut iters: Vec<IterMut<'_, T>> = result
+    let iters: Vec<IterMut<'_, T>> = result
         .chunks_exact_mut(chunk_size)
         .map(|s| s.iter_mut())
         .collect();
-    sample_crt_gaussian_values_iter_mut(&mut iters, moduli, gaussian, rng);
+    sample_crt_gaussian_values_iter_mut(iters, moduli, gaussian, rng);
 }
 
 /// Sample a gaussian vector whose values are `T`.
 pub fn sample_crt_gaussian_values_iter_mut<T, R>(
-    iters: &mut [IterMut<'_, T>],
+    mut iters: Vec<IterMut<'_, T>>,
     moduli: &[T],
     gaussian: &SignedDiscreteGaussian<<T as UnsignedInteger>::SignedInteger>,
     rng: &mut R,
@@ -311,7 +311,7 @@ pub fn sample_crt_gaussian_values_iter_mut<T, R>(
 
 /// Sample a uniform vector whose values are `T`.
 pub fn sample_crt_uniform_values_iter_mut<T, R>(
-    iters: &mut [IterMut<'_, T>],
+    iters: Vec<IterMut<'_, T>>,
     uniform_distrs: &[Uniform<T>],
     rng: &mut R,
 ) where

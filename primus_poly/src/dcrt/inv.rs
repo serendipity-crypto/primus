@@ -20,7 +20,7 @@ where
         if self.0.iter().any(Zero::is_zero) {
             Err(self)
         } else {
-            self.iter_mut(poly_length)
+            self.iter_each_modulus_mut(poly_length)
                 .zip(moduli)
                 .for_each(|(poly, modulus)| {
                     poly.iter_mut().for_each(|v| modulus.reduce_inv_assign(v))

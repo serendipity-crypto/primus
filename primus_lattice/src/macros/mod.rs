@@ -59,6 +59,30 @@ macro_rules! impl_common {
                 Self { data }
             }
         }
+
+        impl<$s, $t> AsRef<[$t]> for $cipher<$s, $t>
+        where
+            $s: RawData<Elem = $t> + Data,
+            $t: UnsignedInteger,
+        {
+            #[inline]
+            fn as_ref(&self)->&[$t]{
+                self.data.as_ref()
+            }
+
+        }
+
+        impl<$s, $t> AsMut<[$t]> for $cipher<$s, $t>
+        where
+            $s: RawData<Elem = $t> + DataMut,
+            $t: UnsignedInteger,
+        {
+            #[inline]
+            fn as_mut(&mut self)->&mut [$t]{
+                self.data.as_mut()
+            }
+
+        }
     };
 }
 

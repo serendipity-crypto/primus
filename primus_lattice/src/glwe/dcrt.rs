@@ -60,7 +60,7 @@ where
         izip!(
             self.data.chunks_exact(cipher_single_modulus_len),
             result.data.chunks_exact_mut(cipher_single_modulus_len),
-            dcrt_polynomial.iter(poly_length),
+            dcrt_polynomial.iter_each_modulus(poly_length),
             moduli
         )
         .for_each(|(glwe0, glwe1, poly, modulus)| {

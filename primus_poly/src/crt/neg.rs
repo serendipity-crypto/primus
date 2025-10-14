@@ -26,7 +26,7 @@ where
     where
         M: Copy + ReduceNegAssign<T>,
     {
-        self.iter_mut(poly_length)
+        self.iter_each_modulus_mut(poly_length)
             .zip(moduli)
             .for_each(|(poly, modulus)| ArrayBase(poly).neg_assign(*modulus));
     }
@@ -48,10 +48,13 @@ where
         M: Copy + ReduceNeg<T, Output = T>,
         A: RawData<Elem = T> + DataMut,
     {
-        izip!(self.iter(poly_length), result.iter_mut(poly_length), moduli).for_each(
-            |(xs, ys, modulus)| {
-                ArrayBase(xs).neg_inplace(&mut ArrayBase(ys), *modulus);
-            },
-        );
+        izip!(
+            self.iter_each_modulus(poly_length),
+            result.iter_each_modulus_mut(poly_length),
+            moduli
+        )
+        .for_each(|(xs, ys, modulus)| {
+            ArrayBase(xs).neg_inplace(&mut ArrayBase(ys), *modulus);
+        });
     }
 }

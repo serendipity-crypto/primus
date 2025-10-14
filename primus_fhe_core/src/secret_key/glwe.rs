@@ -276,6 +276,7 @@ pub struct DcrtGlweSecretKey<T: UnsignedInteger> {
     pub(crate) poly_length: usize,
     pub(crate) dimension: usize,
     pub(crate) distr: RingSecretKeyType,
+    single_modulus_len: usize,
 }
 
 impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
@@ -299,32 +300,38 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
         self.distr
     }
 
+    #[inline]
+    pub fn iter_each_modulus(&self) -> std::slice::ChunksExact<'_, T> {
+        self.key.chunks_exact(self.single_modulus_len)
+    }
+
     /// Creates a new [`NttGlweSecretKey`] from [`GlweSecretKey`].
     #[inline]
     pub fn from_coeff_secret_key<Table>(secret_key: &CrtGlweSecretKey<T>, table: &Table) -> Self
     where
         Table: DcrtTable<ValueT = T> + Dcrt,
     {
-        let single_modulus_len = secret_key.poly_length * secret_key.dimension;
+        let poly_length = secret_key.poly_length;
+        let dimension = secret_key.dimension;
+        let single_modulus_len = poly_length * dimension;
 
         let mut key = secret_key.key.clone();
 
         key.chunks_exact_mut(single_modulus_len)
             .zip(table.iter())
             .for_each(|(chunk, ntt_table)| {
-                chunk
-                    .chunks_exact_mut(secret_key.poly_length)
-                    .for_each(|poly| {
-                        ntt_table.transform_slice(poly);
-                    });
+                chunk.chunks_exact_mut(poly_length).for_each(|poly| {
+                    ntt_table.transform_slice(poly);
+                });
             });
 
         Self {
             key,
             moduli_count: secret_key.moduli_count,
-            poly_length: secret_key.poly_length,
-            dimension: secret_key.dimension,
+            poly_length,
+            dimension,
             distr: secret_key.distr,
+            single_modulus_len,
         }
     }
 
@@ -347,7 +354,7 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
 
         izip!(
             cipher.data.chunks_exact(single_modulus_len),
-            result.iter_mut(self.poly_length),
+            result.iter_each_modulus_mut(self.poly_length),
             table.iter(),
             moduli
         )

@@ -125,7 +125,10 @@ impl<T: UnsignedInteger, M: FieldContext<T>> RNSBase<T, M> {
         R: RawData<Elem = T> + Data,
         W: RawData<Elem = T> + DataMut,
     {
-        for (poly, &modulus) in crt_poly.iter_mut(poly_length).zip(self.moduli()) {
+        for (poly, &modulus) in crt_poly
+            .iter_each_modulus_mut(poly_length)
+            .zip(self.moduli())
+        {
             for (res, value) in poly.iter_mut().zip(big_uint_poly.iter(self.moduli.len())) {
                 *res = value.modulo(modulus);
             }
@@ -190,7 +193,10 @@ impl<T: UnsignedInteger, M: FieldContext<T>> RNSBase<T, M> {
         W: RawData<Elem = T> + DataMut,
     {
         let mut residues = vec![T::ZERO; self.moduli.len()];
-        let mut iters: Vec<Iter<'_, T>> = crt_poly.iter(poly_length).map(|s| s.iter()).collect();
+        let mut iters: Vec<Iter<'_, T>> = crt_poly
+            .iter_each_modulus(poly_length)
+            .map(|s| s.iter())
+            .collect();
         for value in big_uint_poly.iter_mut(self.moduli.len()) {
             for (iter, res) in iters.iter_mut().zip(residues.iter_mut()) {
                 *res = *iter.next().unwrap();
