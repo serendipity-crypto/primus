@@ -19,7 +19,6 @@ pub struct BigUintApproxSignedBasis<T: UnsignedInteger> {
     log_basis: u32,
     drop_bits: u32,
     init_carry_mask: Option<(usize, T)>,
-    init_value_mask: ValueMask<T>,
     carry_mask: T,
     split_value: Option<Vec<T>>,
     modulus_minus_basis: Vec<T>,
@@ -69,8 +68,6 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
         } else {
             None
         };
-
-        let init_value_mask = ValueMask::new(basis_minus_one, drop_bits);
 
         let carry_mask = if log_basis == 1 {
             T::ONE << 1u32
@@ -152,8 +149,8 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
         base.decompose_multiple_values_inplace(&scalars, &mut scalars_residue, decompose_length);
 
         let mut value_masks = Vec::with_capacity(decompose_length);
-        let mut prev = init_value_mask;
-        value_masks.push(init_value_mask);
+        let mut prev = ValueMask::new(basis_minus_one, drop_bits);
+        value_masks.push(prev);
         for _ in 1..decompose_length {
             prev = prev.next(log_basis, basis_minus_one);
             value_masks.push(prev);
@@ -167,7 +164,6 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
             log_basis,
             drop_bits,
             init_carry_mask,
-            init_value_mask,
             carry_mask,
             split_value,
             modulus_minus_basis,
@@ -244,18 +240,11 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
         &self.next_pow_of_2_sub_modulus
     }
 
-    // /// Returns an iterator over the signed decomposition operators of this [`BigUintApproxSignedBasis<T>`].
-    // #[inline]
-    // pub fn decompose_iter(&self) -> BigUintSignedDecomposeIter<T> {
-    //     BigUintSignedDecomposeIter::<T> {
-    //         length: self.decompose_length,
-    //         value_mask: self.init_value_mask,
-    //         mask_shl_bits: self.log_basis,
-    //         carry_mask: self.carry_mask,
-    //         basis_minus_one: self.basis_minus_one,
-    //         modulus_minus_basis: self.modulus_minus_basis.clone(),
-    //     }
-    // }
+    /// Returns a reference to the scalars residue of this [`BigUintApproxSignedBasis<T>`].
+    #[inline]
+    pub fn scalars_residue(&self) -> &[T] {
+        &self.scalars_residue
+    }
 
     /// Returns an iterator over the signed decomposition operators of this [`BigUintApproxSignedBasis<T>`].
     #[inline]
@@ -275,15 +264,6 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
                 modulus_minus_basis: &self.modulus_minus_basis,
             })
     }
-
-    // /// Returns an iterator over scalars of this [`BigUintApproxSignedBasis<T>`].
-    // #[inline]
-    // pub fn scalar_iter(&self) -> BigUintScalarIter<T> {
-    //     let mut scalar = vec![T::ZERO; self.modulus.len()];
-    //     scalar[0] = T::ONE;
-    //     scalar.slice_left_shift_assign(self.drop_bits);
-    //     BigUintScalarIter::new(scalar, self.decompose_length, self.log_basis)
-    // }
 
     /// Returns an iterator over scalars of this [`BigUintApproxSignedBasis<T>`].
     #[inline]
