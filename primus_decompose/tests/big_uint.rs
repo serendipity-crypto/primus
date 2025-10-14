@@ -23,7 +23,7 @@ mod tests {
         let rns_base = RNSBase::new(&moduli).unwrap();
         let composed_modulus: Vec<ValueT> = multiply_many_values(&moduli_value);
         let unused_bits = composed_modulus.last().unwrap().leading_zeros();
-        let basis = BigUintApproxSignedBasis::new(&composed_modulus, 5, None);
+        let basis = BigUintApproxSignedBasis::new(&composed_modulus, 5, None, &rns_base);
 
         println!("decompose_length:{}", basis.decompose_length());
 

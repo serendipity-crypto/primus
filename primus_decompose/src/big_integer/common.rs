@@ -141,6 +141,8 @@ impl<T: UnsignedInteger> ValueMask<T> {
 }
 
 /// The signed decomposition operator which can execute once decomposition.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(bound(deserialize = "T: UnsignedInteger"))]
 pub struct OnceBigUintSignedDecompose<T: UnsignedInteger> {
     value_mask: ValueMask<T>,
     carry_mask: T,
@@ -149,6 +151,74 @@ pub struct OnceBigUintSignedDecompose<T: UnsignedInteger> {
 }
 
 impl<T: UnsignedInteger> OnceBigUintSignedDecompose<T> {
+    /// Execute once decomposition and return the decomposed value and carry for next decomposition.
+    #[inline]
+    pub fn decompose(&self, value: &[T], carry: bool) -> (Vec<T>, bool) {
+        let temp = self.value_mask.get_value(value) + T::as_from(carry);
+
+        let next_carry = !(temp & self.carry_mask).is_zero();
+        let mut result = vec![T::ZERO; value.len()];
+        if next_carry {
+            if temp <= self.basis_minus_one {
+                let _ = self
+                    .modulus_minus_basis
+                    .slice_add_value_inplace(temp, &mut result);
+            }
+        } else {
+            result[0] = temp;
+        }
+
+        (result, next_carry)
+    }
+
+    /// Execute once decomposition, store carry for next decomposition back to `carry`.
+    #[inline]
+    pub fn decompose_inplace(&self, value: &[T], decomposed_value: &mut [T], carry: &mut bool) {
+        let temp = self.value_mask.get_value(value) + T::as_from(*carry);
+        *carry = !(temp & self.carry_mask).is_zero();
+
+        if *carry {
+            if temp > self.basis_minus_one {
+                decomposed_value.fill(T::ZERO);
+            } else {
+                let _ = self
+                    .modulus_minus_basis
+                    .slice_add_value_inplace(temp, decomposed_value);
+            }
+        } else {
+            decomposed_value.fill(T::ZERO);
+            decomposed_value[0] = temp;
+        }
+    }
+
+    /// Execute once decomposition for slice, store carries for next decomposition back to `carries`.
+    #[inline]
+    pub fn decompose_slice_inplace(
+        &self,
+        values: &[T],
+        decomposed_values: &mut [T],
+        carries: &mut [bool],
+        value_chunk_size: usize,
+    ) {
+        for (value, decomposed_value, carry) in izip!(
+            values.chunks_exact(value_chunk_size),
+            decomposed_values.chunks_exact_mut(value_chunk_size),
+            carries
+        ) {
+            self.decompose_inplace(value, decomposed_value, carry);
+        }
+    }
+}
+
+/// The signed decomposition operator which can execute once decomposition.
+pub struct OnceBigUintSignedDecomposer<'a, T: UnsignedInteger> {
+    pub(super) value_mask: ValueMask<T>,
+    pub(super) carry_mask: T,
+    pub(super) basis_minus_one: T,
+    pub(super) modulus_minus_basis: &'a [T],
+}
+
+impl<'a, T: UnsignedInteger> OnceBigUintSignedDecomposer<'a, T> {
     /// Execute once decomposition and return the decomposed value and carry for next decomposition.
     #[inline]
     pub fn decompose(&self, value: &[T], carry: bool) -> (Vec<T>, bool) {

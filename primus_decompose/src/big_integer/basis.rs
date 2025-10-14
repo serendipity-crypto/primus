@@ -1,8 +1,12 @@
 use num_traits::ConstOne;
 use primus_integer::{BigIntegerOps, UnsignedInteger};
+use primus_reduce::FieldContext;
+use primus_rns::RNSBase;
 use serde::{Deserialize, Serialize};
 
-use super::{BigUintScalarIter, BigUintSignedDecomposeIter, ValueMask};
+use crate::big_integer::OnceBigUintSignedDecomposer;
+
+use super::ValueMask;
 
 /// The basis for approximate signed decomposition.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -20,11 +24,22 @@ pub struct BigUintApproxSignedBasis<T: UnsignedInteger> {
     split_value: Option<Vec<T>>,
     modulus_minus_basis: Vec<T>,
     next_pow_of_2_sub_modulus: Vec<T>,
+    scalars: Vec<T>,
+    scalars_residue: Vec<T>,
+    value_masks: Vec<ValueMask<T>>,
 }
 
 impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
     #[inline]
-    pub fn new(modulus: &[T], log_basis: u32, reverse_length: Option<usize>) -> Self {
+    pub fn new<M>(
+        modulus: &[T],
+        log_basis: u32,
+        reverse_length: Option<usize>,
+        base: &RNSBase<T, M>,
+    ) -> Self
+    where
+        M: FieldContext<T>,
+    {
         // FIXME: log_basis may be bigger than T::BITS
         assert!(!modulus.last().unwrap().is_zero());
         assert!(log_basis > 0 && T::BITS > log_basis);
@@ -119,6 +134,31 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
             next_pow_of_2_minus_one
         };
 
+        let mut scalars = vec![T::ZERO; len * decompose_length];
+        let mut prev: Option<Vec<T>> = None;
+        scalars.chunks_exact_mut(len).for_each(|scalar| {
+            if let Some(pre) = prev.as_mut() {
+                pre.slice_left_shift_assign(log_basis);
+                scalar.copy_from_slice(&pre);
+            } else {
+                scalar[0] = T::ONE;
+                scalar.slice_left_shift_assign(drop_bits);
+                prev = Some(scalar.to_vec());
+            }
+        });
+
+        let mut scalars_residue = vec![T::ZERO; len * decompose_length];
+
+        base.decompose_multiple_values_inplace(&scalars, &mut scalars_residue, decompose_length);
+
+        let mut value_masks = Vec::with_capacity(decompose_length);
+        let mut prev = init_value_mask;
+        value_masks.push(init_value_mask);
+        for _ in 1..decompose_length {
+            prev = prev.next(log_basis, basis_minus_one);
+            value_masks.push(prev);
+        }
+
         Self {
             modulus: modulus.to_vec(),
             basis,
@@ -132,6 +172,9 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
             split_value,
             modulus_minus_basis,
             next_pow_of_2_sub_modulus,
+            scalars,
+            scalars_residue,
+            value_masks,
         }
     }
 
@@ -201,26 +244,51 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
         &self.next_pow_of_2_sub_modulus
     }
 
+    // /// Returns an iterator over the signed decomposition operators of this [`BigUintApproxSignedBasis<T>`].
+    // #[inline]
+    // pub fn decompose_iter(&self) -> BigUintSignedDecomposeIter<T> {
+    //     BigUintSignedDecomposeIter::<T> {
+    //         length: self.decompose_length,
+    //         value_mask: self.init_value_mask,
+    //         mask_shl_bits: self.log_basis,
+    //         carry_mask: self.carry_mask,
+    //         basis_minus_one: self.basis_minus_one,
+    //         modulus_minus_basis: self.modulus_minus_basis.clone(),
+    //     }
+    // }
+
     /// Returns an iterator over the signed decomposition operators of this [`BigUintApproxSignedBasis<T>`].
     #[inline]
-    pub fn decompose_iter(&self) -> BigUintSignedDecomposeIter<T> {
-        BigUintSignedDecomposeIter::<T> {
-            length: self.decompose_length,
-            value_mask: self.init_value_mask,
-            mask_shl_bits: self.log_basis,
-            carry_mask: self.carry_mask,
-            basis_minus_one: self.basis_minus_one,
-            modulus_minus_basis: self.modulus_minus_basis.clone(),
-        }
+    pub fn decompose_iter<'a>(
+        &'a self,
+    ) -> std::iter::Map<
+        std::iter::Copied<std::slice::Iter<'a, ValueMask<T>>>,
+        impl FnMut(ValueMask<T>) -> OnceBigUintSignedDecomposer<'a, T>,
+    > {
+        self.value_masks
+            .iter()
+            .copied()
+            .map(|value_mask| OnceBigUintSignedDecomposer {
+                value_mask,
+                carry_mask: self.carry_mask,
+                basis_minus_one: self.basis_minus_one,
+                modulus_minus_basis: &self.modulus_minus_basis,
+            })
     }
+
+    // /// Returns an iterator over scalars of this [`BigUintApproxSignedBasis<T>`].
+    // #[inline]
+    // pub fn scalar_iter(&self) -> BigUintScalarIter<T> {
+    //     let mut scalar = vec![T::ZERO; self.modulus.len()];
+    //     scalar[0] = T::ONE;
+    //     scalar.slice_left_shift_assign(self.drop_bits);
+    //     BigUintScalarIter::new(scalar, self.decompose_length, self.log_basis)
+    // }
 
     /// Returns an iterator over scalars of this [`BigUintApproxSignedBasis<T>`].
     #[inline]
-    pub fn scalar_iter(&self) -> BigUintScalarIter<T> {
-        let mut scalar = vec![T::ZERO; self.modulus.len()];
-        scalar[0] = T::ONE;
-        scalar.slice_left_shift_assign(self.drop_bits);
-        BigUintScalarIter::new(scalar, self.decompose_length, self.log_basis)
+    pub fn scalar_iter(&self) -> std::slice::ChunksExact<'_, T> {
+        self.scalars.chunks_exact(self.modulus().len())
     }
 
     /// Init carry and adjusted value for a value.

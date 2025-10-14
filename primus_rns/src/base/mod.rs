@@ -116,6 +116,22 @@ impl<T: UnsignedInteger, M: FieldContext<T>> RNSBase<T, M> {
         }
     }
 
+    pub fn decompose_multiple_values_inplace(
+        &self,
+        big_uint_values: &[T],
+        residues: &mut [T],
+        value_count: usize,
+    ) {
+        for (poly, &modulus) in residues.chunks_exact_mut(value_count).zip(self.moduli()) {
+            for (res, value) in poly
+                .iter_mut()
+                .zip(big_uint_values.chunks_exact(self.moduli.len()))
+            {
+                *res = value.modulo(modulus);
+            }
+        }
+    }
+
     pub fn decompose_polynomial_inplace<R, W>(
         &self,
         big_uint_poly: &BigUintPolynomial<R>,

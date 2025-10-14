@@ -1,5 +1,6 @@
 use std::slice::IterMut;
 
+use primus_decompose::big_integer::BigUintApproxSignedBasis;
 use primus_distr::SignedDiscreteGaussian;
 use primus_integer::{UnsignedInteger, izip};
 use primus_lattice::{DcrtGgsw, DcrtGlwe};
@@ -10,6 +11,7 @@ use primus_poly::{
     dcrt::DcrtPolynomial,
 };
 use primus_reduce::FieldContext;
+use primus_rns::RNSBase;
 use rand::distr::Uniform;
 
 use crate::DcrtGlweSecretKey;
@@ -20,9 +22,9 @@ pub struct DcrtGlwePublicKey<T: UnsignedInteger, M: FieldContext<T>> {
     moduli_count: usize,
     poly_length: usize,
     dimension: usize,
-    a_b_mid: usize,        // poly_length * dimension
-    glwe_len: usize,       // poly_length * (dimension + 1)
-    ciphertext_len: usize, // moduli_count * poly_length * (dimension + 1)
+    a_b_mid: usize,      // poly_length * dimension
+    glwe_len: usize,     // poly_length * (dimension + 1)
+    crt_glwe_len: usize, // moduli_count * poly_length * (dimension + 1)
     moduli: Vec<M>,
     modulus_values: Vec<T>,
 }
@@ -137,7 +139,7 @@ impl<T: UnsignedInteger, M: FieldContext<T>> DcrtGlwePublicKey<T, M> {
             dimension,
             a_b_mid,
             glwe_len,
-            ciphertext_len: key_len,
+            crt_glwe_len: key_len,
             moduli: moduli.to_vec(),
             modulus_values,
         }
@@ -159,7 +161,7 @@ impl<T: UnsignedInteger, M: FieldContext<T>> DcrtGlwePublicKey<T, M> {
         let poly_length = self.poly_length;
         let a_b_mid = self.a_b_mid;
         let glwe_len = self.glwe_len;
-        let crt_glwe_len = self.ciphertext_len;
+        let crt_glwe_len = self.crt_glwe_len;
 
         let mut result = vec![T::ZERO; crt_glwe_len];
         let mut temp = vec![T::ZERO; moduli_count * poly_length];
@@ -222,7 +224,7 @@ impl<T: UnsignedInteger, M: FieldContext<T>> DcrtGlwePublicKey<T, M> {
         let poly_length = self.poly_length;
         let a_b_mid = self.a_b_mid;
         let glwe_len = self.glwe_len;
-        let crt_glwe_len = self.ciphertext_len;
+        let crt_glwe_len = self.crt_glwe_len;
 
         let mut result = vec![T::ZERO; crt_glwe_len];
 
@@ -283,7 +285,7 @@ impl<T: UnsignedInteger, M: FieldContext<T>> DcrtGlwePublicKey<T, M> {
     {
         let poly_length = self.poly_length;
         let glwe_len = self.glwe_len;
-        let crt_glwe_len = self.ciphertext_len;
+        let crt_glwe_len = self.crt_glwe_len;
 
         let mut result = vec![T::ZERO; crt_glwe_len];
 
@@ -332,14 +334,54 @@ impl<T: UnsignedInteger, M: FieldContext<T>> DcrtGlwePublicKey<T, M> {
         &self,
         coeff_residue: &[T],
         degree: usize,
-        // basis: NonPowOf2ApproxSignedBasis<<F as Field>::ValueT>,
+        basis: &BigUintApproxSignedBasis<T>,
         gaussian: &SignedDiscreteGaussian<T::SignedInteger>,
         table: &Table,
+        rns_base: &RNSBase<T, M>,
         rng: &mut R,
     ) -> DcrtGgsw<Vec<T>>
     where
         R: rand::Rng + rand::CryptoRng,
+        Table: DcrtTable<ValueT = T> + Dcrt,
     {
+        let moduli_count = self.moduli_count;
+        let dimension = self.dimension;
+        let poly_length = self.poly_length;
+        let glwe_len = self.glwe_len;
+        let crt_glwe_len = self.crt_glwe_len;
+        let decompose_length = basis.decompose_length();
+        let crt_ggsw_len = (dimension + 1) * decompose_length * crt_glwe_len;
+        let glev_len = decompose_length * glwe_len;
+        let ggsw_len = (dimension + 1) * decompose_length * glwe_len;
+
+        let mut result = vec![T::ZERO; crt_ggsw_len];
+        let mut v: DcrtPolynomial<Vec<T>> = DcrtPolynomial::zero(moduli_count, poly_length);
+
+        primus_distr::sample_crt_gaussian_values_inplace(
+            &mut result,
+            ggsw_len,
+            self.modulus_values(),
+            gaussian,
+            rng,
+        );
+
+        izip!(
+            result.chunks_exact_mut(ggsw_len),
+            table.iter(),
+            self.moduli()
+        )
+        .for_each(|(ggsw, ntt_table, modulus)| {
+            ggsw.chunks_exact_mut(glev_len)
+                .enumerate()
+                .for_each(|(i, glev)| {
+                    glev.chunks_exact_mut(glwe_len).for_each(|glwe| {
+                        // glwe[i*poly_length+degree].add_modulo(b, *modulus);
+                        todo!()
+                    });
+                });
+            todo!()
+        });
+
         todo!()
     }
 }
