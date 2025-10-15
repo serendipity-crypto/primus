@@ -329,8 +329,8 @@ impl<T: UnsignedInteger, M: FieldContext<T>> DcrtGlwePublicKey<T, M> {
         DcrtGlwe::new(ArrayBase(result))
     }
 
-    /// Generate a RGSW ciphertext which encrypted `coeff*X^degree`.
-    pub fn encrypt_monomial_rgsw<Table, R, A>(
+    /// Generate a [`DcrtGgsw`] ciphertext which encrypted `coeff*X^degree`.
+    pub fn encrypt_monomial_ggsw<Table, R, A>(
         &self,
         coeff_residue: &[T],
         degree: usize,
@@ -347,22 +347,21 @@ impl<T: UnsignedInteger, M: FieldContext<T>> DcrtGlwePublicKey<T, M> {
         let dimension = self.dimension;
         let poly_length = self.poly_length;
         let glwe_len = self.glwe_len;
-        let crt_glwe_len = self.crt_glwe_len;
+
         let decompose_length = basis.decompose_length();
-        let crt_ggsw_len = (dimension + 1) * decompose_length * crt_glwe_len;
         let glev_len = decompose_length * glwe_len;
-        let ggsw_len = (dimension + 1) * decompose_length * glwe_len;
+        let ggsw_len = (dimension + 1) * glev_len;
 
         let v_glev_len = decompose_length * poly_length;
         let v_ggsw_len = (dimension + 1) * v_glev_len;
 
-        let mut result = vec![T::ZERO; crt_ggsw_len];
+        let mut dcrt_ggsw = vec![T::ZERO; ggsw_len * moduli_count];
 
-        let mut all_v: Vec<T> =
+        let mut v_crt_ggsw: Vec<T> =
             primus_distr::sample_crt_binary_values(v_ggsw_len, moduli_count, rng);
 
         primus_distr::sample_crt_gaussian_values_inplace(
-            &mut result,
+            &mut dcrt_ggsw,
             ggsw_len,
             self.modulus_values(),
             gaussian,
@@ -370,9 +369,9 @@ impl<T: UnsignedInteger, M: FieldContext<T>> DcrtGlwePublicKey<T, M> {
         );
 
         izip!(
-            result.chunks_exact_mut(ggsw_len),
+            dcrt_ggsw.chunks_exact_mut(ggsw_len),
             self.iter_each_modulus(),
-            all_v.chunks_exact_mut(v_ggsw_len),
+            v_crt_ggsw.chunks_exact_mut(v_ggsw_len),
             coeff_residue,
             basis.scalars_residue().chunks_exact(decompose_length),
             table.iter(),
@@ -389,8 +388,8 @@ impl<T: UnsignedInteger, M: FieldContext<T>> DcrtGlwePublicKey<T, M> {
                         scalars
                     )
                     .for_each(|(glwe, v_glwe, &scalar)| {
-                        glwe[i * poly_length + degree] =
-                            coeff.mul_add_modulo(scalar, glwe[i * poly_length + degree], *modulus);
+                        let index = i * poly_length + degree;
+                        glwe[index] = coeff.mul_add_modulo(scalar, glwe[index], *modulus);
 
                         ntt_table.transform_slice(v_glwe);
                         let v_poly = NttPolynomial(ArrayBase(&*v_glwe));
@@ -405,13 +404,12 @@ impl<T: UnsignedInteger, M: FieldContext<T>> DcrtGlwePublicKey<T, M> {
                                     *modulus,
                                 );
                             });
-
-                        todo!()
                     });
                 });
-            todo!()
         });
 
-        todo!()
+        DcrtGgsw {
+            data: ArrayBase(dcrt_ggsw),
+        }
     }
 }

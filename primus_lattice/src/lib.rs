@@ -13,7 +13,7 @@ mod rlev;
 mod ggsw;
 mod rgsw;
 
-pub use glwe::{CrtGlwe, DcrtGlwe, Glwe, NttGlwe};
+pub use glwe::{BigUintGlwe, CrtGlwe, DcrtGlwe, Glwe, NttGlwe};
 pub use lwe::{Lwe, MultiMsgLwe};
 pub use rlwe::{CrtRlwe, DcrtRlwe, NttRlwe, Rlwe, TruncatedRlwe};
 
