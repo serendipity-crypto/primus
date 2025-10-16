@@ -1,7 +1,4 @@
-use std::{
-    ops::Index,
-    slice::{Iter, SliceIndex},
-};
+use std::slice::Iter;
 
 use itertools::Itertools;
 use primus_factor::{FactorMul, ShoupFactor};
@@ -14,30 +11,39 @@ use primus_reduce::FieldContext;
 
 use crate::RNSError;
 
+/// A residue number system or residue numeral system (RNS) is a numeral system representing integers
+/// by their values modulo several pairwise coprime integers called the moduli.
+/// This representation is allowed by the Chinese remainder theorem,
+/// which asserts that, if M is the product of the moduli, there is,
+/// in an interval of length M, exactly one integer having any given set of modular values.
+/// Using a residue numeral system for arithmetic operations is also called multi-modular arithmetic.
 #[derive(Clone)]
-pub struct RNSBase<T: UnsignedInteger, M: FieldContext<T>> {
+pub struct RNSBase<T, M>
+where
+    T: UnsignedInteger,
+    M: FieldContext<T>,
+{
     pub moduli: Vec<M>,
     pub moduli_product: Vec<T>,
     pub punctured_product: Vec<T>,
     pub inv_punctured_product_mod_modulus: Vec<ShoupFactor<T>>,
 }
 
-impl<T, M, I> Index<I> for RNSBase<T, M>
+impl<T, M> RNSBase<T, M>
 where
     T: UnsignedInteger,
     M: FieldContext<T>,
-    I: SliceIndex<[M]>,
 {
-    type Output = I::Output;
-
+    /// Creates a new [`RNSBase<T, M>`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if any inverse modulo operation panics.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if moduli are not co-prime with each others.
     #[inline]
-    fn index(&self, index: I) -> &Self::Output {
-        Index::index(&*self.moduli, index)
-    }
-}
-
-impl<T: UnsignedInteger, M: FieldContext<T>> RNSBase<T, M> {
-    /// Create a new RNS base from the given moduli.
     pub fn new(moduli: &[M]) -> Result<Self, RNSError> {
         let modulus_values = moduli
             .iter()
@@ -54,22 +60,21 @@ impl<T: UnsignedInteger, M: FieldContext<T>> RNSBase<T, M> {
 
         let moduli_product = multiply_many_values(&modulus_values);
 
-        let chunk_size = moduli_product.len();
-        let len = chunk_size * moduli.len();
-        let mut punctured_product = vec![T::ZERO; len];
+        let big_uint_len = moduli_product.len();
+        let mut punctured_product = vec![T::ZERO; big_uint_len * moduli.len()];
         punctured_product
-            .chunks_exact_mut(chunk_size)
+            .chunks_exact_mut(big_uint_len)
             .enumerate()
             .for_each(|(i, chunk)| {
                 multiply_many_values_except_inplace(&modulus_values, i, chunk);
             });
 
         let inv_punctured_product_mod_modulus = punctured_product
-            .chunks_exact(chunk_size)
-            .zip(moduli.iter())
-            .map(|(p, &m)| {
-                let inv = p.modulo(m).try_inv_modulo(m).unwrap();
-                ShoupFactor::new(inv, m.value_unchecked())
+            .chunks_exact(big_uint_len)
+            .zip(moduli)
+            .map(|(p, &modulus)| {
+                let inv = p.modulo(modulus).try_inv_modulo(modulus).unwrap();
+                ShoupFactor::new(inv, modulus.value_unchecked())
             })
             .collect::<Vec<ShoupFactor<T>>>();
 
@@ -81,53 +86,71 @@ impl<T: UnsignedInteger, M: FieldContext<T>> RNSBase<T, M> {
         })
     }
 
+    /// Returns a reference to the moduli of this [`RNSBase<T, M>`].
+    #[inline]
     pub fn moduli(&self) -> &[M] {
         &self.moduli
     }
 
+    /// Returns a reference to the moduli product of this [`RNSBase<T, M>`].
+    #[inline]
     pub fn moduli_product(&self) -> &[T] {
         &self.moduli_product
     }
 
+    /// Returns a reference to the punctured product of this [`RNSBase<T, M>`].
+    #[inline]
     pub fn punctured_product(&self) -> &[T] {
         &self.punctured_product
     }
 
+    /// Returns an iterator over the punctured product of this [`RNSBase<T, M>`].
+    #[inline]
     pub fn punctured_product_iter(&self) -> std::slice::ChunksExact<'_, T> {
         self.punctured_product
             .chunks_exact(self.moduli_product.len())
     }
 
+    /// Returns a reference to the inverse punctured product mod modulus of this [`RNSBase<T, M>`].
+    #[inline]
     pub fn inv_punctured_product_mod_modulus(&self) -> &[ShoupFactor<T>] {
         &self.inv_punctured_product_mod_modulus
     }
 
     /// Decomposes a value into its RNS representation.
+    #[inline]
     pub fn decompose(&self, value: &[T]) -> Vec<T> {
-        self.moduli.iter().map(|&m| value.modulo(m)).collect()
+        self.moduli
+            .iter()
+            .map(|&modulus| value.modulo(modulus))
+            .collect()
     }
 
     /// Decomposes a value into its RNS representation, writing the result into the provided slice.
+    #[inline]
     pub fn decompose_inplace(&self, value: &[T], residues: &mut [T]) {
         debug_assert_eq!(self.moduli.len(), residues.len());
 
-        for (r, &m) in residues.iter_mut().zip(self.moduli.iter()) {
-            *r = value.modulo(m);
+        for (residue, &modulus) in residues.iter_mut().zip(self.moduli.iter()) {
+            *residue = value.modulo(modulus);
         }
     }
 
     pub fn decompose_multiple_values_inplace(
         &self,
         big_uint_values: &[T],
-        residues: &mut [T],
+        multi_residues: &mut [T],
         value_count: usize,
     ) {
-        for (poly, &modulus) in residues.chunks_exact_mut(value_count).zip(self.moduli()) {
-            for (res, value) in poly
+        for (residues, &modulus) in multi_residues
+            .chunks_exact_mut(value_count)
+            .zip(self.moduli())
+        {
+            for (residue, value) in residues
                 .iter_mut()
                 .zip(big_uint_values.chunks_exact(self.moduli.len()))
             {
-                *res = value.modulo(modulus);
+                *residue = value.modulo(modulus);
             }
         }
     }
@@ -145,8 +168,8 @@ impl<T: UnsignedInteger, M: FieldContext<T>> RNSBase<T, M> {
             .iter_each_modulus_mut(poly_length)
             .zip(self.moduli())
         {
-            for (res, value) in poly.iter_mut().zip(big_uint_poly.iter(self.moduli.len())) {
-                *res = value.modulo(modulus);
+            for (residue, value) in poly.iter_mut().zip(big_uint_poly.iter(self.moduli.len())) {
+                *residue = value.modulo(modulus);
             }
         }
     }
