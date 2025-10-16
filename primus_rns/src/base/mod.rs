@@ -142,13 +142,14 @@ where
         multi_residues: &mut [T],
         value_count: usize,
     ) {
+        let value_len = self.moduli_product.len();
         for (residues, &modulus) in multi_residues
             .chunks_exact_mut(value_count)
             .zip(self.moduli())
         {
             for (residue, value) in residues
                 .iter_mut()
-                .zip(big_uint_values.chunks_exact(self.moduli.len()))
+                .zip(big_uint_values.chunks_exact(value_len))
             {
                 *residue = value.modulo(modulus);
             }
@@ -164,11 +165,12 @@ where
         R: RawData<Elem = T> + Data,
         W: RawData<Elem = T> + DataMut,
     {
+        let value_len = self.moduli_product.len();
         for (poly, &modulus) in crt_poly
             .iter_each_modulus_mut(poly_length)
             .zip(self.moduli())
         {
-            for (residue, value) in poly.iter_mut().zip(big_uint_poly.iter(self.moduli.len())) {
+            for (residue, value) in poly.iter_mut().zip(big_uint_poly.iter(value_len)) {
                 *residue = value.modulo(modulus);
             }
         }
@@ -178,13 +180,14 @@ where
     pub fn compose(&self, residues: &[T]) -> Vec<T> {
         debug_assert_eq!(self.moduli.len(), residues.len());
 
-        let mut value = vec![T::ZERO; self.moduli_product.len()];
+        let value_len = self.moduli_product.len();
+
+        let mut value = vec![T::ZERO; value_len];
 
         izip!(
             residues,
             &self.inv_punctured_product_mod_modulus,
-            self.punctured_product
-                .chunks_exact(self.moduli_product.len()),
+            self.punctured_product.chunks_exact(value_len),
             &self.moduli
         )
         .for_each(
@@ -202,13 +205,14 @@ where
 
     pub fn compose_inplace(&self, residues: &[T], value: &mut [T]) {
         debug_assert_eq!(self.moduli.len(), residues.len());
-        debug_assert_eq!(self.moduli.len(), value.len());
+        debug_assert_eq!(self.moduli_product.len(), value.len());
+
+        let value_len = self.moduli_product.len();
 
         izip!(
             residues,
             &self.inv_punctured_product_mod_modulus,
-            self.punctured_product
-                .chunks_exact(self.moduli_product.len()),
+            self.punctured_product.chunks_exact(value_len),
             &self.moduli
         )
         .for_each(
@@ -222,6 +226,28 @@ where
         );
     }
 
+    pub fn compose_multiple_values_inplace(
+        &self,
+        multi_residues: &[T],
+        big_uint_values: &mut [T],
+        value_count: usize,
+    ) {
+        let value_len = self.moduli_product.len();
+        let mut residues = vec![T::ZERO; self.moduli.len()];
+
+        let mut iters: Vec<Iter<'_, T>> = multi_residues
+            .chunks_exact(value_count)
+            .map(|s| s.iter())
+            .collect();
+
+        for value in big_uint_values.chunks_exact_mut(value_len) {
+            for (iter, residue) in iters.iter_mut().zip(residues.iter_mut()) {
+                *residue = *iter.next().unwrap();
+            }
+            self.compose_inplace(&residues, value);
+        }
+    }
+
     pub fn compose_polynomial_inplace<R, W>(
         &self,
         crt_poly: &CrtPolynomial<R>,
@@ -231,12 +257,14 @@ where
         R: RawData<Elem = T> + Data,
         W: RawData<Elem = T> + DataMut,
     {
+        let value_len = self.moduli_product.len();
+
         let mut residues = vec![T::ZERO; self.moduli.len()];
         let mut iters: Vec<Iter<'_, T>> = crt_poly
             .iter_each_modulus(poly_length)
             .map(|s| s.iter())
             .collect();
-        for value in big_uint_poly.iter_mut(self.moduli.len()) {
+        for value in big_uint_poly.iter_mut(value_len) {
             for (iter, res) in iters.iter_mut().zip(residues.iter_mut()) {
                 *res = *iter.next().unwrap();
             }

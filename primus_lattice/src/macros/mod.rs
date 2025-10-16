@@ -275,6 +275,14 @@ macro_rules! impl_basic_operation_multiple_modulus {
             $s: RawData<Elem = $t> + DataMut,
             $t: UnsignedInteger,
         {
+            #[inline]
+            pub fn iter_each_modulus_mut(
+                &mut self,
+                single_modulus_len: usize,
+            ) -> std::slice::ChunksExactMut<'_, T> {
+                self.data.chunks_exact_mut(single_modulus_len)
+            }
+
             /// Perform element-wise modular addition `self + rhs`.
             #[inline]
             pub fn add_element_wise<M, A>(
@@ -355,6 +363,14 @@ macro_rules! impl_basic_operation_multiple_modulus {
             $s: RawData<Elem = $t> + Data,
             $t: UnsignedInteger,
         {
+            #[inline]
+            pub fn iter_each_modulus(
+                &self,
+                single_modulus_len: usize,
+            ) -> std::slice::ChunksExact<'_, T> {
+                self.data.chunks_exact(single_modulus_len)
+            }
+
             /// Performs element-wise modular addition `result = self + rhs`.
             #[inline]
             pub fn add_element_wise_inplace<M, A, B>(
