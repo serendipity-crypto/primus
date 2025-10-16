@@ -330,9 +330,9 @@ impl<T: UnsignedInteger, M: FieldContext<T>> DcrtGlwePublicKey<T, M> {
     }
 
     /// Generate a [`DcrtGgsw`] ciphertext which encrypted `coeff*X^degree`.
-    pub fn encrypt_monomial_ggsw<Table, R, A>(
+    pub fn encrypt_monomial_ggsw<Table, R>(
         &self,
-        coeff_residue: &[T],
+        coeff_residues: &[T],
         degree: usize,
         basis: &BigUintApproxSignedBasis<T>,
         gaussian: &SignedDiscreteGaussian<T::SignedInteger>,
@@ -372,7 +372,7 @@ impl<T: UnsignedInteger, M: FieldContext<T>> DcrtGlwePublicKey<T, M> {
             dcrt_ggsw.chunks_exact_mut(ggsw_len),
             self.iter_each_modulus(),
             v_crt_ggsw.chunks_exact_mut(v_ggsw_len),
-            coeff_residue,
+            coeff_residues,
             basis.scalars_residue().chunks_exact(decompose_length),
             table.iter(),
             self.moduli()

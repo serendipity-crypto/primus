@@ -178,11 +178,12 @@ impl<T: UnsignedInteger> NttGlweSecretKey<T> {
 }
 
 pub struct CrtGlweSecretKey<T: UnsignedInteger> {
-    pub(crate) key: Vec<T>,
-    pub(crate) moduli_count: usize,
-    pub(crate) poly_length: usize,
-    pub(crate) dimension: usize,
-    pub(crate) distr: RingSecretKeyType,
+    key: Vec<T>,
+    moduli_count: usize,
+    poly_length: usize,
+    dimension: usize,
+    single_modulus_len: usize,
+    distr: RingSecretKeyType,
 }
 
 impl<T: UnsignedInteger> CrtGlweSecretKey<T> {
@@ -195,11 +196,13 @@ impl<T: UnsignedInteger> CrtGlweSecretKey<T> {
         dimension: usize,
         distr: RingSecretKeyType,
     ) -> Self {
+        let single_modulus_len = dimension * poly_length;
         Self {
             key,
             moduli_count,
             poly_length,
             dimension,
+            single_modulus_len,
             distr,
         }
     }
@@ -223,8 +226,14 @@ impl<T: UnsignedInteger> CrtGlweSecretKey<T> {
     }
 
     /// Returns the distr of this [`CrtGlweSecretKey<T>`].
+    #[inline]
     pub fn distr(&self) -> RingSecretKeyType {
         self.distr
+    }
+
+    #[inline]
+    pub fn iter_each_modulus(&self) -> std::slice::ChunksExact<'_, T> {
+        self.key.chunks_exact(self.single_modulus_len)
     }
 
     pub fn generate<R>(
@@ -239,20 +248,19 @@ impl<T: UnsignedInteger> CrtGlweSecretKey<T> {
         R: rand::Rng + rand::CryptoRng,
     {
         let moduli_count = moduli_minus_one.len();
+        let single_modulus_len = poly_length * dimension;
 
         let key = match secret_key_type {
             RingSecretKeyType::Binary => {
-                primus_distr::sample_crt_binary_values(poly_length * dimension, moduli_count, rng)
+                primus_distr::sample_crt_binary_values(single_modulus_len, moduli_count, rng)
             }
-            RingSecretKeyType::Ternary => primus_distr::sample_crt_ternary_values(
-                poly_length * dimension,
-                moduli_minus_one,
-                rng,
-            ),
+            RingSecretKeyType::Ternary => {
+                primus_distr::sample_crt_ternary_values(single_modulus_len, moduli_minus_one, rng)
+            }
             RingSecretKeyType::Gaussian => {
                 let moduli: Vec<T> = moduli_minus_one.iter().map(|&v| v + T::ONE).collect();
                 primus_distr::sample_crt_gaussian_values(
-                    poly_length * dimension,
+                    single_modulus_len,
                     &moduli,
                     gaussian.unwrap(),
                     rng,
@@ -265,6 +273,7 @@ impl<T: UnsignedInteger> CrtGlweSecretKey<T> {
             moduli_count,
             poly_length,
             dimension,
+            single_modulus_len,
             distr: secret_key_type,
         }
     }
@@ -313,7 +322,7 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
     {
         let poly_length = secret_key.poly_length;
         let dimension = secret_key.dimension;
-        let single_modulus_len = poly_length * dimension;
+        let single_modulus_len = secret_key.single_modulus_len;
 
         let mut key = secret_key.key.clone();
 

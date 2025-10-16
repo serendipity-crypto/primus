@@ -54,3 +54,15 @@ impl_unsigned_integer! {u16, i16}
 impl_unsigned_integer! {u32, i32}
 impl_unsigned_integer! {u64, i64}
 impl_unsigned_integer! {u128, i128}
+
+impl UnsignedInteger for usize {
+    type SignedInteger = i64;
+    #[inline]
+    fn cast_from_signed(value: Self::SignedInteger) -> Self {
+        value as usize
+    }
+    #[inline(always)]
+    fn wrapping_add_signed(self, rhs: Self::SignedInteger) -> Self {
+        <usize>::wrapping_add_signed(self, rhs as isize)
+    }
+}

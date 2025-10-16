@@ -8,6 +8,10 @@ mod secret_key;
 mod ciphertext;
 mod plaintext;
 
+mod automorphism;
+mod key_switch;
+mod trace;
+
 pub use error::FheError;
 
 pub use parameter::*;
@@ -17,3 +21,5 @@ pub use secret_key::*;
 
 pub use ciphertext::*;
 pub use plaintext::*;
+
+pub use automorphism::*;
