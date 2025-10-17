@@ -1,8 +1,6 @@
 use primus_integer::{UnsignedInteger, izip};
-use primus_ntt::{Dcrt, DcrtTable, Ntt};
-use primus_poly::{
-    ArrayBase, Data, DataMut, DataOwned, NttPolynomial, RawData, dcrt::DcrtPolynomial,
-};
+use primus_ntt::{Dcrt, DcrtTable};
+use primus_poly::{ArrayBase, Data, DataMut, DataOwned, RawData, dcrt::DcrtPolynomial};
 use primus_reduce::FieldContext;
 
 use super::CrtGlwe;
@@ -25,16 +23,42 @@ impl_crt_intt!(DcrtGlwe<S, T>, CrtGlwe);
 
 impl<S, T> DcrtGlwe<S, T>
 where
-    S: RawData<Elem = T> + DataOwned,
-    T: UnsignedInteger,
-{
-}
-
-impl<S, T> DcrtGlwe<S, T>
-where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
 {
+    #[inline]
+    pub fn iter_dcrt_poly_mut(
+        &mut self,
+        dcrt_poly_len: usize,
+    ) -> std::slice::ChunksExactMut<'_, T> {
+        self.data.chunks_exact_mut(dcrt_poly_len)
+    }
+
+    pub fn add_dcrt_glwe_mul_dcrt_polynomial_assign<M, A, B>(
+        &mut self,
+        dcrt_glwe: &DcrtGlwe<A>,
+        dcrt_polynomial: &DcrtPolynomial<B>,
+        poly_length: usize,
+        moduli: &[M],
+    ) where
+        M: FieldContext<T>,
+        A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + Data,
+    {
+        let dcrt_poly_length = dcrt_polynomial.dcrt_poly_length();
+        izip!(
+            self.data.chunks_exact_mut(dcrt_poly_length),
+            dcrt_glwe.data.chunks_exact(dcrt_poly_length)
+        )
+        .for_each(|(x, y)| {
+            DcrtPolynomial(ArrayBase(x)).add_mul_assign(
+                &DcrtPolynomial(ArrayBase(y)),
+                dcrt_polynomial,
+                poly_length,
+                moduli,
+            );
+        });
+    }
 }
 
 impl<S, T> DcrtGlwe<S, T>
@@ -42,6 +66,11 @@ where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
 {
+    #[inline]
+    pub fn iter_dcrt_poly(&mut self, dcrt_poly_len: usize) -> std::slice::ChunksExact<'_, T> {
+        self.data.chunks_exact(dcrt_poly_len)
+    }
+
     /// Performs a multiplication on the `self` [`DcrtGlwe<S>`] with another `dcrt_polynomial` [`DcrtPolynomial<A>`],
     /// store the result into `result` [`DcrtGlwe<B>`].
     #[inline]
@@ -49,31 +78,26 @@ where
         &self,
         dcrt_polynomial: &DcrtPolynomial<A>,
         result: &mut DcrtGlwe<B>,
-        moduli: &[M],
-        cipher_single_modulus_len: usize,
         poly_length: usize,
+        moduli: &[M],
     ) where
         M: FieldContext<T>,
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + DataMut,
     {
+        let crt_poly_length = dcrt_polynomial.dcrt_poly_length();
+
         izip!(
-            self.data.chunks_exact(cipher_single_modulus_len),
-            result.data.chunks_exact_mut(cipher_single_modulus_len),
-            dcrt_polynomial.iter_each_modulus(poly_length),
-            moduli
+            self.data.chunks_exact(crt_poly_length),
+            result.data.chunks_exact_mut(crt_poly_length),
         )
-        .for_each(|(glwe0, glwe1, poly, modulus)| {
-            glwe0
-                .chunks_exact(poly_length)
-                .zip(glwe1.chunks_exact_mut(poly_length))
-                .for_each(|(a0, a1)| {
-                    NttPolynomial(ArrayBase(a0)).mul_inplace(
-                        &NttPolynomial(ArrayBase(poly)),
-                        &mut NttPolynomial(ArrayBase(a1)),
-                        *modulus,
-                    );
-                });
+        .for_each(|(a, b)| {
+            DcrtPolynomial(ArrayBase(a)).mul_inplace(
+                dcrt_polynomial,
+                &mut DcrtPolynomial(ArrayBase(b)),
+                poly_length,
+                moduli,
+            );
         });
     }
 }

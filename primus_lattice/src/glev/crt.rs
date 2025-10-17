@@ -1,5 +1,5 @@
 use primus_integer::{UnsignedInteger, izip};
-use primus_ntt::{Dcrt, DcrtTable, Ntt};
+use primus_ntt::{Dcrt, DcrtTable};
 use primus_poly::{ArrayBase, Data, DataMut, DataOwned, RawData};
 use primus_reduce::FieldContext;
 
@@ -24,16 +24,13 @@ impl_crt_ntt!(CrtGlev<S, T>, DcrtGlev);
 
 impl<S, T> CrtGlev<S, T>
 where
-    S: RawData<Elem = T> + DataOwned,
-    T: UnsignedInteger,
-{
-}
-
-impl<S, T> CrtGlev<S, T>
-where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
 {
+    #[inline]
+    pub fn iter_crt_glwe_mut(&mut self, crt_glwe_len: usize) -> std::slice::ChunksExactMut<'_, T> {
+        self.data.chunks_exact_mut(crt_glwe_len)
+    }
 }
 
 impl<S, T> CrtGlev<S, T>
@@ -41,4 +38,8 @@ where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
 {
+    #[inline]
+    pub fn iter_crt_glwe(&self, crt_glwe_len: usize) -> std::slice::ChunksExact<'_, T> {
+        self.data.chunks_exact(crt_glwe_len)
+    }
 }

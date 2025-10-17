@@ -105,4 +105,9 @@ where
     pub fn iter(&self, value_len: usize) -> std::slice::ChunksExact<'_, T> {
         self.0.chunks_exact(value_len)
     }
+
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
 }

@@ -1,8 +1,6 @@
 use primus_integer::{UnsignedInteger, izip};
-use primus_ntt::{Dcrt, DcrtTable, Ntt};
-use primus_poly::{
-    ArrayBase, Data, DataMut, DataOwned, NttPolynomial, RawData, dcrt::DcrtPolynomial,
-};
+use primus_ntt::{Dcrt, DcrtTable};
+use primus_poly::{ArrayBase, Data, DataMut, DataOwned, RawData, dcrt::DcrtPolynomial};
 use primus_reduce::FieldContext;
 
 use super::CrtRlwe;
@@ -25,20 +23,6 @@ impl_crt_intt!(DcrtRlwe<S, T>, CrtRlwe);
 
 impl<S, T> DcrtRlwe<S, T>
 where
-    S: RawData<Elem = T> + DataOwned,
-    T: UnsignedInteger,
-{
-}
-
-impl<S, T> DcrtRlwe<S, T>
-where
-    S: RawData<Elem = T> + DataMut,
-    T: UnsignedInteger,
-{
-}
-
-impl<S, T> DcrtRlwe<S, T>
-where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
 {
@@ -49,30 +33,26 @@ where
         &self,
         dcrt_polynomial: &DcrtPolynomial<A>,
         result: &mut DcrtRlwe<B>,
-        moduli: &[M],
         poly_length: usize,
+        moduli: &[M],
     ) where
         M: FieldContext<T>,
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + DataMut,
     {
+        let crt_poly_length = dcrt_polynomial.dcrt_poly_length();
+
         izip!(
-            self.data.chunks_exact(poly_length * 2),
-            result.data.chunks_exact_mut(poly_length * 2),
-            dcrt_polynomial.iter_each_modulus(poly_length),
-            moduli
+            self.data.chunks_exact(crt_poly_length),
+            result.data.chunks_exact_mut(crt_poly_length),
         )
-        .for_each(|(rlwe0, rlwe1, poly, modulus)| {
-            rlwe0
-                .chunks_exact(poly_length)
-                .zip(rlwe1.chunks_exact_mut(poly_length))
-                .for_each(|(a0, a1)| {
-                    NttPolynomial(ArrayBase(a0)).mul_inplace(
-                        &NttPolynomial(ArrayBase(poly)),
-                        &mut NttPolynomial(ArrayBase(a1)),
-                        *modulus,
-                    );
-                });
+        .for_each(|(a, b)| {
+            DcrtPolynomial(ArrayBase(a)).mul_inplace(
+                dcrt_polynomial,
+                &mut DcrtPolynomial(ArrayBase(b)),
+                poly_length,
+                moduli,
+            );
         });
     }
 }

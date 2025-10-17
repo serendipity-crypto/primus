@@ -21,24 +21,3 @@ impl_bytes_conversion!(NttGlev<S, T>);
 impl_zero!(NttGlev<S, T>);
 impl_basic_operation_single_modulus!(NttGlev<S, T>);
 impl_intt!(NttGlev<S, T>, Glev);
-
-impl<S, T> NttGlev<S, T>
-where
-    S: RawData<Elem = T> + DataOwned,
-    T: UnsignedInteger,
-{
-}
-
-impl<S, T> NttGlev<S, T>
-where
-    S: RawData<Elem = T> + DataMut,
-    T: UnsignedInteger,
-{
-}
-
-impl<S, T> NttGlev<S, T>
-where
-    S: RawData<Elem = T> + Data,
-    T: UnsignedInteger,
-{
-}

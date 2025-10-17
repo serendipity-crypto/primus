@@ -1,8 +1,6 @@
 use primus_integer::{UnsignedInteger, izip};
-use primus_ntt::{Dcrt, DcrtTable, Ntt};
-use primus_poly::{
-    ArrayBase, Data, DataMut, DataOwned, NttPolynomial, RawData, dcrt::DcrtPolynomial,
-};
+use primus_ntt::{Dcrt, DcrtTable};
+use primus_poly::{ArrayBase, Data, DataMut, DataOwned, RawData, dcrt::DcrtPolynomial};
 use primus_reduce::FieldContext;
 
 use super::DcrtGlwe;
@@ -25,20 +23,6 @@ impl_crt_ntt!(CrtGlwe<S, T>, DcrtGlwe);
 
 impl<S, T> CrtGlwe<S, T>
 where
-    S: RawData<Elem = T> + DataOwned,
-    T: UnsignedInteger,
-{
-}
-
-impl<S, T> CrtGlwe<S, T>
-where
-    S: RawData<Elem = T> + DataMut,
-    T: UnsignedInteger,
-{
-}
-
-impl<S, T> CrtGlwe<S, T>
-where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
 {
@@ -51,7 +35,6 @@ where
         result: &mut DcrtGlwe<B>,
         moduli: &[M],
         table: &Table,
-        cipher_single_modulus_len: usize,
     ) where
         M: FieldContext<T>,
         Table: DcrtTable<ValueT = T> + Dcrt,
@@ -59,20 +42,20 @@ where
         B: RawData<Elem = T> + DataMut,
     {
         let poly_length = table.poly_length();
+        let crt_poly_length = table.crt_poly_length();
 
         result.data.copy_from_slice(self.data.as_ref());
 
-        izip!(
-            result.data.chunks_exact_mut(cipher_single_modulus_len),
-            dcrt_polynomial.iter_each_modulus(poly_length),
-            table.iter(),
-            moduli
-        )
-        .for_each(|(glwe, poly, ntt_table, modulus)| {
-            glwe.chunks_exact_mut(poly_length).for_each(|a| {
-                ntt_table.transform_slice(a);
-                NttPolynomial(ArrayBase(a)).mul_assign(&NttPolynomial(ArrayBase(poly)), *modulus);
+        result
+            .data
+            .chunks_exact_mut(crt_poly_length)
+            .for_each(|crt_poly| {
+                table.transform_slice(crt_poly);
+                DcrtPolynomial(ArrayBase(crt_poly)).mul_assign(
+                    dcrt_polynomial,
+                    poly_length,
+                    moduli,
+                );
             });
-        });
     }
 }

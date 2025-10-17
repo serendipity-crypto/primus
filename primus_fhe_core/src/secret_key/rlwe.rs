@@ -2,7 +2,7 @@ use std::ops::Deref;
 
 use primus_distr::DiscreteGaussian;
 use primus_integer::UnsignedInteger;
-use primus_lattice::TruncatedRlwe;
+use primus_lattice::rlwe::TruncatedRlwe;
 use primus_ntt::{Ntt, NttTable};
 use primus_poly::{
     ArrayBase, Data, NttPolynomial, NttPolynomialOwned, Polynomial, PolynomialOwned, RawData,

@@ -1,5 +1,5 @@
 use primus_integer::{UnsignedInteger, izip};
-use primus_reduce::ops::{ReduceAdd, ReduceAddAssign};
+use primus_reduce::ops::{ReduceAdd, ReduceAddAssign, ReduceMulAdd};
 
 use super::{ArrayBase, Data, DataMut, RawData};
 
@@ -28,6 +28,22 @@ where
     {
         debug_assert_eq!(self.len(), rhs.len());
         izip!(self, rhs).for_each(|(a, &b)| modulus.reduce_add_assign(a, b));
+    }
+
+    /// Performs `self += b * c` according to `modulus`.
+    #[inline]
+    pub fn add_mul_element_wise_assign<M, A, B>(
+        &mut self,
+        b: &ArrayBase<A>,
+        c: &ArrayBase<B>,
+        modulus: M,
+    ) where
+        M: Copy + ReduceMulAdd<T, Output = T>,
+        A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + Data,
+    {
+        debug_assert_eq!(self.len(), b.len());
+        izip!(self, b, c).for_each(|(a, &b, &c)| *a = modulus.reduce_mul_add(b, c, *a));
     }
 }
 

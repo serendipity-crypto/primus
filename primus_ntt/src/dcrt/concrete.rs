@@ -9,6 +9,8 @@ pub mod prime32 {
     pub struct CrtConcrete32Table {
         ntt_tables: Vec<Concrete32Table>,
         poly_length: usize,
+        moduli_count: usize,
+        crt_poly_length: usize,
     }
 
     impl DcrtTable for CrtConcrete32Table {
@@ -21,13 +23,19 @@ pub mod prime32 {
         where
             M: primus_reduce::FieldContext<Self::ValueT>,
         {
-            let mut ntt_tables = Vec::with_capacity(moduli.len());
+            let moduli_count = moduli.len();
+            let poly_length = 1 << log_n;
+            let crt_poly_length = moduli_count * poly_length;
+
+            let mut ntt_tables = Vec::with_capacity(moduli_count);
             for modulus in moduli {
                 ntt_tables.push(Self::NttTables::new(log_n, *modulus)?);
             }
             Ok(Self {
                 ntt_tables,
-                poly_length: 1 << log_n,
+                poly_length,
+                moduli_count,
+                crt_poly_length,
             })
         }
 
@@ -44,6 +52,16 @@ pub mod prime32 {
         #[inline]
         fn poly_length(&self) -> usize {
             self.poly_length
+        }
+
+        #[inline]
+        fn moduli_count(&self) -> usize {
+            self.moduli_count
+        }
+
+        #[inline]
+        fn crt_poly_length(&self) -> usize {
+            self.crt_poly_length
         }
     }
 
@@ -121,6 +139,8 @@ pub mod prime64 {
     pub struct CrtConcrete64Table {
         ntt_tables: Vec<Concrete64Table>,
         poly_length: usize,
+        moduli_count: usize,
+        crt_poly_length: usize,
     }
 
     impl DcrtTable for CrtConcrete64Table {
@@ -133,13 +153,19 @@ pub mod prime64 {
         where
             M: primus_reduce::FieldContext<Self::ValueT>,
         {
-            let mut ntt_tables = Vec::with_capacity(moduli.len());
+            let moduli_count = moduli.len();
+            let poly_length = 1 << log_n;
+            let crt_poly_length = moduli_count * poly_length;
+
+            let mut ntt_tables = Vec::with_capacity(moduli_count);
             for modulus in moduli {
                 ntt_tables.push(Self::NttTables::new(log_n, *modulus)?);
             }
             Ok(Self {
                 ntt_tables,
-                poly_length: 1 << log_n,
+                poly_length,
+                moduli_count,
+                crt_poly_length,
             })
         }
 
@@ -156,6 +182,16 @@ pub mod prime64 {
         #[inline]
         fn poly_length(&self) -> usize {
             self.poly_length
+        }
+
+        #[inline]
+        fn moduli_count(&self) -> usize {
+            self.moduli_count
+        }
+
+        #[inline]
+        fn crt_poly_length(&self) -> usize {
+            self.crt_poly_length
         }
     }
 

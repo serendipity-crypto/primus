@@ -9,6 +9,8 @@ use super::DcrtTable;
 pub struct UintCrtNttTable<T: UnsignedInteger> {
     ntt_tables: Vec<UintNttTable<T>>,
     poly_length: usize,
+    moduli_count: usize,
+    crt_poly_length: usize,
 }
 
 impl<T: UnsignedInteger> UintCrtNttTable<T> {}
@@ -23,13 +25,20 @@ impl<T: UnsignedInteger> DcrtTable for UintCrtNttTable<T> {
     where
         M: FieldContext<Self::ValueT>,
     {
-        let mut ntt_tables = Vec::with_capacity(moduli.len());
+        let moduli_count = moduli.len();
+        let poly_length = 1 << log_n;
+        let crt_poly_length = moduli_count * poly_length;
+
+        let mut ntt_tables = Vec::with_capacity(moduli_count);
         for modulus in moduli {
             ntt_tables.push(UintNttTable::new(log_n, *modulus)?);
         }
+
         Ok(Self {
             ntt_tables,
-            poly_length: 1 << log_n,
+            poly_length,
+            moduli_count,
+            crt_poly_length,
         })
     }
 
@@ -48,6 +57,16 @@ impl<T: UnsignedInteger> DcrtTable for UintCrtNttTable<T> {
     #[inline]
     fn poly_length(&self) -> usize {
         self.poly_length
+    }
+
+    #[inline]
+    fn moduli_count(&self) -> usize {
+        self.moduli_count
+    }
+
+    #[inline]
+    fn crt_poly_length(&self) -> usize {
+        self.crt_poly_length
     }
 }
 

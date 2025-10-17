@@ -1,8 +1,6 @@
 use primus_integer::{UnsignedInteger, izip};
-use primus_ntt::{Dcrt, DcrtTable, Ntt};
-use primus_poly::{
-    ArrayBase, Data, DataMut, DataOwned, NttPolynomial, RawData, dcrt::DcrtPolynomial,
-};
+use primus_ntt::{Dcrt, DcrtTable};
+use primus_poly::{ArrayBase, Data, DataMut, DataOwned, RawData, dcrt::DcrtPolynomial};
 use primus_reduce::FieldContext;
 
 use super::DcrtRlwe;
@@ -25,20 +23,6 @@ impl_crt_ntt!(CrtRlwe<S, T>, DcrtRlwe);
 
 impl<S, T> CrtRlwe<S, T>
 where
-    S: RawData<Elem = T> + DataOwned,
-    T: UnsignedInteger,
-{
-}
-
-impl<S, T> CrtRlwe<S, T>
-where
-    S: RawData<Elem = T> + DataMut,
-    T: UnsignedInteger,
-{
-}
-
-impl<S, T> CrtRlwe<S, T>
-where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
 {
@@ -58,20 +42,20 @@ where
         B: RawData<Elem = T> + DataMut,
     {
         let poly_length = table.poly_length();
+        let crt_poly_length = table.crt_poly_length();
 
         result.data.copy_from_slice(self.data.as_ref());
 
-        izip!(
-            result.data.chunks_exact_mut(poly_length * 2),
-            dcrt_polynomial.iter_each_modulus(poly_length),
-            table.iter(),
-            moduli
-        )
-        .for_each(|(rlwe, poly, ntt_table, modulus)| {
-            rlwe.chunks_exact_mut(poly_length).for_each(|a| {
-                ntt_table.transform_slice(a);
-                NttPolynomial(ArrayBase(a)).mul_assign(&NttPolynomial(ArrayBase(poly)), *modulus);
+        result
+            .data
+            .chunks_exact_mut(crt_poly_length)
+            .for_each(|crt_poly| {
+                table.transform_slice(crt_poly);
+                DcrtPolynomial(ArrayBase(crt_poly)).mul_assign(
+                    dcrt_polynomial,
+                    poly_length,
+                    moduli,
+                );
             });
-        });
     }
 }

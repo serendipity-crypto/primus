@@ -96,6 +96,11 @@ where
     pub fn is_zero(&self) -> bool {
         self.0.is_zero()
     }
+
+    #[inline]
+    pub fn crt_poly_length(&self) -> usize {
+        self.0.len()
+    }
 }
 
 impl<S, T> Size for CrtPolynomial<S, T>
@@ -106,5 +111,27 @@ where
     #[inline]
     fn byte_count(&self) -> usize {
         self.0.len() * <T as ByteCount>::BYTES_COUNT
+    }
+}
+
+impl<S, T> AsRef<[T]> for CrtPolynomial<S, T>
+where
+    S: RawData<Elem = T> + Data,
+    T: UnsignedInteger,
+{
+    #[inline]
+    fn as_ref(&self) -> &[T] {
+        self.0.as_ref()
+    }
+}
+
+impl<S, T> AsMut<[T]> for CrtPolynomial<S, T>
+where
+    S: RawData<Elem = T> + DataMut,
+    T: UnsignedInteger,
+{
+    #[inline]
+    fn as_mut(&mut self) -> &mut [T] {
+        self.0.as_mut()
     }
 }

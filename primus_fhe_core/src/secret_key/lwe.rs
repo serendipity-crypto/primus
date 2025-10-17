@@ -1,5 +1,5 @@
 use primus_integer::{UnsignedInteger, size::Size};
-use primus_lattice::Rlwe;
+use primus_lattice::rlwe::Rlwe;
 use primus_poly::{ArrayBase, Polynomial};
 use primus_reduce::RingContext;
 use rand::distr::Distribution;

@@ -12,18 +12,18 @@ where
 {
     /// Performs `self + rhs` according to `moduli`.
     #[inline]
-    pub fn add<M, A>(mut self, rhs: &DcrtPolynomial<A, T>, moduli: &[M], poly_length: usize) -> Self
+    pub fn add<M, A>(mut self, rhs: &DcrtPolynomial<A, T>, poly_length: usize, moduli: &[M]) -> Self
     where
         M: Copy + ReduceAddAssign<T>,
         A: RawData<Elem = T> + Data,
     {
-        self.add_assign(rhs, moduli, poly_length);
+        self.add_assign(rhs, poly_length, moduli);
         self
     }
 
     /// Performs `self += rhs` according to `moduli`.
     #[inline]
-    pub fn add_assign<M, A>(&mut self, rhs: &DcrtPolynomial<A, T>, moduli: &[M], poly_length: usize)
+    pub fn add_assign<M, A>(&mut self, rhs: &DcrtPolynomial<A, T>, poly_length: usize, moduli: &[M])
     where
         M: Copy + ReduceAddAssign<T>,
         A: RawData<Elem = T> + Data,
@@ -33,8 +33,8 @@ where
             rhs.iter_each_modulus(poly_length),
             moduli
         )
-        .for_each(|(xs, ys, modulus)| {
-            ArrayBase(xs).add_element_wise_assign(&ArrayBase(ys), *modulus);
+        .for_each(|(xs, ys, &modulus)| {
+            ArrayBase(xs).add_element_wise_assign(&ArrayBase(ys), modulus);
         });
     }
 }
@@ -50,8 +50,8 @@ where
         &self,
         rhs: &Self,
         result: &mut DcrtPolynomial<A, T>,
-        moduli: &[M],
         poly_length: usize,
+        moduli: &[M],
     ) where
         M: Copy + ReduceAdd<T, Output = T>,
         A: RawData<Elem = T> + DataMut,
@@ -62,8 +62,8 @@ where
             result.iter_each_modulus_mut(poly_length),
             moduli
         )
-        .for_each(|(xs, ys, zs, modulus)| {
-            ArrayBase(xs).add_element_wise_inplace(&ArrayBase(ys), &mut ArrayBase(zs), *modulus);
+        .for_each(|(xs, ys, zs, &modulus)| {
+            ArrayBase(xs).add_element_wise_inplace(&ArrayBase(ys), &mut ArrayBase(zs), modulus);
         });
     }
 }

@@ -33,6 +33,10 @@ pub trait DcrtTable: Sized {
     fn iter(&self) -> std::slice::Iter<'_, Self::NttTables>;
 
     fn poly_length(&self) -> usize;
+
+    fn moduli_count(&self) -> usize;
+
+    fn crt_poly_length(&self) -> usize;
 }
 
 pub trait Dcrt: DcrtTable {

@@ -3,7 +3,7 @@ use std::slice::IterMut;
 use primus_decompose::big_integer::BigUintApproxSignedBasis;
 use primus_distr::SignedDiscreteGaussian;
 use primus_integer::{UnsignedInteger, izip};
-use primus_lattice::{DcrtGgsw, DcrtGlwe};
+use primus_lattice::{ggsw::DcrtGgsw, glwe::DcrtGlwe};
 use primus_modulo::AddModulo;
 use primus_modulo::MulAddModulo;
 use primus_ntt::{Dcrt, DcrtTable, Ntt};

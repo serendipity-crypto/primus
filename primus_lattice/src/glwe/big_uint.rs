@@ -1,4 +1,4 @@
-use primus_integer::UnsignedInteger;
+use primus_integer::{UnsignedInteger, izip};
 use primus_poly::{ArrayBase, Data, DataMut, DataOwned, RawData};
 use primus_reduce::FieldContext;
 use primus_rns::RNSBase;
@@ -28,18 +28,23 @@ where
     pub fn compose_assign<A, M>(
         &mut self,
         crt_glwe: &CrtGlwe<A>,
-        dimension: usize,
         poly_length: usize,
+        crt_poly_length: usize,
         rns_base: &RNSBase<T, M>,
     ) where
         A: RawData<Elem = T> + Data,
         M: FieldContext<T>,
     {
-        rns_base.compose_multiple_values_inplace(
-            crt_glwe.as_ref(),
-            self.as_mut(),
-            (dimension + 1) * poly_length,
-        );
+        let single_value_len = rns_base.single_value_len();
+        let big_uint_poly_length = poly_length * single_value_len;
+
+        izip!(
+            self.data.chunks_exact_mut(big_uint_poly_length),
+            crt_glwe.data.chunks_exact(crt_poly_length),
+        )
+        .for_each(|(big_uint_poly, crt_poly)| {
+            rns_base.compose_multiple_values_inplace(crt_poly, big_uint_poly, poly_length);
+        });
     }
 }
 
@@ -53,17 +58,22 @@ where
     pub fn decompose_inplace<A, M>(
         &self,
         result: &mut CrtGlwe<A>,
-        dimension: usize,
         poly_length: usize,
+        crt_poly_length: usize,
         rns_base: &RNSBase<T, M>,
     ) where
         A: RawData<Elem = T> + DataMut,
         M: FieldContext<T>,
     {
-        rns_base.decompose_multiple_values_inplace(
-            self.as_ref(),
-            result.as_mut(),
-            (dimension + 1) * poly_length,
-        );
+        let single_value_len = rns_base.single_value_len();
+        let big_uint_poly_length = poly_length * single_value_len;
+
+        izip!(
+            self.data.chunks_exact(big_uint_poly_length),
+            result.data.chunks_exact_mut(crt_poly_length),
+        )
+        .for_each(|(big_uint_poly, crt_poly)| {
+            rns_base.decompose_multiple_values_inplace(big_uint_poly, crt_poly, poly_length);
+        });
     }
 }

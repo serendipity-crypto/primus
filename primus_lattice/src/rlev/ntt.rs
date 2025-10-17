@@ -21,24 +21,3 @@ impl_bytes_conversion!(NttRlev<S, T>);
 impl_zero!(NttRlev<S, T>);
 impl_basic_operation_single_modulus!(NttRlev<S, T>);
 impl_intt!(NttRlev<S, T>, Rlev);
-
-impl<S, T> NttRlev<S, T>
-where
-    S: RawData<Elem = T> + DataOwned,
-    T: UnsignedInteger,
-{
-}
-
-impl<S, T> NttRlev<S, T>
-where
-    S: RawData<Elem = T> + DataMut,
-    T: UnsignedInteger,
-{
-}
-
-impl<S, T> NttRlev<S, T>
-where
-    S: RawData<Elem = T> + Data,
-    T: UnsignedInteger,
-{
-}

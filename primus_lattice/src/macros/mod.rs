@@ -1,51 +1,3 @@
-// macro_rules! foo {
-//     (@$trait_:ident [$($args:ident,)*] where [$($preds:tt)+]) => {
-//         foo! {
-//             @as_item
-//             impl<$($args),*> $trait_<$($args),*>
-//                 where $($args: ::std::any::Any + 'static,)*
-//                       $($preds)*
-//             {
-//                 #[allow(non_camel_case_types, dead_code)]
-//                 pub fn bar<__foo_T: $trait_<$($args),*>>(&self) {}
-//             }
-//         }
-//     };
-//     (@as_item $i:item) => { $i };
-
-//     (
-//         $trait_:ident < $($args:ident),* $(,)* >
-//         where $($preds:tt)+
-//     ) => {
-//         foo! { @$trait_ [$($args,)*] where [$($preds)*] }
-//     };
-// }
-
-// macro_rules! impl_temp {
-//     ($cipher:ident < $s:ident, $t:ident >) => {
-//         impl<$s, $t> $cipher<$s, $t>
-//         where
-//             $s: RawData<Elem = $t> + DataOwned,
-//             $t: UnsignedInteger,
-//         {
-//         }
-
-//         impl<$s, $t> $cipher<$s, $t>
-//         where
-//             $s: RawData<Elem = $t> + DataMut,
-//             $t: UnsignedInteger,
-//         {
-//         }
-
-//         impl<$s, $t> $cipher<$s, $t>
-//         where
-//             $s: RawData<Elem = $t> + Data,
-//             $t: UnsignedInteger,
-//         {
-//         }
-//     };
-// }
-
 macro_rules! impl_common {
     ($cipher:ident < $s:ident, $t:ident >) => {
         impl<$s, $t> $cipher<$s, $t>
@@ -275,27 +227,28 @@ macro_rules! impl_basic_operation_multiple_modulus {
             $s: RawData<Elem = $t> + DataMut,
             $t: UnsignedInteger,
         {
-            #[inline]
-            pub fn iter_each_modulus_mut(
-                &mut self,
-                single_modulus_len: usize,
-            ) -> std::slice::ChunksExactMut<'_, T> {
-                self.data.chunks_exact_mut(single_modulus_len)
-            }
+            // #[inline]
+            // pub fn iter_crt_poly_mut(
+            //     &mut self,
+            //     crt_poly_length: usize,
+            // ) -> std::slice::ChunksExactMut<'_, T> {
+            //     self.data.chunks_exact_mut(crt_poly_length)
+            // }
 
             /// Perform element-wise modular addition `self + rhs`.
             #[inline]
             pub fn add_element_wise<M, A>(
                 mut self,
                 rhs: &$cipher<A>,
-                cipher_single_modulus_len: usize,
+                poly_length: usize,
+                crt_poly_length: usize,
                 moduli: &[M],
             ) -> Self
             where
                 M: FieldContext<$t>,
                 A: RawData<Elem = $t> + Data,
             {
-                self.add_element_wise_assign(rhs, cipher_single_modulus_len, moduli);
+                self.add_element_wise_assign(rhs, poly_length, crt_poly_length, moduli);
                 self
             }
 
@@ -304,14 +257,15 @@ macro_rules! impl_basic_operation_multiple_modulus {
             pub fn sub_element_wise<M, A>(
                 mut self,
                 rhs: &$cipher<A>,
-                cipher_single_modulus_len: usize,
+                poly_length: usize,
+                crt_poly_length: usize,
                 moduli: &[M],
             ) -> Self
             where
                 M: FieldContext<$t>,
                 A: RawData<Elem = $t> + Data,
             {
-                self.sub_element_wise_assign(rhs, cipher_single_modulus_len, moduli);
+                self.sub_element_wise_assign(rhs, poly_length, crt_poly_length, moduli);
                 self
             }
 
@@ -320,19 +274,26 @@ macro_rules! impl_basic_operation_multiple_modulus {
             pub fn add_element_wise_assign<M, A>(
                 &mut self,
                 rhs: &$cipher<A>,
-                cipher_single_modulus_len: usize,
+                poly_length: usize,
+                crt_poly_length: usize,
                 moduli: &[M],
             ) where
                 M: FieldContext<T>,
                 A: RawData<Elem = T> + Data,
             {
                 izip!(
-                    self.data.chunks_exact_mut(cipher_single_modulus_len),
-                    rhs.data.chunks_exact(cipher_single_modulus_len),
-                    moduli
+                    self.data.chunks_exact_mut(crt_poly_length),
+                    rhs.data.chunks_exact(crt_poly_length),
                 )
-                .for_each(|(x, y, m)| {
-                    ArrayBase(x).add_element_wise_assign(&ArrayBase(y), *m);
+                .for_each(|(x, y)| {
+                    izip!(
+                        x.chunks_exact_mut(poly_length),
+                        y.chunks_exact(poly_length),
+                        moduli
+                    )
+                    .for_each(|(a, b, &modulus)| {
+                        ArrayBase(a).add_element_wise_assign(&ArrayBase(b), modulus);
+                    });
                 });
             }
 
@@ -341,19 +302,26 @@ macro_rules! impl_basic_operation_multiple_modulus {
             pub fn sub_element_wise_assign<M, A>(
                 &mut self,
                 rhs: &$cipher<A>,
-                cipher_single_modulus_len: usize,
+                poly_length: usize,
+                crt_poly_length: usize,
                 moduli: &[M],
             ) where
                 M: FieldContext<T>,
                 A: RawData<Elem = T> + Data,
             {
                 izip!(
-                    self.data.chunks_exact_mut(cipher_single_modulus_len),
-                    rhs.data.chunks_exact(cipher_single_modulus_len),
-                    moduli
+                    self.data.chunks_exact_mut(crt_poly_length),
+                    rhs.data.chunks_exact(crt_poly_length),
                 )
-                .for_each(|(x, y, m)| {
-                    ArrayBase(x).sub_element_wise_assign(&ArrayBase(y), *m);
+                .for_each(|(x, y)| {
+                    izip!(
+                        x.chunks_exact_mut(poly_length),
+                        y.chunks_exact(poly_length),
+                        moduli
+                    )
+                    .for_each(|(a, b, &modulus)| {
+                        ArrayBase(a).sub_element_wise_assign(&ArrayBase(b), modulus);
+                    });
                 });
             }
         }
@@ -363,13 +331,13 @@ macro_rules! impl_basic_operation_multiple_modulus {
             $s: RawData<Elem = $t> + Data,
             $t: UnsignedInteger,
         {
-            #[inline]
-            pub fn iter_each_modulus(
-                &self,
-                single_modulus_len: usize,
-            ) -> std::slice::ChunksExact<'_, T> {
-                self.data.chunks_exact(single_modulus_len)
-            }
+            // #[inline]
+            // pub fn iter_each_modulus(
+            //     &self,
+            //     single_modulus_len: usize,
+            // ) -> std::slice::ChunksExact<'_, T> {
+            //     self.data.chunks_exact(single_modulus_len)
+            // }
 
             /// Performs element-wise modular addition `result = self + rhs`.
             #[inline]
@@ -377,7 +345,8 @@ macro_rules! impl_basic_operation_multiple_modulus {
                 &self,
                 rhs: &$cipher<A>,
                 result: &mut $cipher<B>,
-                cipher_single_modulus_len: usize,
+                poly_length: usize,
+                crt_poly_length: usize,
                 moduli: &[M],
             ) where
                 M: FieldContext<T>,
@@ -385,13 +354,24 @@ macro_rules! impl_basic_operation_multiple_modulus {
                 B: RawData<Elem = T> + DataMut,
             {
                 izip!(
-                    self.data.chunks_exact(cipher_single_modulus_len),
-                    rhs.data.chunks_exact(cipher_single_modulus_len),
-                    result.data.chunks_exact_mut(cipher_single_modulus_len),
-                    moduli
+                    self.data.chunks_exact(crt_poly_length),
+                    rhs.data.chunks_exact(crt_poly_length),
+                    result.data.chunks_exact_mut(crt_poly_length),
                 )
-                .for_each(|(x, y, z, m)| {
-                    ArrayBase(x).add_element_wise_inplace(&ArrayBase(y), &mut ArrayBase(z), *m);
+                .for_each(|(x, y, z)| {
+                    izip!(
+                        x.chunks_exact(poly_length),
+                        y.chunks_exact(poly_length),
+                        z.chunks_exact_mut(poly_length),
+                        moduli
+                    )
+                    .for_each(|(a, b, c, &modulus)| {
+                        ArrayBase(a).add_element_wise_inplace(
+                            &ArrayBase(b),
+                            &mut ArrayBase(c),
+                            modulus,
+                        );
+                    });
                 });
             }
 
@@ -401,7 +381,8 @@ macro_rules! impl_basic_operation_multiple_modulus {
                 &self,
                 rhs: &$cipher<A>,
                 result: &mut $cipher<B>,
-                cipher_single_modulus_len: usize,
+                poly_length: usize,
+                crt_poly_length: usize,
                 moduli: &[M],
             ) where
                 M: FieldContext<T>,
@@ -409,13 +390,24 @@ macro_rules! impl_basic_operation_multiple_modulus {
                 B: RawData<Elem = T> + DataMut,
             {
                 izip!(
-                    self.data.chunks_exact(cipher_single_modulus_len),
-                    rhs.data.chunks_exact(cipher_single_modulus_len),
-                    result.data.chunks_exact_mut(cipher_single_modulus_len),
-                    moduli
+                    self.data.chunks_exact(crt_poly_length),
+                    rhs.data.chunks_exact(crt_poly_length),
+                    result.data.chunks_exact_mut(crt_poly_length),
                 )
-                .for_each(|(x, y, z, m)| {
-                    ArrayBase(x).sub_element_wise_inplace(&ArrayBase(y), &mut ArrayBase(z), *m);
+                .for_each(|(x, y, z)| {
+                    izip!(
+                        x.chunks_exact(poly_length),
+                        y.chunks_exact(poly_length),
+                        z.chunks_exact_mut(poly_length),
+                        moduli
+                    )
+                    .for_each(|(a, b, c, &modulus)| {
+                        ArrayBase(a).sub_element_wise_inplace(
+                            &ArrayBase(b),
+                            &mut ArrayBase(c),
+                            modulus,
+                        );
+                    });
                 });
             }
         }
@@ -526,23 +518,15 @@ macro_rules! impl_crt_ntt {
         {
             /// Transforms `self` to ntt form.
             #[inline]
-            pub fn into_ntt_form<Table>(
-                self,
-                table: &Table,
-                cipher_single_modulus_len: usize,
-            ) -> $ntt_cipher<$s>
+            pub fn into_ntt_form<Table>(self, table: &Table) -> $ntt_cipher<$s>
             where
                 Table: DcrtTable<ValueT = $t> + Dcrt,
             {
-                let poly_length = table.poly_length();
+                let crt_poly_length = table.crt_poly_length();
                 let Self { mut data } = self;
-                data.chunks_exact_mut(cipher_single_modulus_len)
-                    .zip(table.iter())
-                    .for_each(|(cipher, ntt_table)| {
-                        cipher.chunks_exact_mut(poly_length).for_each(|poly| {
-                            ntt_table.transform_slice(poly);
-                        });
-                    });
+                data.chunks_exact_mut(crt_poly_length).for_each(|crt_poly| {
+                    table.transform_slice(crt_poly);
+                });
                 $ntt_cipher::new(data)
             }
         }
@@ -554,25 +538,18 @@ macro_rules! impl_crt_ntt {
         {
             /// Transforms `self` to ntt form and stores in `result`.
             #[inline]
-            pub fn to_ntt_form_inplace<Table, A>(
-                &self,
-                result: &mut $ntt_cipher<A>,
-                table: &Table,
-                cipher_single_modulus_len: usize,
-            ) where
+            pub fn to_ntt_form_inplace<Table, A>(&self, result: &mut $ntt_cipher<A>, table: &Table)
+            where
                 Table: DcrtTable<ValueT = $t> + Dcrt,
                 A: RawData<Elem = $t> + DataMut,
             {
-                let poly_length = table.poly_length();
+                let crt_poly_length = table.crt_poly_length();
                 result.data.copy_from_slice(self.data.as_ref());
                 result
                     .data
-                    .chunks_exact_mut(cipher_single_modulus_len)
-                    .zip(table.iter())
-                    .for_each(|(cipher, ntt_table)| {
-                        cipher.chunks_exact_mut(poly_length).for_each(|a| {
-                            ntt_table.transform_slice(a);
-                        });
+                    .chunks_exact_mut(crt_poly_length)
+                    .for_each(|crt_poly| {
+                        table.transform_slice(crt_poly);
                     });
             }
         }
@@ -588,23 +565,15 @@ macro_rules! impl_crt_intt {
         {
             /// Transforms `self` to coefficient form.
             #[inline]
-            pub fn into_coeff_form<Table>(
-                self,
-                table: &Table,
-                cipher_single_modulus_len: usize,
-            ) -> $cipher<$s>
+            pub fn into_coeff_form<Table>(self, table: &Table) -> $cipher<$s>
             where
                 Table: DcrtTable<ValueT = $t> + Dcrt,
             {
-                let poly_length = table.poly_length();
+                let crt_poly_length = table.crt_poly_length();
                 let Self { mut data } = self;
-                data.chunks_exact_mut(cipher_single_modulus_len)
-                    .zip(table.iter())
-                    .for_each(|(cipher, ntt_table)| {
-                        cipher.chunks_exact_mut(poly_length).for_each(|poly| {
-                            ntt_table.inverse_transform_slice(poly);
-                        });
-                    });
+                data.chunks_exact_mut(crt_poly_length).for_each(|crt_poly| {
+                    table.inverse_transform_slice(crt_poly);
+                });
                 $cipher::new(data)
             }
         }
@@ -616,25 +585,18 @@ macro_rules! impl_crt_intt {
         {
             /// Transforms `self` to coefficient form and stores in `result`.
             #[inline]
-            pub fn to_coeff_form_inplace<Table, A>(
-                &self,
-                result: &mut $cipher<A>,
-                table: &Table,
-                cipher_single_modulus_len: usize,
-            ) where
+            pub fn to_coeff_form_inplace<Table, A>(&self, result: &mut $cipher<A>, table: &Table)
+            where
                 Table: DcrtTable<ValueT = $t> + Dcrt,
                 A: RawData<Elem = $t> + DataMut,
             {
-                let poly_length = table.poly_length();
+                let crt_poly_length = table.crt_poly_length();
                 result.data.copy_from_slice(self.data.as_ref());
                 result
                     .data
-                    .chunks_exact_mut(cipher_single_modulus_len)
-                    .zip(table.iter())
-                    .for_each(|(cipher, ntt_table)| {
-                        cipher.chunks_exact_mut(poly_length).for_each(|a| {
-                            ntt_table.inverse_transform_slice(a);
-                        });
+                    .chunks_exact_mut(crt_poly_length)
+                    .for_each(|crt_poly| {
+                        table.inverse_transform_slice(crt_poly);
                     });
             }
         }

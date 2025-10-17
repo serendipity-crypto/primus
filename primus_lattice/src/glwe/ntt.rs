@@ -23,13 +23,6 @@ impl_intt!(NttGlwe<S, T>, Glwe);
 
 impl<S, T> NttGlwe<S, T>
 where
-    S: RawData<Elem = T> + DataOwned,
-    T: UnsignedInteger,
-{
-}
-
-impl<S, T> NttGlwe<S, T>
-where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
 {

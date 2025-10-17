@@ -1,5 +1,5 @@
 use primus_integer::{UnsignedInteger, izip};
-use primus_ntt::{Dcrt, DcrtTable, Ntt};
+use primus_ntt::{Dcrt, DcrtTable};
 use primus_poly::{ArrayBase, Data, DataMut, DataOwned, RawData};
 use primus_reduce::FieldContext;
 
@@ -20,3 +20,28 @@ impl_bytes_conversion!(DcrtRgsw<S, T>);
 impl_zero!(DcrtRgsw<S, T>);
 impl_basic_operation_multiple_modulus!(DcrtRgsw<S, T>);
 impl_crt_intt!(DcrtRgsw<S, T>, CrtRgsw);
+
+impl<S, T> DcrtRgsw<S, T>
+where
+    S: RawData<Elem = T> + DataMut,
+    T: UnsignedInteger,
+{
+    #[inline]
+    pub fn iter_dcrt_rgsw_mut(
+        &mut self,
+        dcrt_rgsw_len: usize,
+    ) -> std::slice::ChunksExactMut<'_, T> {
+        self.data.chunks_exact_mut(dcrt_rgsw_len)
+    }
+}
+
+impl<S, T> DcrtRgsw<S, T>
+where
+    S: RawData<Elem = T> + Data,
+    T: UnsignedInteger,
+{
+    #[inline]
+    pub fn iter_dcrt_rgsw(&self, dcrt_rgsw_len: usize) -> std::slice::ChunksExact<'_, T> {
+        self.data.chunks_exact(dcrt_rgsw_len)
+    }
+}

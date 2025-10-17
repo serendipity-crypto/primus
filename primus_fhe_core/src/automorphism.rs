@@ -176,33 +176,33 @@ where
         &self.table
     }
 
-    pub fn automorphism_inplace<A, B>(
-        &self,
-        ciphertext: &CrtGlweCiphertext<A>,
-        result: &mut CrtGlweCiphertext<B>,
-    ) where
-        A: RawData<Elem = T> + Data,
-        B: RawData<Elem = T> + DataMut,
-    {
-        let poly_length = self.poly_length;
-        let single_modulus_len = self.dimension * poly_length;
+    // pub fn automorphism_inplace<A, B>(
+    //     &self,
+    //     ciphertext: &CrtGlweCiphertext<A>,
+    //     result: &mut CrtGlweCiphertext<B>,
+    // ) where
+    //     A: RawData<Elem = T> + Data,
+    //     B: RawData<Elem = T> + DataMut,
+    // {
+    //     let poly_length = self.poly_length;
+    //     let single_modulus_len = self.dimension * poly_length;
 
-        izip!(
-            result.iter_each_modulus_mut(single_modulus_len),
-            ciphertext.iter_each_modulus(single_modulus_len),
-            self.moduli(),
-        )
-        .for_each(|(glwe_out, glwe_in, modulus)| {
-            glwe_out
-                .chunks_exact_mut(poly_length)
-                .zip(glwe_in.chunks_exact(poly_length))
-                .for_each(|(poly_out, poly_in)| {
-                    poly_auto_inplace(poly_in, &self.auto_helper, poly_out, *modulus);
-                });
-        });
+    //     izip!(
+    //         result.iter_each_modulus_mut(single_modulus_len),
+    //         ciphertext.iter_each_modulus(single_modulus_len),
+    //         self.moduli(),
+    //     )
+    //     .for_each(|(glwe_out, glwe_in, modulus)| {
+    //         glwe_out
+    //             .chunks_exact_mut(poly_length)
+    //             .zip(glwe_in.chunks_exact(poly_length))
+    //             .for_each(|(poly_out, poly_in)| {
+    //                 poly_auto_inplace(poly_in, &self.auto_helper, poly_out, *modulus);
+    //             });
+    //     });
 
-        todo!()
-    }
+    //     todo!()
+    // }
 
     pub fn moduli_count(&self) -> usize {
         self.moduli.len()

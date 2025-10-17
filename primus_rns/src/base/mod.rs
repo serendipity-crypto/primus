@@ -161,14 +161,14 @@ where
         }
     }
 
-    pub fn decompose_polynomial_inplace<R, W>(
+    pub fn decompose_polynomial_inplace<A, B>(
         &self,
-        big_uint_poly: &BigUintPolynomial<R>,
-        crt_poly: &mut CrtPolynomial<W>,
+        big_uint_poly: &BigUintPolynomial<A>,
+        crt_poly: &mut CrtPolynomial<B>,
         poly_length: usize,
     ) where
-        R: RawData<Elem = T> + Data,
-        W: RawData<Elem = T> + DataMut,
+        A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + DataMut,
     {
         let value_len = self.moduli_product.len();
         for (poly, &modulus) in crt_poly
@@ -253,14 +253,14 @@ where
         }
     }
 
-    pub fn compose_polynomial_inplace<R, W>(
+    pub fn compose_polynomial_inplace<A, B>(
         &self,
-        crt_poly: &CrtPolynomial<R>,
-        big_uint_poly: &mut BigUintPolynomial<W>,
+        crt_poly: &CrtPolynomial<A>,
+        big_uint_poly: &mut BigUintPolynomial<B>,
         poly_length: usize,
     ) where
-        R: RawData<Elem = T> + Data,
-        W: RawData<Elem = T> + DataMut,
+        A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + DataMut,
     {
         let value_len = self.moduli_product.len();
 

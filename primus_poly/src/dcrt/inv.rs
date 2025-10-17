@@ -13,7 +13,7 @@ where
 {
     /// Try to calculate the inverse of the polynomial.
     #[inline]
-    pub fn try_inv<M>(mut self, moduli: &[M], poly_length: usize) -> Result<Self, Self>
+    pub fn try_inv<M>(mut self, poly_length: usize, moduli: &[M]) -> Result<Self, Self>
     where
         M: Copy + ReduceInvAssign<T>,
     {
@@ -22,7 +22,7 @@ where
         } else {
             self.iter_each_modulus_mut(poly_length)
                 .zip(moduli)
-                .for_each(|(poly, modulus)| {
+                .for_each(|(poly, &modulus)| {
                     poly.iter_mut().for_each(|v| modulus.reduce_inv_assign(v))
                 });
             Ok(self)
