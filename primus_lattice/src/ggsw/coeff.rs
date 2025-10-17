@@ -3,7 +3,7 @@ use primus_ntt::{Ntt, NttTable};
 use primus_poly::{ArrayBase, Data, DataMut, DataOwned, RawData};
 use primus_reduce::FieldContext;
 
-use crate::NttGgsw;
+use super::NttGgsw;
 
 /// Represents a ciphertext in the General-GSW homomorphic encryption scheme.
 #[derive(Clone)]

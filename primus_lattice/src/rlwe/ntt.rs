@@ -3,7 +3,7 @@ use primus_ntt::{Ntt, NttTable};
 use primus_poly::{ArrayBase, Data, DataMut, DataOwned, NttPolynomial, RawData};
 use primus_reduce::FieldContext;
 
-use crate::Rlwe;
+use super::Rlwe;
 
 /// A cryptographic structure for Ring Learning with Errors (RLWE).
 #[derive(Clone)]

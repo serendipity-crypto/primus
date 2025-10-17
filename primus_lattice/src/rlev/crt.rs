@@ -3,7 +3,7 @@ use primus_ntt::{Dcrt, DcrtTable, Ntt};
 use primus_poly::{ArrayBase, Data, DataMut, DataOwned, RawData};
 use primus_reduce::FieldContext;
 
-use crate::DcrtRlev;
+use super::DcrtRlev;
 
 /// A representation of Ring Learning with Errors (RLWE) ciphertexts with respect to different base,
 /// used to control noise growth in polynomial multiplications.

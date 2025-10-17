@@ -3,22 +3,12 @@
 #[macro_use]
 mod macros;
 
-mod glwe;
-mod lwe;
-mod rlwe;
+pub mod glwe;
+pub mod lwe;
+pub mod rlwe;
 
-mod glev;
-mod rlev;
+pub mod glev;
+pub mod rlev;
 
-mod ggsw;
-mod rgsw;
-
-pub use glwe::{BigUintGlwe, CrtGlwe, DcrtGlwe, Glwe, NttGlwe};
-pub use lwe::{Lwe, MultiMsgLwe};
-pub use rlwe::{CrtRlwe, DcrtRlwe, NttRlwe, Rlwe, TruncatedRlwe};
-
-pub use glev::{CrtGlev, DcrtGlev, Glev, NttGlev};
-pub use rlev::{CrtRlev, DcrtRlev, NttRlev, Rlev};
-
-pub use ggsw::{CrtGgsw, DcrtGgsw, Ggsw, NttGgsw};
-pub use rgsw::{CrtRgsw, DcrtRgsw, NttRgsw, Rgsw};
+pub mod ggsw;
+pub mod rgsw;

@@ -5,7 +5,7 @@ use primus_poly::{
 };
 use primus_reduce::FieldContext;
 
-use crate::DcrtRlwe;
+use super::DcrtRlwe;
 
 /// A cryptographic structure for Ring Learning with Errors (RLWE).
 #[derive(Clone)]

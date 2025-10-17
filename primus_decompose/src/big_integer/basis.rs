@@ -34,7 +34,7 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
         modulus: &[T],
         log_basis: u32,
         reverse_length: Option<usize>,
-        base: &RNSBase<T, M>,
+        rns_base: &RNSBase<T, M>,
     ) -> Self
     where
         M: FieldContext<T>,
@@ -146,7 +146,11 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
 
         let mut scalars_residue = vec![T::ZERO; len * decompose_length];
 
-        base.decompose_multiple_values_inplace(&scalars, &mut scalars_residue, decompose_length);
+        rns_base.decompose_multiple_values_inplace(
+            &scalars,
+            &mut scalars_residue,
+            decompose_length,
+        );
 
         let mut value_masks = Vec::with_capacity(decompose_length);
         let mut prev = ValueMask::new(basis_minus_one, drop_bits);

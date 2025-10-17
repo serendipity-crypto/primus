@@ -3,7 +3,7 @@ use primus_ntt::{Ntt, NttTable};
 use primus_poly::{ArrayBase, Data, DataMut, DataOwned, RawData};
 use primus_reduce::FieldContext;
 
-use crate::Glev;
+use super::Glev;
 
 /// A representation of Module Learning with Errors (MLWE) ciphertexts with respect to different base,
 /// used to control noise growth in polynomial multiplications.

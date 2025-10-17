@@ -5,7 +5,7 @@ use primus_poly::{
 };
 use primus_reduce::FieldContext;
 
-use crate::DcrtGlwe;
+use super::DcrtGlwe;
 
 /// A cryptographic structure for Module(General) Learning with Errors (MLWE, GLWE).
 #[derive(Clone)]

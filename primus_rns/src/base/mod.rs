@@ -117,6 +117,11 @@ where
         &self.inv_punctured_product_mod_modulus
     }
 
+    #[inline]
+    pub fn single_value_len(&self) -> usize {
+        self.moduli_product.len()
+    }
+
     /// Decomposes a value into its RNS representation.
     #[inline]
     pub fn decompose(&self, value: &[T]) -> Vec<T> {

@@ -7,7 +7,9 @@ use primus_reduce::{
     ops::{ReduceNeg, ReduceNegAssign},
 };
 
-use crate::{Lwe, MultiMsgLwe, NttRlwe};
+use crate::lwe::{Lwe, MultiMsgLwe};
+
+use super::NttRlwe;
 
 /// A cryptographic structure for Ring Learning with Errors (RLWE).
 #[derive(Clone)]

@@ -3,7 +3,7 @@ use primus_ntt::{Dcrt, DcrtTable, Ntt};
 use primus_poly::{ArrayBase, Data, DataMut, DataOwned, RawData};
 use primus_reduce::FieldContext;
 
-use crate::CrtGgsw;
+use super::CrtGgsw;
 
 /// Represents a ciphertext in the Ring-GSW (Ring Learning With Errors) homomorphic encryption scheme.
 #[derive(Clone)]

@@ -3,7 +3,7 @@ use primus_ntt::{Ntt, NttTable};
 use primus_poly::{ArrayBase, Data, DataMut, DataOwned, NttPolynomial, RawData};
 use primus_reduce::FieldContext;
 
-use crate::NttGlwe;
+use super::NttGlwe;
 
 /// A cryptographic structure for Module(General) Learning with Errors (MLWE, GLWE).
 #[derive(Clone)]
