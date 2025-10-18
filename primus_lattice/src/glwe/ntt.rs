@@ -42,7 +42,7 @@ where
     {
         let poly_length = polynomial.poly_length();
 
-        self.data.chunks_exact_mut(poly_length).for_each(|p| {
+        self.iter_ntt_poly_mut(poly_length).for_each(|p| {
             NttPolynomial(ArrayBase(p)).mul_assign(polynomial, modulus);
         });
     }
@@ -74,9 +74,8 @@ where
     {
         let poly_length = polynomial.poly_length();
 
-        self.data
-            .chunks_exact(poly_length)
-            .zip(result.data.chunks_exact_mut(poly_length))
+        self.iter_ntt_poly(poly_length)
+            .zip(result.iter_ntt_poly_mut(poly_length))
             .for_each(|(x, y)| {
                 NttPolynomial(ArrayBase(x)).mul_inplace(
                     polynomial,

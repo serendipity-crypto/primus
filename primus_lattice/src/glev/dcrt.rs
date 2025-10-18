@@ -42,7 +42,7 @@ where
 {
     pub fn mul_polynomial_inplace<M, Table, A, B>(
         &self,
-        polynomial: &BigUintPolynomial<A>,
+        big_uint_polynomial: &BigUintPolynomial<A>,
         result: &mut DcrtGlwe<B>,
         dimension: usize,
         basis: &BigUintApproxSignedBasis<T>,
@@ -58,41 +58,44 @@ where
 
         let poly_length = table.poly_length();
         let single_value_len = rns_base.single_value_len();
+        let big_uint_poly_len = big_uint_polynomial.len();
 
-        debug_assert_eq!(polynomial.len(), single_value_len * poly_length);
+        debug_assert_eq!(big_uint_poly_len, single_value_len * poly_length);
 
         let moduli = rns_base.moduli();
         let moduli_count = moduli.len();
 
-        let glwe_len = (dimension + 1) * poly_length;
-        let dcrt_glwe_len = moduli_count * glwe_len;
+        let dcrt_poly_len = moduli_count * poly_length;
+        let dcrt_glwe_len = (dimension + 1) * dcrt_poly_len;
 
-        let mut adjust_values = vec![T::ZERO; polynomial.len()];
-        let mut decomposed_values = vec![T::ZERO; polynomial.len()];
+        let mut adjust_values = vec![T::ZERO; big_uint_poly_len];
+        let mut decomposed_values = vec![T::ZERO; big_uint_poly_len];
         let mut carries = vec![false; poly_length];
-        let mut multi_residues = vec![T::ZERO; poly_length * moduli_count];
+        let mut multi_residues = vec![T::ZERO; dcrt_poly_len];
 
         basis.init_value_carry_slice(
-            polynomial.as_slice(),
-            &mut adjust_values,
-            &mut carries,
+            big_uint_polynomial.as_slice(),
+            adjust_values.as_mut(),
+            carries.as_mut(),
             single_value_len,
         );
 
         izip!(self.iter_dcrt_glwe(dcrt_glwe_len), basis.decompose_iter()).for_each(
             |(dcrt_glwe, once_decompose)| {
                 once_decompose.decompose_slice_inplace(
-                    &adjust_values,
-                    &mut decomposed_values,
-                    &mut carries,
+                    adjust_values.as_ref(),
+                    decomposed_values.as_mut(),
+                    carries.as_mut(),
                     single_value_len,
                 );
 
                 rns_base.decompose_multiple_values_inplace(
-                    &decomposed_values,
-                    &mut multi_residues,
+                    decomposed_values.as_ref(),
+                    multi_residues.as_mut(),
                     poly_length,
                 );
+
+                table.transform_slice(multi_residues.as_mut());
 
                 result.add_dcrt_glwe_mul_dcrt_polynomial_assign(
                     &DcrtGlwe::new(ArrayBase(dcrt_glwe)),

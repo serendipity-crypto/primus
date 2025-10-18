@@ -51,13 +51,12 @@ where
         B: RawData<Elem = T> + DataMut,
     {
         let poly_length = table.poly_length();
-        let crt_poly_length = table.crt_poly_length();
+        let crt_poly_len = table.crt_poly_length();
 
         result.data.copy_from_slice(self.data.as_ref());
 
         result
-            .data
-            .chunks_exact_mut(crt_poly_length)
+            .iter_dcrt_poly_mut(crt_poly_len)
             .for_each(|crt_poly| {
                 table.transform_slice(crt_poly);
                 DcrtPolynomial(ArrayBase(crt_poly)).mul_assign(

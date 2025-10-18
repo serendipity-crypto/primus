@@ -46,8 +46,8 @@ where
         let big_uint_poly_length = poly_length * single_value_len;
 
         izip!(
-            self.data.chunks_exact_mut(big_uint_poly_length),
-            crt_glwe.data.chunks_exact(crt_poly_length),
+            self.iter_big_uint_poly_mut(big_uint_poly_length),
+            crt_glwe.iter_crt_poly(crt_poly_length),
         )
         .for_each(|(big_uint_poly, crt_poly)| {
             rns_base.compose_multiple_values_inplace(crt_poly, big_uint_poly, poly_length);
@@ -76,8 +76,8 @@ where
         let big_uint_poly_length = poly_length * single_value_len;
 
         izip!(
-            self.data.chunks_exact(big_uint_poly_length),
-            result.data.chunks_exact_mut(crt_poly_length),
+            self.iter_big_uint_poly(big_uint_poly_length),
+            result.iter_crt_poly_mut(crt_poly_length),
         )
         .for_each(|(big_uint_poly, crt_poly)| {
             rns_base.decompose_multiple_values_inplace(big_uint_poly, crt_poly, poly_length);

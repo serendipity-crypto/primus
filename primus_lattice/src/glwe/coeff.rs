@@ -50,9 +50,9 @@ where
     {
         let poly_length = ntt_table.poly_length();
 
-        result.data.copy_from_slice(self.data.as_ref());
+        result.data.copy_from_slice(self.as_ref());
 
-        result.data.chunks_exact_mut(poly_length).for_each(|poly| {
+        result.iter_ntt_poly_mut(poly_length).for_each(|poly| {
             ntt_table.transform_slice(poly);
             NttPolynomial(ArrayBase(poly)).mul_assign(ntt_polynomial, modulus);
         });

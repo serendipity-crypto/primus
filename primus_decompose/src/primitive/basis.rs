@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use super::{ScalarIter, SignedDecomposeIter};
 
 /// The basis for approximate signed decomposition.
-#[derive(Debug, Clone, Copy, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, Serialize, Deserialize)]
 #[serde(bound(deserialize = "T: UnsignedInteger"))]
 pub struct ApproxSignedBasis<T: UnsignedInteger> {
     modulus: Option<T>,

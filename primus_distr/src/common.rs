@@ -219,7 +219,7 @@ where
     T: UnsignedInteger,
     R: Rng + CryptoRng,
 {
-    let bound: f64 = 24.0 * gaussian.std_dev();
+    let bound: f64 = 24.0 * gaussian.standard_deviation();
     let bound: T = bound.as_into();
     for modulus in moduli {
         assert!(bound < *modulus);

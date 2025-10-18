@@ -174,7 +174,7 @@ impl<T: UnsignedInteger> NttRlweSecretKey<T> {
         M: FieldContext<T>,
         Table: NttTable<ValueT = T> + Ntt,
     {
-        let modulus = params.modulus;
+        let modulus = params.cipher_modulus();
         TruncatedRlwe::generate_random_zero_sample(
             zero_count,
             &self.key,
@@ -198,8 +198,8 @@ impl<T: UnsignedInteger> NttRlweSecretKey<T> {
         M: FieldContext<T>,
         Table: NttTable<ValueT = T> + Ntt,
     {
-        let poly_length = params.poly_length;
-        let modulus = params.modulus;
+        let poly_length = params.poly_length();
+        let modulus = params.cipher_modulus();
         let modulus_value = modulus.value_unchecked();
 
         let (a, b) = cipher.a_b_slices(poly_length);
@@ -214,7 +214,10 @@ impl<T: UnsignedInteger> NttRlweSecretKey<T> {
             .map(|(x, y)| {
                 decode(
                     modulus.reduce_sub(*x, y),
-                    params.plain_modulus_value,
+                    {
+                        let this = &params;
+                        this.plain_modulus_value()
+                    },
                     Some(modulus_value),
                 )
             })

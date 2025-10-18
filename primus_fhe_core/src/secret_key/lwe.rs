@@ -10,7 +10,10 @@ use crate::{
 
 /// Represents a secret key for the Learning with Errors (LWE) cryptographic scheme.
 #[derive(Clone)]
-pub struct LweSecretKey<T: UnsignedInteger> {
+pub struct LweSecretKey<T>
+where
+    T: UnsignedInteger,
+{
     pub(crate) key: Vec<T>,
     pub(crate) distr: LweSecretKeyType,
 }
@@ -55,12 +58,12 @@ impl<T: UnsignedInteger> LweSecretKey<T> {
         R: rand::Rng + rand::CryptoRng,
         M: RingContext<T>,
     {
-        let distr = params.secret_key_type;
+        let distr = params.secret_key_type();
         let key = match distr {
-            LweSecretKeyType::Binary => primus_distr::sample_binary_values(params.dimension, rng),
+            LweSecretKeyType::Binary => primus_distr::sample_binary_values(params.dimension(), rng),
             LweSecretKeyType::Ternary => primus_distr::sample_ternary_values(
-                params.cipher_modulus_minus_one,
-                params.dimension,
+                params.cipher_modulus_minus_one(),
+                params.dimension(),
                 rng,
             ),
         };
@@ -81,13 +84,13 @@ impl<T: UnsignedInteger> LweSecretKey<T> {
         Modulus: RingContext<T>,
     {
         let gaussian = params.noise_distribution();
-        let modulus = params.cipher_modulus;
+        let modulus = params.cipher_modulus();
 
         let mut ciphertext =
             LweCiphertext::generate_random_zero_sample(self.as_ref(), modulus, &gaussian, rng);
         modulus.reduce_add_assign(
             ciphertext.b_mut(),
-            encode(message, params.plain_modulus_value, modulus.value()),
+            encode(message, params.plain_modulus_value(), modulus.value()),
         );
 
         ciphertext
@@ -116,9 +119,9 @@ impl<T: UnsignedInteger> LweSecretKey<T> {
         R: rand::Rng + rand::CryptoRng,
         Modulus: RingContext<T>,
     {
-        let dimension = params.dimension;
+        let dimension = params.dimension();
         let gaussian = params.noise_distribution();
-        let modulus = params.cipher_modulus;
+        let modulus = params.cipher_modulus();
 
         let distr = modulus.uniform_distribution();
 
@@ -139,7 +142,7 @@ impl<T: UnsignedInteger> LweSecretKey<T> {
         for (&message, bi) in messages.iter().zip(b.iter_mut()) {
             modulus.reduce_add_assign(
                 bi,
-                encode(message, params.plain_modulus_value, modulus.value()),
+                encode(message, params.plain_modulus_value(), modulus.value()),
             );
         }
 
@@ -172,9 +175,9 @@ impl<T: UnsignedInteger> LweSecretKey<T> {
         R: rand::Rng + rand::CryptoRng,
         Modulus: RingContext<T>,
     {
-        let dimension = params.dimension;
+        let dimension = params.dimension();
         let gaussian = params.noise_distribution();
-        let modulus = params.cipher_modulus;
+        let modulus = params.cipher_modulus();
 
         let distr = modulus.uniform_distribution();
 
@@ -212,12 +215,12 @@ impl<T: UnsignedInteger> LweSecretKey<T> {
         Msg: TryFrom<T>,
         Modulus: RingContext<T>,
     {
-        let modulus = params.cipher_modulus;
+        let modulus = params.cipher_modulus();
 
         let a_mul_s = modulus.reduce_dot_product(cipher_text.a(), self);
         let plaintext = modulus.reduce_sub(cipher_text.b(), a_mul_s);
 
-        decode(plaintext, params.plain_modulus_value, modulus.value())
+        decode(plaintext, params.plain_modulus_value(), modulus.value())
     }
 
     /// Decrypts the [`LweCiphertext`] back to message.
@@ -231,11 +234,11 @@ impl<T: UnsignedInteger> LweSecretKey<T> {
         Msg: Copy + TryFrom<T> + TryInto<T>,
         Modulus: RingContext<T>,
     {
-        let modulus = params.cipher_modulus;
+        let modulus = params.cipher_modulus();
         let a_mul_s = modulus.reduce_dot_product(cipher_text.a(), self);
         let plaintext = modulus.reduce_sub(cipher_text.b(), a_mul_s);
 
-        let t = params.plain_modulus_value;
+        let t = params.plain_modulus_value();
         let q = modulus.value();
         let message = decode(plaintext, t, q);
         let fresh = encode(message, t, q);
@@ -259,7 +262,7 @@ impl<T: UnsignedInteger> LweSecretKey<T> {
         Msg: TryFrom<T>,
         Modulus: RingContext<T>,
     {
-        let modulus = params.cipher_modulus;
+        let modulus = params.cipher_modulus();
         let dimension = cipher_text.a().len();
 
         cipher_text
@@ -276,7 +279,7 @@ impl<T: UnsignedInteger> LweSecretKey<T> {
                 );
                 let plaintext = modulus.reduce_sub(b, a_mul_s);
 
-                decode(plaintext, params.plain_modulus_value, modulus.value())
+                decode(plaintext, params.plain_modulus_value(), modulus.value())
             })
             .collect()
     }

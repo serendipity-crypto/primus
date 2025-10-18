@@ -7,227 +7,155 @@ use crate::RingSecretKeyType;
 
 /// Glwe Parameters.
 #[derive(Clone)]
-pub struct GlweParameters<ValueT: UnsignedInteger, ModulusT: FieldContext<ValueT>> {
-    /// The dimension, refers to **k** in the paper.
-    pub dimension: usize,
-    /// The polynomial length, refers to **N** in the paper.
-    pub poly_length: usize,
-    /// **RLWE** message modulus, refers to **t** in the paper.
-    pub plain_modulus_value: ValueT,
-    /// **RLWE** cipher modulus minus one, refers to **Q-1**.
-    pub modulus_minus_one: ValueT,
-    /// The modulus, refers to **Q** in the paper.
-    pub modulus: ModulusT,
-    /// The distribution type of the secret key.
-    pub secret_key_type: RingSecretKeyType,
-    /// The noise error's standard deviation.
-    pub noise_standard_deviation: f64,
-}
-
-impl<ValueT: UnsignedInteger, ModulusT: FieldContext<ValueT>> GlweParameters<ValueT, ModulusT> {
-    /// Returns the dimension of this [`GlweParameters<ValueT, ModulusT>`].
-    #[inline]
-    pub fn dimension(&self) -> usize {
-        self.dimension
-    }
-
-    /// Returns the poly length of this [`GlweParameters<ValueT, ModulusT>`].
-    #[inline]
-    pub fn poly_length(&self) -> usize {
-        self.poly_length
-    }
-
-    /// Returns the cipher modulus of this [`GlweParameters<ValueT, ModulusT>`].
-    #[inline]
-    pub fn cipher_modulus(&self) -> ValueT {
-        self.modulus.value_unchecked()
-    }
-
-    /// Returns the noise distribution.
-    #[inline]
-    pub fn noise_distribution(&self) -> DiscreteGaussian<ValueT> {
-        DiscreteGaussian::new(0.0, self.noise_standard_deviation, self.modulus_minus_one).unwrap()
-    }
-
-    /// Returns the noise distribution.
-    #[inline]
-    pub fn noise_distribution_div_count(&self, count: u32) -> DiscreteGaussian<ValueT> {
-        let var = self.noise_standard_deviation * self.noise_standard_deviation;
-        let sigma = (var / count as f64).sqrt();
-        DiscreteGaussian::new(0.0, sigma, self.modulus_minus_one).unwrap()
-    }
-}
-
-/// Big Unsigned Integer Glwe Parameters.
-#[derive(Debug, Clone)]
-pub struct CrtGlweParameters<ValueT: UnsignedInteger, ModulusT: FieldContext<ValueT>> {
-    /// The dimension, refers to **k** in the paper.
-    pub dimension: usize,
-    /// The polynomial length, refers to **N** in the paper.
-    pub poly_length: usize,
-    /// **RLWE** message modulus, refers to **t** in the paper.
-    pub plain_modulus_value: ValueT,
-    /// **RLWE** cipher modulus minus one, refers to **Q-1**.
-    pub modulus_minus_one: Vec<ValueT>,
-    pub modulus: Vec<ValueT>,
-    /// The modulus, refers to **Q** in the paper.
-    pub moduli: Vec<ModulusT>,
-    /// The distribution type of the secret key.
-    pub secret_key_type: RingSecretKeyType,
-    /// The noise error's standard deviation.
-    pub noise_standard_deviation: f64,
-}
-
-impl<ValueT, ModulusT> CrtGlweParameters<ValueT, ModulusT>
+pub struct GlweParameters<T, M>
 where
-    ValueT: UnsignedInteger,
-    ModulusT: FieldContext<ValueT>,
+    T: UnsignedInteger,
+    M: FieldContext<T>,
 {
-    /// Returns the dimension of this [`CrtGlweParameters<ValueT, ModulusT>`].
-    #[inline]
-    pub fn dimension(&self) -> usize {
-        self.dimension
-    }
-
-    /// Returns the poly length of this [`CrtGlweParameters<ValueT, ModulusT>`].
-    #[inline]
-    pub fn poly_length(&self) -> usize {
-        self.poly_length
-    }
-
-    /// Returns a reference to the moduli of this [`CrtGlweParameters<ValueT, ModulusT>`].
-    #[inline]
-    pub fn moduli(&self) -> &[ModulusT] {
-        &self.moduli
-    }
-
-    #[inline]
-    pub fn value_len(&self) -> usize {
-        self.modulus.len()
-    }
-}
-
-/// Glev Parameters.
-#[derive(Clone)]
-pub struct GlevParameters<ValueT: UnsignedInteger, ModulusT: FieldContext<ValueT>> {
     /// The dimension, refers to **k** in the paper.
     dimension: usize,
-    /// The dimension, refers to **N** in the paper.
+    /// The polynomial length, refers to **N** in the paper.
     poly_length: usize,
-    /// cipher modulus minus one, refers to **Q-1**.
-    modulus_minus_one: ValueT,
+    /// **RLWE** message modulus, refers to **t** in the paper.
+    plain_modulus_value: T,
+    /// **RLWE** cipher modulus minus one, refers to **Q-1**.
+    cipher_modulus_minus_one: T,
     /// The modulus, refers to **Q** in the paper.
-    modulus: ModulusT,
+    cipher_modulus: M,
     /// The distribution type of the secret key.
     secret_key_type: RingSecretKeyType,
-    /// The noise error's standard deviation.
-    noise_standard_deviation: f64,
     /// The noise's distribution.
-    noise_distribution: DiscreteGaussian<ValueT>,
-    /// Decompose basis for `Q`.
-    basis: ApproxSignedBasis<ValueT>,
+    noise_distribution: DiscreteGaussian<T>,
 }
 
-impl<ValueT: UnsignedInteger, ModulusT: FieldContext<ValueT>> GlevParameters<ValueT, ModulusT> {
-    /// Creates a new [`GlevParameters<ValueT, ModulusT>`].
-    #[inline]
+impl<T, M> GlweParameters<T, M>
+where
+    T: UnsignedInteger,
+    M: FieldContext<T>,
+{
+    /// Creates a new [`GlweParameters<T, M>`].
     pub fn new(
         dimension: usize,
         poly_length: usize,
-        modulus: ModulusT,
+        plain_modulus_value: T,
+        cipher_modulus: M,
         secret_key_type: RingSecretKeyType,
         noise_standard_deviation: f64,
-        basis: ApproxSignedBasis<ValueT>,
     ) -> Self {
-        let modulus_minus_one = modulus.value_unchecked() - ValueT::ONE;
+        let cipher_modulus_minus_one = cipher_modulus.minus_one();
 
         let noise_distribution =
-            DiscreteGaussian::new(0.0, noise_standard_deviation, modulus_minus_one).unwrap();
+            DiscreteGaussian::new(0.0, noise_standard_deviation, cipher_modulus_minus_one).unwrap();
 
         Self {
             dimension,
             poly_length,
-            modulus_minus_one,
-            modulus,
+            plain_modulus_value,
+            cipher_modulus_minus_one,
+            cipher_modulus,
             secret_key_type,
-            noise_standard_deviation,
-            basis,
             noise_distribution,
         }
     }
 
-    /// Returns the dimension of this [`GlevParameters<ValueT, ModulusT>`].
+    /// Returns the dimension of this [`GlweParameters<T, M>`].
     #[inline]
     pub fn dimension(&self) -> usize {
         self.dimension
     }
 
-    /// Returns the poly length of this [`GlevParameters<ValueT, ModulusT>`].
+    /// Returns the poly length of this [`GlweParameters<T, M>`].
     #[inline]
     pub fn poly_length(&self) -> usize {
         self.poly_length
     }
 
-    /// Returns the modulus of this [`GlevParameters<ValueT, ModulusT>`].
-    #[inline]
-    pub fn modulus(&self) -> ModulusT {
-        self.modulus
+    /// Returns the plain modulus value of this [`GlweParameters<T, M>`].
+    pub fn plain_modulus_value(&self) -> T {
+        self.plain_modulus_value
     }
 
-    /// Returns a reference to the noise distribution of this [`GlevParameters<ValueT, ModulusT>`].
+    /// Returns the cipher modulus of this [`GlweParameters<T, M>`].
+    pub fn cipher_modulus(&self) -> M {
+        self.cipher_modulus
+    }
+
+    /// Returns the cipher modulus of this [`GlweParameters<T, M>`].
     #[inline]
-    pub fn noise_distribution(&self) -> &DiscreteGaussian<ValueT> {
+    pub fn cipher_modulus_value(&self) -> T {
+        self.cipher_modulus.value_unchecked()
+    }
+
+    /// Returns the cipher modulus minus one of this [`GlweParameters<T, M>`].
+    pub fn cipher_modulus_minus_one(&self) -> T {
+        self.cipher_modulus_minus_one
+    }
+
+    /// Returns the secret key type of this [`GlweParameters<T, M>`].
+    pub fn secret_key_type(&self) -> RingSecretKeyType {
+        self.secret_key_type
+    }
+
+    /// Returns a reference to the noise distribution of this [`GlweParameters<T, M>`].
+    #[inline]
+    pub fn noise_distribution(&self) -> &DiscreteGaussian<T> {
         &self.noise_distribution
     }
 
-    /// Returns the basis of this [`GlevParameters<ValueT, ModulusT>`].
+    /// Returns the noise distribution.
     #[inline]
-    pub fn basis(&self) -> ApproxSignedBasis<ValueT> {
-        self.basis
+    pub fn noise_distribution_div_count(&self, count: u32) -> DiscreteGaussian<T> {
+        let noise_standard_deviation = self.noise_distribution.standard_deviation();
+        let var = noise_standard_deviation * noise_standard_deviation;
+        let sigma = (var / count as f64).sqrt();
+        DiscreteGaussian::new(0.0, sigma, self.cipher_modulus_minus_one).unwrap()
     }
 }
 
-/// Ggsw Parameters.
-pub type GgswParameters<ValueT, ModulusT> = GlevParameters<ValueT, ModulusT>;
-
-/// Big Unsigned Integer Ggsw Parameters.
+/// Big Unsigned Integer Glwe Parameters.
 #[derive(Clone)]
-pub struct CrtGlevParameters<ValueT: UnsignedInteger, ModulusT: FieldContext<ValueT>> {
+pub struct CrtGlweParameters<T, M>
+where
+    T: UnsignedInteger,
+    M: FieldContext<T>,
+{
     /// The dimension, refers to **k** in the paper.
     dimension: usize,
-    /// The dimension, refers to **N** in the paper.
+    /// The polynomial length, refers to **N** in the paper.
     poly_length: usize,
-    /// cipher modulus minus one, refers to **Q-1**.
-    modulus_minus_one: Vec<ValueT>,
-    /// The modulus, refers to **Q** in the paper.
-    modulus: Vec<ValueT>,
-    moduli: Vec<ModulusT>,
+    /// **RLWE** message modulus, refers to **t** in the paper.
+    plain_modulus_value: T,
+    /// **RLWE** cipher modulus minus one, refers to **Q-1**.
+    cipher_modulus_minus_one: Vec<T>,
+    /// **RLWE** cipher modulus, refers to **Q**.
+    cipher_modulus: Vec<T>,
+    /// The moduli, refers to **Q=Q1*Q2*...** in the paper.
+    cipher_moduli: Vec<M>,
     /// The distribution type of the secret key.
     secret_key_type: RingSecretKeyType,
-    /// The noise error's standard deviation.
-    noise_standard_deviation: f64,
-    /// The noise's distribution.
-    noise_distribution: SignedDiscreteGaussian<ValueT::SignedInteger>,
-    /// Decompose basis for `Q`.
-    basis: BigUintApproxSignedBasis<ValueT>,
+    /// The noise distribution
+    noise_distribution: SignedDiscreteGaussian<T>,
 }
 
-impl<ValueT: UnsignedInteger, ModulusT: FieldContext<ValueT>> CrtGlevParameters<ValueT, ModulusT> {
-    /// Creates a new [`CrtGlevParameters<ValueT, ModulusT>`].
-    #[inline]
+impl<T, M> CrtGlweParameters<T, M>
+where
+    T: UnsignedInteger,
+    M: FieldContext<T>,
+{
+    /// Creates a new [`CrtGlweParameters<T, M>`].
     pub fn new(
         dimension: usize,
         poly_length: usize,
-        moduli: &[ModulusT],
+        plain_modulus_value: T,
+        cipher_moduli: Vec<M>,
         secret_key_type: RingSecretKeyType,
         noise_standard_deviation: f64,
-        basis: BigUintApproxSignedBasis<ValueT>,
     ) -> Self {
-        let modulus_values: Vec<ValueT> = moduli.iter().map(|m| m.value_unchecked()).collect();
-        let modulus = multiply_many_values(&modulus_values);
-        let modulus_minus_one = {
-            let mut temp = modulus.clone();
-            temp[0] -= ValueT::ONE;
+        let modulus_values: Vec<T> = cipher_moduli.iter().map(|m| m.value_unchecked()).collect();
+        let cipher_modulus = multiply_many_values(&modulus_values);
+        let cipher_modulus_minus_one = {
+            let mut temp = cipher_modulus.clone();
+            temp[0] -= T::ONE;
             temp
         };
 
@@ -237,62 +165,305 @@ impl<ValueT: UnsignedInteger, ModulusT: FieldContext<ValueT>> CrtGlevParameters<
         Self {
             dimension,
             poly_length,
-            modulus_minus_one,
-            modulus,
-            moduli: moduli.to_vec(),
+            plain_modulus_value,
+            cipher_modulus_minus_one,
+            cipher_modulus,
+            cipher_moduli,
             secret_key_type,
-            noise_standard_deviation,
-            basis,
             noise_distribution,
         }
     }
 
+    /// Returns the dimension of this [`CrtGlweParameters<T, M>`].
     #[inline]
     pub fn dimension(&self) -> usize {
         self.dimension
     }
 
+    /// Returns the poly length of this [`CrtGlweParameters<T, M>`].
     #[inline]
     pub fn poly_length(&self) -> usize {
         self.poly_length
     }
 
-    #[inline]
-    pub fn modulus(&self) -> &[ValueT] {
-        &self.modulus
+    /// Returns the plain modulus value of this [`CrtGlweParameters<T, M>`].
+    pub fn plain_modulus_value(&self) -> T {
+        self.plain_modulus_value
     }
 
-    #[inline]
-    pub fn value_len(&self) -> usize {
-        self.modulus.len()
+    /// Returns a reference to the cipher modulus of this [`CrtGlweParameters<T, M>`].
+    pub fn cipher_modulus(&self) -> &[T] {
+        &self.cipher_modulus
     }
 
-    #[inline]
-    pub fn moduli(&self) -> &[ModulusT] {
-        &self.moduli
+    /// Returns a reference to the modulus minus one of this [`CrtGlweParameters<T, M>`].
+    pub fn cipher_modulus_minus_one(&self) -> &[T] {
+        &self.cipher_modulus_minus_one
     }
 
+    /// Returns a reference to the moduli of this [`CrtGlweParameters<T, M>`].
     #[inline]
-    pub fn moduli_count(&self) -> usize {
-        self.moduli.len()
+    pub fn cipher_moduli(&self) -> &[M] {
+        &self.cipher_moduli
     }
 
+    /// Returns the moduli count of this [`CrtGlweParameters<T, M>`].
+    pub fn cipher_moduli_count(&self) -> usize {
+        self.cipher_moduli.len()
+    }
+
+    /// Returns the big uint value len of this [`CrtGlweParameters<T, M>`].
+    #[inline]
+    pub fn big_uint_value_len(&self) -> usize {
+        self.cipher_modulus.len()
+    }
+
+    /// Returns the secret key type of this [`CrtGlweParameters<T, M>`].
+    pub fn secret_key_type(&self) -> RingSecretKeyType {
+        self.secret_key_type
+    }
+
+    /// Returns a reference to the noise distribution of this [`CrtGlweParameters<T, M>`].
+    pub fn noise_distribution(&self) -> &SignedDiscreteGaussian<T> {
+        &self.noise_distribution
+    }
+
+    /// Returns the noise standard deviation of this [`CrtGlweParameters<T, M>`].
+    pub fn noise_standard_deviation(&self) -> f64 {
+        self.noise_distribution.standard_deviation()
+    }
+}
+
+/// Glev Parameters.
+#[derive(Clone)]
+pub struct GlevParameters<T, M>
+where
+    T: UnsignedInteger,
+    M: FieldContext<T>,
+{
+    /// The dimension, refers to **k** in the paper.
+    dimension: usize,
+    /// The dimension, refers to **N** in the paper.
+    poly_length: usize,
+    /// cipher modulus minus one, refers to **Q-1**.
+    cipher_modulus_minus_one: T,
+    /// The modulus, refers to **Q** in the paper.
+    cipher_modulus: M,
+    /// The distribution type of the secret key.
+    secret_key_type: RingSecretKeyType,
+    /// The noise's distribution.
+    noise_distribution: DiscreteGaussian<T>,
+    /// Decompose basis for `Q`.
+    basis: ApproxSignedBasis<T>,
+}
+
+impl<T, M> GlevParameters<T, M>
+where
+    T: UnsignedInteger,
+    M: FieldContext<T>,
+{
+    /// Creates a new [`GlevParameters<T, M>`].
+    #[inline]
+    pub fn new(
+        dimension: usize,
+        poly_length: usize,
+        cipher_modulus: M,
+        secret_key_type: RingSecretKeyType,
+        noise_standard_deviation: f64,
+        basis: ApproxSignedBasis<T>,
+    ) -> Self {
+        let cipher_modulus_minus_one = cipher_modulus.minus_one();
+
+        let noise_distribution =
+            DiscreteGaussian::new(0.0, noise_standard_deviation, cipher_modulus_minus_one).unwrap();
+
+        Self {
+            dimension,
+            poly_length,
+            cipher_modulus_minus_one,
+            cipher_modulus,
+            secret_key_type,
+            basis,
+            noise_distribution,
+        }
+    }
+
+    /// Returns the dimension of this [`GlevParameters<T, M>`].
+    #[inline]
+    pub fn dimension(&self) -> usize {
+        self.dimension
+    }
+
+    /// Returns the poly length of this [`GlevParameters<T, M>`].
+    #[inline]
+    pub fn poly_length(&self) -> usize {
+        self.poly_length
+    }
+
+    /// Returns the cipher modulus minus one of this [`GlevParameters<T, M>`].
+    pub fn cipher_modulus_minus_one(&self) -> T {
+        self.cipher_modulus_minus_one
+    }
+
+    /// Returns the modulus of this [`GlevParameters<T, M>`].
+    #[inline]
+    pub fn cipher_modulus(&self) -> M {
+        self.cipher_modulus
+    }
+
+    /// Returns the secret key type of this [`GlevParameters<T, M>`].
+    pub fn secret_key_type(&self) -> RingSecretKeyType {
+        self.secret_key_type
+    }
+
+    /// Returns a reference to the noise distribution of this [`GlevParameters<T, M>`].
+    #[inline]
+    pub fn noise_distribution(&self) -> &DiscreteGaussian<T> {
+        &self.noise_distribution
+    }
+
+    /// Returns the noise standard deviation of this [`GlevParameters<T, M>`].
+    pub fn noise_standard_deviation(&self) -> f64 {
+        self.noise_distribution.standard_deviation()
+    }
+
+    /// Returns a reference to the basis of this [`GlevParameters<T, M>`].
+    #[inline]
+    pub fn basis(&self) -> &ApproxSignedBasis<T> {
+        &self.basis
+    }
+}
+
+/// Ggsw Parameters.
+pub type GgswParameters<T, M> = GlevParameters<T, M>;
+
+/// Big Unsigned Integer Ggsw Parameters.
+#[derive(Clone)]
+pub struct CrtGlevParameters<T, M>
+where
+    T: UnsignedInteger,
+    M: FieldContext<T>,
+{
+    /// The dimension, refers to **k** in the paper.
+    dimension: usize,
+    /// The dimension, refers to **N** in the paper.
+    poly_length: usize,
+    /// cipher modulus minus one, refers to **Q-1**.
+    cipher_modulus_minus_one: Vec<T>,
+    /// The modulus, refers to **Q** in the paper.
+    cipher_modulus: Vec<T>,
+    /// The moduli, refers to **Q=Q1*Q2*...** in the paper.
+    cipher_moduli: Vec<M>,
+    /// The distribution type of the secret key.
+    secret_key_type: RingSecretKeyType,
+    /// The noise's distribution.
+    noise_distribution: SignedDiscreteGaussian<<T as UnsignedInteger>::SignedInteger>,
+    /// Decompose basis for `Q`.
+    basis: BigUintApproxSignedBasis<T>,
+}
+
+impl<T, M> CrtGlevParameters<T, M>
+where
+    T: UnsignedInteger,
+    M: FieldContext<T>,
+{
+    /// Creates a new [`CrtGlevParameters<T, M>`].
+    #[inline]
+    pub fn new(
+        dimension: usize,
+        poly_length: usize,
+        moduli: &[M],
+        secret_key_type: RingSecretKeyType,
+        noise_standard_deviation: f64,
+        basis: BigUintApproxSignedBasis<T>,
+    ) -> Self {
+        let modulus_values: Vec<T> = moduli.iter().map(|m| m.value_unchecked()).collect();
+        let modulus = multiply_many_values(&modulus_values);
+        let modulus_minus_one = {
+            let mut temp = modulus.clone();
+            temp[0] -= T::ONE;
+            temp
+        };
+
+        let noise_distribution =
+            SignedDiscreteGaussian::new(0.0, noise_standard_deviation).unwrap();
+
+        Self {
+            dimension,
+            poly_length,
+            cipher_modulus_minus_one: modulus_minus_one,
+            cipher_modulus: modulus,
+            cipher_moduli: moduli.to_vec(),
+            secret_key_type,
+            basis,
+            noise_distribution,
+        }
+    }
+
+    /// Returns the dimension of this [`CrtGlevParameters<T, M>`].
+    #[inline]
+    pub fn dimension(&self) -> usize {
+        self.dimension
+    }
+
+    /// Returns the poly length of this [`CrtGlevParameters<T, M>`].
+    #[inline]
+    pub fn poly_length(&self) -> usize {
+        self.poly_length
+    }
+
+    /// Returns a reference to the cipher modulus of this [`CrtGlevParameters<T, M>`].
+    #[inline]
+    pub fn cipher_modulus(&self) -> &[T] {
+        &self.cipher_modulus
+    }
+
+    /// Returns a reference to the cipher modulus minus one of this [`CrtGlevParameters<T, M>`].
+    pub fn cipher_modulus_minus_one(&self) -> &[T] {
+        &self.cipher_modulus_minus_one
+    }
+
+    /// Returns the big uint value len of this [`CrtGlevParameters<T, M>`].
+    #[inline]
+    pub fn big_uint_value_len(&self) -> usize {
+        self.cipher_modulus.len()
+    }
+
+    /// Returns a reference to the moduli of this [`CrtGlevParameters<T, M>`].
+    #[inline]
+    pub fn cipher_moduli(&self) -> &[M] {
+        &self.cipher_moduli
+    }
+
+    /// Returns the moduli count of this [`CrtGlevParameters<T, M>`].
+    #[inline]
+    pub fn cipher_moduli_count(&self) -> usize {
+        self.cipher_moduli.len()
+    }
+
+    /// Returns the secret key type of this [`CrtGlevParameters<T, M>`].
     #[inline]
     pub fn secret_key_type(&self) -> RingSecretKeyType {
         self.secret_key_type
     }
 
-    /// Returns a reference to the noise distribution of this [`CrtGlevParameters<ValueT, ModulusT>`].
+    /// Returns a reference to the noise distribution of this [`CrtGlevParameters<T, M>`].
     #[inline]
-    pub fn noise_distribution(&self) -> &SignedDiscreteGaussian<ValueT::SignedInteger> {
+    pub fn noise_distribution(&self) -> &SignedDiscreteGaussian<T::SignedInteger> {
         &self.noise_distribution
     }
 
+    /// Returns the noise standard deviation of this  [`CrtGlevParameters<T, M>`].
+    pub fn noise_standard_deviation(&self) -> f64 {
+        self.noise_distribution.standard_deviation()
+    }
+
+    /// Returns a reference to the basis of this [`CrtGlevParameters<T, M>`].
     #[inline]
-    pub fn basis(&self) -> &BigUintApproxSignedBasis<ValueT> {
+    pub fn basis(&self) -> &BigUintApproxSignedBasis<T> {
         &self.basis
     }
 }
 
 /// Big Unsigned Integer Ggsw Parameters.
-pub type CrtGgswParameters<ValueT, ModulusT> = CrtGlevParameters<ValueT, ModulusT>;
+pub type CrtGgswParameters<T, M> = CrtGlevParameters<T, M>;

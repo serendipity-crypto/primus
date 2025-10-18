@@ -86,8 +86,8 @@ impl<T: UnsignedInteger> DiscreteGaussian<T> {
         unimplemented!()
     }
 
-    /// Returns the std dev of this [`DiscreteGaussian<T>`].
-    pub fn std_dev(&self) -> f64 {
+    /// Returns the standard deviation of this [`DiscreteGaussian<T>`].
+    pub fn standard_deviation(&self) -> f64 {
         match self {
             DiscreteGaussian::Cdt(cdtsampler) => cdtsampler.std_dev(),
             #[cfg(target_os = "linux")]

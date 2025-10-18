@@ -46,8 +46,8 @@ where
     {
         let dcrt_poly_length = dcrt_polynomial.dcrt_poly_length();
         izip!(
-            self.data.chunks_exact_mut(dcrt_poly_length),
-            dcrt_glwe.data.chunks_exact(dcrt_poly_length)
+            self.iter_dcrt_poly_mut(dcrt_poly_length),
+            dcrt_glwe.iter_dcrt_poly(dcrt_poly_length)
         )
         .for_each(|(x, y)| {
             DcrtPolynomial(ArrayBase(x)).add_mul_assign(
@@ -79,11 +79,11 @@ where
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + DataMut,
     {
-        let crt_poly_length = dcrt_polynomial.dcrt_poly_length();
+        let dcrt_poly_length = dcrt_polynomial.dcrt_poly_length();
 
         izip!(
-            self.data.chunks_exact(crt_poly_length),
-            result.data.chunks_exact_mut(crt_poly_length),
+            self.iter_dcrt_poly(dcrt_poly_length),
+            result.iter_dcrt_poly_mut(dcrt_poly_length),
         )
         .for_each(|(a, b)| {
             DcrtPolynomial(ArrayBase(a)).mul_inplace(

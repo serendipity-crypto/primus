@@ -7,126 +7,172 @@ use crate::RingSecretKeyType;
 
 /// Rlwe Parameters.
 #[derive(Clone)]
-pub struct RlweParameters<ValueT: UnsignedInteger, ModulusT: FieldContext<ValueT>> {
+pub struct RlweParameters<T, M>
+where
+    T: UnsignedInteger,
+    M: FieldContext<T>,
+{
     /// The polynomial length, refers to **N** in the paper.
-    pub poly_length: usize,
+    poly_length: usize,
     /// **RLWE** message modulus, refers to **t** in the paper.
-    pub plain_modulus_value: ValueT,
+    plain_modulus_value: T,
     /// **RLWE** cipher modulus minus one, refers to **Q-1**.
-    pub modulus_minus_one: ValueT,
+    cipher_modulus_minus_one: T,
     /// The modulus, refers to **Q** in the paper.
-    pub modulus: ModulusT,
+    cipher_modulus: M,
     /// The distribution type of the secret key.
-    pub secret_key_type: RingSecretKeyType,
-    /// The noise error's standard deviation.
-    pub noise_standard_deviation: f64,
+    secret_key_type: RingSecretKeyType,
     /// The noise's distribution.
-    pub noise_distribution: DiscreteGaussian<ValueT>,
+    noise_distribution: DiscreteGaussian<T>,
 }
 
-impl<ValueT, ModulusT> RlweParameters<ValueT, ModulusT>
+impl<T, M> RlweParameters<T, M>
 where
-    ValueT: UnsignedInteger,
-    ModulusT: FieldContext<ValueT>,
+    T: UnsignedInteger,
+    M: FieldContext<T>,
 {
-    /// Creates a new [`RlweParameters<ValueT, ModulusT>`].
+    /// Creates a new [`RlweParameters<T, M>`].
     #[inline]
     pub fn new(
         poly_length: usize,
-        plain_modulus_value: ValueT,
-        modulus: ModulusT,
+        plain_modulus_value: T,
+        cipher_modulus: M,
         secret_key_type: RingSecretKeyType,
         noise_standard_deviation: f64,
     ) -> Self {
-        let modulus_minus_one = modulus.minus_one();
+        let cipher_modulus_minus_one = cipher_modulus.minus_one();
+
+        let noise_distribution =
+            DiscreteGaussian::new(0.0, noise_standard_deviation, cipher_modulus_minus_one).unwrap();
+
         Self {
             poly_length,
             plain_modulus_value,
-            modulus_minus_one,
-            modulus,
+            cipher_modulus_minus_one,
+            cipher_modulus,
             secret_key_type,
-            noise_standard_deviation,
-            noise_distribution: DiscreteGaussian::new(
-                0.0,
-                noise_standard_deviation,
-                modulus_minus_one,
-            )
-            .unwrap(),
+            noise_distribution,
         }
     }
-    /// Returns the poly length of this [`RlweParameters<ValueT, ModulusT>`].
+    /// Returns the poly length of this [`RlweParameters<T, M>`].
     #[inline]
     pub fn poly_length(&self) -> usize {
         self.poly_length
     }
 
-    /// Returns the cipher modulus of this [`RlweParameters<ValueT, ModulusT>`].
+    /// Returns the plain modulus value of this [`RlweParameters<T, M>`].
+    pub fn plain_modulus_value(&self) -> T {
+        self.plain_modulus_value
+    }
+
+    /// Returns the cipher modulus of this [`RlweParameters<T, M>`].
     #[inline]
-    pub fn cipher_modulus(&self) -> ValueT {
-        self.modulus.value_unchecked()
+    pub fn cipher_modulus_value(&self) -> T {
+        self.cipher_modulus.value_unchecked()
+    }
+
+    /// Returns the cipher modulus of this [`RlweParameters<T, M>`].
+    pub fn cipher_modulus(&self) -> M {
+        self.cipher_modulus
+    }
+
+    /// Returns the secret key type of this [`RlweParameters<T, M>`].
+    pub fn secret_key_type(&self) -> RingSecretKeyType {
+        self.secret_key_type
     }
 
     /// Returns the noise distribution.
     #[inline]
-    pub fn noise_distribution(&self) -> &DiscreteGaussian<ValueT> {
-        // DiscreteGaussian::new(0.0, self.noise_standard_deviation, self.modulus_minus_one).unwrap()
+    pub fn noise_distribution(&self) -> &DiscreteGaussian<T> {
         &self.noise_distribution
     }
 
+    /// Returns the noise standard deviation of this [`RlweParameters<T, M>`].
+    pub fn noise_standard_deviation(&self) -> f64 {
+        self.noise_distribution.standard_deviation()
+    }
+
     /// Returns the noise distribution.
     #[inline]
-    pub fn noise_distribution_div_count(&self, count: u32) -> DiscreteGaussian<ValueT> {
-        let var = self.noise_standard_deviation * self.noise_standard_deviation;
+    pub fn noise_distribution_div_count(&self, count: u32) -> DiscreteGaussian<T> {
+        let noise_standard_deviation = self.noise_standard_deviation();
+        let var = noise_standard_deviation * noise_standard_deviation;
         let sigma = (var / count as f64).sqrt();
-        DiscreteGaussian::new(0.0, sigma, self.modulus_minus_one).unwrap()
+        DiscreteGaussian::new(0.0, sigma, self.cipher_modulus_minus_one).unwrap()
     }
 }
 
 /// Rlev Parameters.
 #[derive(Clone)]
-pub struct RlevParameters<ValueT: UnsignedInteger, ModulusT: FieldContext<ValueT>> {
+pub struct RlevParameters<T, M>
+where
+    T: UnsignedInteger,
+    M: FieldContext<T>,
+{
     /// The dimension, refers to **N** in the paper.
     pub poly_length: usize,
     /// cipher modulus minus one, refers to **Q-1**.
-    pub modulus_minus_one: ValueT,
+    pub cipher_modulus_minus_one: T,
     /// The modulus, refers to **Q** in the paper.
-    pub modulus: ModulusT,
+    pub cipher_modulus: M,
     /// The distribution type of the secret key.
     pub secret_key_type: RingSecretKeyType,
-    /// The noise error's standard deviation.
-    pub noise_standard_deviation: f64,
-    /// Decompose basis for `Q`.
-    pub basis: ApproxSignedBasis<ValueT>,
     /// The noise's distribution.
-    pub noise_distribution: DiscreteGaussian<ValueT>,
+    pub noise_distribution: DiscreteGaussian<T>,
+    /// Decompose basis for `Q`.
+    pub basis: ApproxSignedBasis<T>,
 }
 
-impl<ValueT: UnsignedInteger, ModulusT: FieldContext<ValueT>> RlevParameters<ValueT, ModulusT> {
-    /// Returns the decompose basis.
-    #[inline]
-    pub fn basis(&self) -> &ApproxSignedBasis<ValueT> {
-        &self.basis
-    }
-
-    /// Returns the poly length of this [`GadgetRlweParameters<ValueT, ModulusT>`].
+impl<T, M> RlevParameters<T, M>
+where
+    T: UnsignedInteger,
+    M: FieldContext<T>,
+{
+    /// Returns the poly length of this [`RlevParameters<T, M>`].
     #[inline]
     pub fn poly_length(&self) -> usize {
         self.poly_length
     }
 
-    /// Returns the noise distribution.
+    /// Returns the cipher modulus minus one of this [`RlevParameters<T, M>`].
+    pub fn cipher_modulus_minus_one(&self) -> T {
+        self.cipher_modulus_minus_one
+    }
+
+    /// Returns the cipher modulus of this [`RlevParameters<T, M>`].
+    pub fn cipher_modulus(&self) -> M {
+        self.cipher_modulus
+    }
+
+    /// Returns the secret key type of this [`RlevParameters<T, M>`].
+    pub fn secret_key_type(&self) -> RingSecretKeyType {
+        self.secret_key_type
+    }
+
+    /// Returns the noise standard deviation of this [`RlevParameters<T, M>`].
+    pub fn noise_standard_deviation(&self) -> f64 {
+        self.noise_distribution.standard_deviation()
+    }
+
+    /// Returns a reference to the noise distribution of this [`RlevParameters<T, M>`].
     #[inline]
-    pub fn noise_distribution(&self) -> &DiscreteGaussian<ValueT> {
-        // DiscreteGaussian::new(0.0, self.noise_standard_deviation, self.modulus_minus_one).unwrap()
+    pub fn noise_distribution(&self) -> &DiscreteGaussian<T> {
         &self.noise_distribution
     }
 
     /// Returns the noise distribution.
     #[inline]
-    pub fn noise_distribution_div_count(&self, count: u32) -> DiscreteGaussian<ValueT> {
-        let var = self.noise_standard_deviation * self.noise_standard_deviation;
+    pub fn noise_distribution_div_count(&self, count: u32) -> DiscreteGaussian<T> {
+        let noise_standard_deviation = self.noise_standard_deviation();
+        let var = noise_standard_deviation * noise_standard_deviation;
         let sigma = (var / count as f64).sqrt();
-        DiscreteGaussian::new(0.0, sigma, self.modulus_minus_one).unwrap()
+        DiscreteGaussian::new(0.0, sigma, self.cipher_modulus_minus_one).unwrap()
+    }
+
+    /// Returns a reference to the basis of this [`RlevParameters<T, M>`].
+    #[inline]
+    pub fn basis(&self) -> &ApproxSignedBasis<T> {
+        &self.basis
     }
 }
 
