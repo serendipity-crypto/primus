@@ -1,6 +1,5 @@
 use std::ops::Deref;
 
-use primus_distr::DiscreteGaussian;
 use primus_integer::UnsignedInteger;
 use primus_lattice::rlwe::TruncatedRlwe;
 use primus_ntt::{Ntt, NttTable};
@@ -15,12 +14,18 @@ use super::{LweSecretKey, LweSecretKeyType, RingSecretKeyType};
 
 /// Represents a secret key for the Ring Learning with Errors (RLWE) cryptographic scheme.
 #[derive(Clone)]
-pub struct RlweSecretKey<T: UnsignedInteger> {
-    pub(crate) key: PolynomialOwned<T>,
-    pub(crate) distr: RingSecretKeyType,
+pub struct RlweSecretKey<T>
+where
+    T: UnsignedInteger,
+{
+    key: PolynomialOwned<T>,
+    distr: RingSecretKeyType,
 }
 
-impl<T: UnsignedInteger> Deref for RlweSecretKey<T> {
+impl<T> Deref for RlweSecretKey<T>
+where
+    T: UnsignedInteger,
+{
     type Target = PolynomialOwned<T>;
 
     #[inline]
@@ -29,7 +34,10 @@ impl<T: UnsignedInteger> Deref for RlweSecretKey<T> {
     }
 }
 
-impl<T: UnsignedInteger> RlweSecretKey<T> {
+impl<T> RlweSecretKey<T>
+where
+    T: UnsignedInteger,
+{
     /// Creates a new [`RlweSecretKey<T>`].
     #[inline]
     pub fn new(key: PolynomialOwned<T>, distr: RingSecretKeyType) -> Self {
@@ -43,24 +51,22 @@ impl<T: UnsignedInteger> RlweSecretKey<T> {
     }
 
     #[inline]
-    pub fn generate<R>(
-        secret_key_type: RingSecretKeyType,
-        poly_length: usize,
-        modulus_minus_one: T,
-        gaussian: Option<DiscreteGaussian<T>>,
-        rng: &mut R,
-    ) -> Self
+    pub fn generate<R, M>(params: &RlweParameters<T, M>, rng: &mut R) -> Self
     where
         R: rand::Rng + rand::CryptoRng,
+        M: FieldContext<T>,
     {
-        let distr = secret_key_type;
+        let distr = params.secret_key_type();
+        let poly_length = params.poly_length();
+        let modulus_minus_one = params.cipher_modulus_minus_one();
+
         let key = match distr {
             RingSecretKeyType::Binary => Polynomial::random_binary(poly_length, rng),
             RingSecretKeyType::Ternary => {
                 Polynomial::random_ternary(modulus_minus_one, poly_length, rng)
             }
             RingSecretKeyType::Gaussian => {
-                Polynomial::random_gaussian(poly_length, &gaussian.unwrap(), rng)
+                Polynomial::random_gaussian(poly_length, params.noise_distribution(), rng)
             }
         };
 
@@ -95,12 +101,18 @@ impl<T: UnsignedInteger> RlweSecretKey<T> {
 
 /// Represents a secret key for the (NTT) Ring Learning with Errors (RLWE) cryptographic scheme.
 #[derive(Clone)]
-pub struct NttRlweSecretKey<T: UnsignedInteger> {
+pub struct NttRlweSecretKey<T>
+where
+    T: UnsignedInteger,
+{
     key: NttPolynomialOwned<T>,
     distr: RingSecretKeyType,
 }
 
-impl<T: UnsignedInteger> Deref for NttRlweSecretKey<T> {
+impl<T> Deref for NttRlweSecretKey<T>
+where
+    T: UnsignedInteger,
+{
     type Target = NttPolynomialOwned<T>;
 
     #[inline]
@@ -109,7 +121,10 @@ impl<T: UnsignedInteger> Deref for NttRlweSecretKey<T> {
     }
 }
 
-impl<T: UnsignedInteger> NttRlweSecretKey<T> {
+impl<T> NttRlweSecretKey<T>
+where
+    T: UnsignedInteger,
+{
     /// Creates a new [`NttRlweSecretKey<T>`].
     #[inline]
     pub fn new(key: NttPolynomialOwned<T>, distr: RingSecretKeyType) -> Self {
@@ -128,37 +143,37 @@ impl<T: UnsignedInteger> NttRlweSecretKey<T> {
     where
         Table: NttTable<ValueT = T> + Ntt,
     {
-        let mut data = secret_key.key.0.clone();
-        ntt_table.transform_slice(data.as_mut());
+        let key = secret_key.key.clone();
+        let key = ntt_table.transform_inplace(key);
         Self {
-            key: NttPolynomial(data),
+            key,
             distr: secret_key.distr,
         }
     }
 
     /// Performs `b-as`.
-    pub fn phase_inplace<Table, M, S>(
+    pub fn phase_inplace<Table, M, A>(
         &self,
-        cipher: &NttRlweCiphertext<S>,
+        cipher: &NttRlweCiphertext<A>,
         result: &mut PolynomialOwned<T>,
-        ntt_table: &Table,
         modulus: M,
+        ntt_table: &Table,
     ) where
         M: FieldContext<T>,
         Table: NttTable<ValueT = T> + Ntt,
-        S: RawData<Elem = T> + Data,
+        A: RawData<Elem = T> + Data,
     {
         let (a, b) = cipher.a_b_slices();
 
         NttPolynomial(ArrayBase(a)).mul_inplace(
             &self.key,
-            &mut NttPolynomial(ArrayBase(result.0.as_mut())),
+            &mut NttPolynomial(ArrayBase(result.as_mut())),
             modulus,
         );
         NttPolynomial(ArrayBase(b))
-            .sub_to_right(&mut NttPolynomial(ArrayBase(result.0.as_mut())), modulus);
+            .sub_to_right(&mut NttPolynomial(ArrayBase(result.as_mut())), modulus);
 
-        ntt_table.inverse_transform_slice(result.0.as_mut())
+        ntt_table.inverse_transform_slice(result.as_mut())
     }
 
     /// Encrypts multiple zeros using the secret key.
@@ -174,18 +189,18 @@ impl<T: UnsignedInteger> NttRlweSecretKey<T> {
         M: FieldContext<T>,
         Table: NttTable<ValueT = T> + Ntt,
     {
-        let modulus = params.cipher_modulus();
         TruncatedRlwe::generate_random_zero_sample(
             zero_count,
             &self.key,
+            params.cipher_modulus_uniform_distr(),
             params.noise_distribution(),
             ntt_table,
-            modulus,
+            params.cipher_modulus(),
             rng,
         )
     }
 
-    /// Decrypts the [`LweCiphertext`] back to message.
+    /// Decrypts the [`TruncatedRlwe`] back to message.
     #[inline]
     pub fn decrypt_multi_messages<Msg, M, Table>(
         &self,
@@ -200,7 +215,7 @@ impl<T: UnsignedInteger> NttRlweSecretKey<T> {
     {
         let poly_length = params.poly_length();
         let modulus = params.cipher_modulus();
-        let modulus_value = modulus.value_unchecked();
+        let modulus_value = modulus.value();
 
         let (a, b) = cipher.a_b_slices(poly_length);
 
@@ -214,23 +229,20 @@ impl<T: UnsignedInteger> NttRlweSecretKey<T> {
             .map(|(x, y)| {
                 decode(
                     modulus.reduce_sub(*x, y),
-                    {
-                        let this = &params;
-                        this.plain_modulus_value()
-                    },
-                    Some(modulus_value),
+                    params.plain_modulus_value(),
+                    modulus_value,
                 )
             })
             .collect()
     }
 
-    /// Decrypts the [`LweCiphertext`] back to message.
+    /// Decrypts the [`TruncatedRlwe`] back to message.
     #[inline]
     pub fn phase_multi_messages<M, Table>(
         &self,
         cipher: &TruncatedRlwe<Vec<T>>,
-        ntt_table: &Table,
         modulus: M,
+        ntt_table: &Table,
     ) -> Vec<T>
     where
         M: FieldContext<T>,

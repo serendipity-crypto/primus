@@ -3,6 +3,7 @@ use primus_integer::UnsignedInteger;
 use primus_ntt::{Ntt, NttTable};
 use primus_poly::{ArrayBase, Data, DataMut, DataOwned, NttPolynomial, Polynomial, RawData};
 use primus_reduce::{FieldContext, ops::ReduceNegAssign};
+use rand::distr::Uniform;
 
 use crate::lwe::{Lwe, MultiMsgLwe};
 
@@ -75,6 +76,7 @@ where
     pub fn generate_random_zero_sample<R, Table, M, A>(
         msg_count: usize,
         secret_key: &NttPolynomial<A>,
+        uniform: Uniform<T>,
         gaussian: &DiscreteGaussian<T>,
         ntt_table: &Table,
         modulus: M,
@@ -92,7 +94,7 @@ where
 
         let (a, b) = cipher.a_b_mut_slices();
 
-        Polynomial(ArrayBase(&mut *a)).random_assign(modulus, rng);
+        Polynomial(ArrayBase(&mut *a)).random_with_distribution_assign(&uniform, rng);
 
         b.copy_from_slice(a);
         ntt_table.transform_slice(b);

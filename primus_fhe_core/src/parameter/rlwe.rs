@@ -2,6 +2,7 @@ use primus_decompose::primitive::ApproxSignedBasis;
 use primus_distr::DiscreteGaussian;
 use primus_integer::UnsignedInteger;
 use primus_reduce::FieldContext;
+use rand::distr::Uniform;
 
 use crate::RingSecretKeyType;
 
@@ -20,6 +21,7 @@ where
     cipher_modulus_minus_one: T,
     /// The modulus, refers to **Q** in the paper.
     cipher_modulus: M,
+    cipher_modulus_uniform_distr: Uniform<T>,
     /// The distribution type of the secret key.
     secret_key_type: RingSecretKeyType,
     /// The noise's distribution.
@@ -45,11 +47,14 @@ where
         let noise_distribution =
             DiscreteGaussian::new(0.0, noise_standard_deviation, cipher_modulus_minus_one).unwrap();
 
+        let cipher_modulus_uniform_distr = cipher_modulus.uniform_distribution();
+
         Self {
             poly_length,
             plain_modulus_value,
             cipher_modulus_minus_one,
             cipher_modulus,
+            cipher_modulus_uniform_distr,
             secret_key_type,
             noise_distribution,
         }
@@ -76,6 +81,11 @@ where
         self.cipher_modulus
     }
 
+    /// Returns the cipher modulus minus one of this [`RlweParameters<T, M>`].
+    pub fn cipher_modulus_minus_one(&self) -> T {
+        self.cipher_modulus_minus_one
+    }
+
     /// Returns the secret key type of this [`RlweParameters<T, M>`].
     pub fn secret_key_type(&self) -> RingSecretKeyType {
         self.secret_key_type
@@ -99,6 +109,11 @@ where
         let var = noise_standard_deviation * noise_standard_deviation;
         let sigma = (var / count as f64).sqrt();
         DiscreteGaussian::new(0.0, sigma, self.cipher_modulus_minus_one).unwrap()
+    }
+
+    /// Returns the cipher modulus uniform distr of this [`RlweParameters<T, M>`].
+    pub fn cipher_modulus_uniform_distr(&self) -> Uniform<T> {
+        self.cipher_modulus_uniform_distr
     }
 }
 
