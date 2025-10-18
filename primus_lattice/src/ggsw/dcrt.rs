@@ -6,6 +6,12 @@ use primus_reduce::FieldContext;
 use super::CrtGgsw;
 
 /// Represents a ciphertext in the Ring-GSW (Ring Learning With Errors) homomorphic encryption scheme.
+///
+/// ## Structure of the `data`
+///
+/// |--c1--|....|--ck--|--c[k+1]--|
+///
+/// where `c1` to `c[k+1]` are [`crate::glev::DcrtGlev`] with same parameter, `k` is the dimension.
 #[derive(Clone)]
 pub struct DcrtGgsw<S, T = <S as RawData>::Elem>
 where
@@ -18,30 +24,6 @@ where
 impl_common!(DcrtGgsw<S, T>);
 impl_bytes_conversion!(DcrtGgsw<S, T>);
 impl_zero!(DcrtGgsw<S, T>);
+impl_iter_sub_structure!(DcrtGgsw<S, T>, dcrt_glev);
 impl_basic_operation_multiple_modulus!(DcrtGgsw<S, T>);
 impl_crt_intt!(DcrtGgsw<S, T>, CrtGgsw);
-
-impl<S, T> DcrtGgsw<S, T>
-where
-    S: RawData<Elem = T> + DataMut,
-    T: UnsignedInteger,
-{
-    #[inline]
-    pub fn iter_dcrt_glev_mut(
-        &mut self,
-        dcrt_glev_len: usize,
-    ) -> std::slice::ChunksExactMut<'_, T> {
-        self.data.chunks_exact_mut(dcrt_glev_len)
-    }
-}
-
-impl<S, T> DcrtGgsw<S, T>
-where
-    S: RawData<Elem = T> + Data,
-    T: UnsignedInteger,
-{
-    #[inline]
-    pub fn iter_dcrt_glev(&self, dcrt_glev_len: usize) -> std::slice::ChunksExact<'_, T> {
-        self.data.chunks_exact(dcrt_glev_len)
-    }
-}

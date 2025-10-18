@@ -6,10 +6,10 @@ mod dcrt;
 
 mod truncate;
 
-pub use coeff::Rlwe;
-pub use ntt::NttRlwe;
+pub use coeff::{Rlwe, RlweOwned};
+pub use ntt::{NttRlwe, NttRlweOwned};
 
-pub use crt::CrtRlwe;
-pub use dcrt::DcrtRlwe;
+pub use crt::{CrtRlwe, CrtRlweOwned};
+pub use dcrt::{DcrtRlwe, DcrtRlweOwned};
 
 pub use truncate::TruncatedRlwe;

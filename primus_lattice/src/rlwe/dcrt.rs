@@ -5,7 +5,15 @@ use primus_reduce::FieldContext;
 
 use super::CrtRlwe;
 
+pub type DcrtRlweOwned<T> = DcrtRlwe<Vec<T>>;
+
 /// A cryptographic structure for Ring Learning with Errors (RLWE).
+///
+/// ## Structure of the `data`
+///
+/// |------a------|------b------|
+///
+/// where `a` and `b` are [`DcrtPolynomial`] with same poly length and moduli count.
 #[derive(Clone)]
 pub struct DcrtRlwe<S, T = <S as RawData>::Elem>
 where
@@ -18,6 +26,7 @@ where
 impl_common!(DcrtRlwe<S, T>);
 impl_bytes_conversion!(DcrtRlwe<S, T>);
 impl_zero!(DcrtRlwe<S, T>);
+impl_iter_sub_structure!(DcrtRlwe<S, T>, dcrt_poly);
 impl_basic_operation_multiple_modulus!(DcrtRlwe<S, T>);
 impl_crt_intt!(DcrtRlwe<S, T>, CrtRlwe);
 

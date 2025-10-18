@@ -16,3 +16,4 @@ primus_decompose = { path = "../primus_decompose" }
 serde = { workspace = true }
 bytemuck = { workspace = true }
 rand = { workspace = true }
+paste = { workspace = true }

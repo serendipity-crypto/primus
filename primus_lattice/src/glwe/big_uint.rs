@@ -6,6 +6,12 @@ use primus_rns::RNSBase;
 use super::CrtGlwe;
 
 /// A cryptographic structure for Module(General) Learning with Errors (MLWE, GLWE).
+///
+/// ## Structure of the `data`
+///
+/// |--a1--|....|--ak--|--b--|
+///
+/// where `a1`...`ak` and `b` are [`primus_poly::BigUintPolynomial`] with same poly length, `k` is the dimension.
 #[derive(Clone)]
 pub struct BigUintGlwe<S, T = <S as RawData>::Elem>
 where
@@ -18,6 +24,7 @@ where
 impl_common!(BigUintGlwe<S, T>);
 impl_bytes_conversion!(BigUintGlwe<S, T>);
 impl_zero!(BigUintGlwe<S, T>);
+impl_iter_sub_structure!(BigUintGlwe<S, T>, big_uint_poly);
 
 impl<S, T> BigUintGlwe<S, T>
 where

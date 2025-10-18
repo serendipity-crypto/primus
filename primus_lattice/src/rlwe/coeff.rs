@@ -11,7 +11,15 @@ use crate::lwe::{Lwe, MultiMsgLwe};
 
 use super::NttRlwe;
 
+pub type RlweOwned<T> = Rlwe<Vec<T>>;
+
 /// A cryptographic structure for Ring Learning with Errors (RLWE).
+///
+/// ## Structure of the `data`
+///
+/// |------a------|------b------|
+///
+/// where `a` and `b` are [`Polynomial`] with same poly length.
 #[derive(Clone)]
 pub struct Rlwe<S, T = <S as RawData>::Elem>
 where
@@ -24,6 +32,7 @@ where
 impl_common!(Rlwe<S, T>);
 impl_bytes_conversion!(Rlwe<S, T>);
 impl_zero!(Rlwe<S, T>);
+impl_iter_sub_structure!(Rlwe<S, T>, poly);
 impl_basic_operation_single_modulus!(Rlwe<S, T>);
 impl_ntt!(Rlwe<S, T>, NttRlwe);
 

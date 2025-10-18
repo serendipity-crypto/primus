@@ -6,6 +6,12 @@ use primus_reduce::FieldContext;
 use super::DcrtGlwe;
 
 /// A cryptographic structure for Module(General) Learning with Errors (MLWE, GLWE).
+///
+/// ## Structure of the `data`
+///
+/// |--a1--|....|--ak--|--b--|
+///
+/// where `a1`...`ak` and `b` are [`primus_poly::crt::CrtPolynomial`] with same poly length and moduli count, `k` is the dimension.
 #[derive(Clone)]
 pub struct CrtGlwe<S, T = <S as RawData>::Elem>
 where
@@ -18,6 +24,7 @@ where
 impl_common!(CrtGlwe<S, T>);
 impl_bytes_conversion!(CrtGlwe<S, T>);
 impl_zero!(CrtGlwe<S, T>);
+impl_iter_sub_structure!(CrtGlwe<S, T>, crt_poly);
 impl_basic_operation_multiple_modulus!(CrtGlwe<S, T>);
 impl_crt_ntt!(CrtGlwe<S, T>, DcrtGlwe);
 

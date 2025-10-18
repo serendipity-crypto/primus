@@ -6,6 +6,12 @@ use primus_reduce::FieldContext;
 use super::CrtGlwe;
 
 /// A cryptographic structure for Module(General) Learning with Errors (MLWE, GLWE).
+///
+/// ## Structure of the `data`
+///
+/// |--a1--|....|--ak--|--b--|
+///
+/// where `a1`...`ak` and `b` are [`DcrtPolynomial`] with same poly length and moduli count, `k` is the dimension.
 #[derive(Clone)]
 pub struct DcrtGlwe<S, T = <S as RawData>::Elem>
 where
@@ -18,6 +24,7 @@ where
 impl_common!(DcrtGlwe<S, T>);
 impl_bytes_conversion!(DcrtGlwe<S, T>);
 impl_zero!(DcrtGlwe<S, T>);
+impl_iter_sub_structure!(DcrtGlwe<S, T>, dcrt_poly);
 impl_basic_operation_multiple_modulus!(DcrtGlwe<S, T>);
 impl_crt_intt!(DcrtGlwe<S, T>, CrtGlwe);
 
@@ -26,14 +33,6 @@ where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
 {
-    #[inline]
-    pub fn iter_dcrt_poly_mut(
-        &mut self,
-        dcrt_poly_len: usize,
-    ) -> std::slice::ChunksExactMut<'_, T> {
-        self.data.chunks_exact_mut(dcrt_poly_len)
-    }
-
     pub fn add_dcrt_glwe_mul_dcrt_polynomial_assign<M, A, B>(
         &mut self,
         dcrt_glwe: &DcrtGlwe<A>,
@@ -66,11 +65,6 @@ where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
 {
-    #[inline]
-    pub fn iter_dcrt_poly(&mut self, dcrt_poly_len: usize) -> std::slice::ChunksExact<'_, T> {
-        self.data.chunks_exact(dcrt_poly_len)
-    }
-
     /// Performs a multiplication on the `self` [`DcrtGlwe<S>`] with another `dcrt_polynomial` [`DcrtPolynomial<A>`],
     /// store the result into `result` [`DcrtGlwe<B>`].
     #[inline]

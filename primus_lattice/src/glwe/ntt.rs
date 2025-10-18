@@ -6,6 +6,12 @@ use primus_reduce::FieldContext;
 use super::Glwe;
 
 /// A cryptographic structure for Module(General) Learning with Errors (MLWE, GLWE).
+///
+/// ## Structure of the `data`
+///
+/// |--a1--|....|--ak--|--b--|
+///
+/// where `a1`...`ak` and `b` are [`NttPolynomial`] with same poly length, `k` is the dimension.
 #[derive(Clone)]
 pub struct NttGlwe<S, T = <S as RawData>::Elem>
 where
@@ -18,6 +24,7 @@ where
 impl_common!(NttGlwe<S, T>);
 impl_bytes_conversion!(NttGlwe<S, T>);
 impl_zero!(NttGlwe<S, T>);
+impl_iter_sub_structure!(NttGlwe<S, T>, ntt_poly);
 impl_basic_operation_single_modulus!(NttGlwe<S, T>);
 impl_intt!(NttGlwe<S, T>, Glwe);
 

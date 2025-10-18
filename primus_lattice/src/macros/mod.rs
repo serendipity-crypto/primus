@@ -130,6 +130,39 @@ macro_rules! impl_zero {
     };
 }
 
+macro_rules! impl_iter_sub_structure {
+    ($cipher:ident < $s:ident, $t:ident >, $sub:ident) => {
+        impl<$s, $t> $cipher<$s, $t>
+        where
+            $s: RawData<Elem = $t> + DataMut,
+            $t: UnsignedInteger,
+        {
+            paste::paste! {
+                #[inline]
+                pub fn [<iter_ $sub _mut>](
+                    &mut self,
+                    [<$sub _len>]: usize,
+                ) -> std::slice::ChunksExactMut<'_, T> {
+                    self.data.chunks_exact_mut([<$sub _len>])
+                }
+            }
+        }
+
+        impl<$s, $t> $cipher<$s, $t>
+        where
+            $s: RawData<Elem = $t> + Data,
+            $t: UnsignedInteger,
+        {
+            paste::paste! {
+                #[inline]
+                pub fn [<iter_ $sub>](&self, [<$sub _len>]: usize) -> std::slice::ChunksExact<'_, T> {
+                    self.data.chunks_exact([<$sub _len>])
+                }
+            }
+        }
+    };
+}
+
 macro_rules! impl_basic_operation_single_modulus {
     ($cipher:ident < $s:ident, $t:ident >) => {
         impl<$s, $t> $cipher<$s, $t>

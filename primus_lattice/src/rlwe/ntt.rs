@@ -5,7 +5,15 @@ use primus_reduce::FieldContext;
 
 use super::Rlwe;
 
+pub type NttRlweOwned<T> = NttRlwe<Vec<T>>;
+
 /// A cryptographic structure for Ring Learning with Errors (RLWE).
+///
+/// ## Structure of the `data`
+///
+/// |------a------|------b------|
+///
+/// where `a` and `b` are [`NttPolynomial`] with same poly length.
 #[derive(Clone)]
 pub struct NttRlwe<S, T = <S as RawData>::Elem>
 where
@@ -18,6 +26,7 @@ where
 impl_common!(NttRlwe<S, T>);
 impl_bytes_conversion!(NttRlwe<S, T>);
 impl_zero!(NttRlwe<S, T>);
+impl_iter_sub_structure!(NttRlwe<S, T>, ntt_poly);
 impl_basic_operation_single_modulus!(NttRlwe<S, T>);
 impl_intt!(NttRlwe<S, T>, Rlwe);
 

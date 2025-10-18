@@ -13,6 +13,12 @@ use super::CrtGlev;
 
 /// A representation of Module Learning with Errors (MLWE) ciphertexts with respect to different base,
 /// used to control noise growth in polynomial multiplications.
+///
+/// ## Structure of the `data`
+///
+/// |--c1--|....|--cd--|
+///
+/// where `c1` to `cd` are [`crate::glwe::DcrtGlwe`] with same parameter, `d` is the decompose length.
 #[derive(Clone)]
 pub struct DcrtGlev<S, T = <S as RawData>::Elem>
 where
@@ -25,29 +31,15 @@ where
 impl_common!(DcrtGlev<S, T>);
 impl_bytes_conversion!(DcrtGlev<S, T>);
 impl_zero!(DcrtGlev<S, T>);
+impl_iter_sub_structure!(DcrtGlev<S, T>, dcrt_glwe);
 impl_basic_operation_multiple_modulus!(DcrtGlev<S, T>);
 impl_crt_intt!(DcrtGlev<S, T>, CrtGlev);
-
-impl<S, T> DcrtGlev<S, T>
-where
-    S: RawData<Elem = T> + DataOwned,
-    T: UnsignedInteger,
-{
-}
 
 impl<S, T> DcrtGlev<S, T>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
 {
-    #[inline]
-    pub fn iter_dcrt_glwe_mut(
-        &mut self,
-        dcrt_glwe_len: usize,
-    ) -> std::slice::ChunksExactMut<'_, T> {
-        self.data.chunks_exact_mut(dcrt_glwe_len)
-    }
-
     pub fn mul_polynomial_inplace<M, Table, A, B>(
         &self,
         polynomial: &BigUintPolynomial<A>,
@@ -110,16 +102,5 @@ where
                 );
             },
         );
-    }
-}
-
-impl<S, T> DcrtGlev<S, T>
-where
-    S: RawData<Elem = T> + Data,
-    T: UnsignedInteger,
-{
-    #[inline]
-    pub fn iter_dcrt_glwe(&self, dcrt_glwe_len: usize) -> std::slice::ChunksExact<'_, T> {
-        self.data.chunks_exact(dcrt_glwe_len)
     }
 }
