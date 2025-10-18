@@ -81,7 +81,7 @@ impl<T: UnsignedInteger> RlweSecretKey<T> {
                 modulus_minus_one
             }
         };
-        let distr = match lwe_secret_key.distr {
+        let distr = match lwe_secret_key.distr() {
             LweSecretKeyType::Binary => RingSecretKeyType::Binary,
             LweSecretKeyType::Ternary => RingSecretKeyType::Ternary,
         };

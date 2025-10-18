@@ -1,6 +1,7 @@
 use primus_distr::DiscreteGaussian;
 use primus_integer::UnsignedInteger;
 use primus_reduce::RingContext;
+use rand::distr::Uniform;
 
 use crate::LweSecretKeyType;
 
@@ -19,6 +20,7 @@ where
     cipher_modulus_minus_one: T,
     /// **LWE** cipher modulus, refers to **q** in the paper.
     cipher_modulus: M,
+    cipher_modulus_uniform_distr: Uniform<T>,
     /// The distribution type of the LWE Secret Key.
     secret_key_type: LweSecretKeyType,
     /// The noise distribution.
@@ -44,11 +46,14 @@ where
         let noise_distribution =
             DiscreteGaussian::new(0.0, noise_standard_deviation, cipher_modulus_minus_one).unwrap();
 
+        let cipher_modulus_uniform_distr = cipher_modulus.uniform_distribution();
+
         Self {
             dimension,
             plain_modulus_value,
             cipher_modulus_minus_one,
             cipher_modulus,
+            cipher_modulus_uniform_distr,
             secret_key_type,
             noise_distribution,
         }
@@ -76,6 +81,11 @@ where
     #[inline]
     pub fn cipher_modulus(&self) -> M {
         self.cipher_modulus
+    }
+
+    /// Returns the cipher modulus uniform distr of this [`LweParameters<T, M>`].
+    pub fn cipher_modulus_uniform_distr(&self) -> Uniform<T> {
+        self.cipher_modulus_uniform_distr
     }
 
     /// Returns the secret key type of this [`LweParameters<T, M>`].

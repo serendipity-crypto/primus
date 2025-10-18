@@ -304,6 +304,7 @@ impl<T: UnsignedInteger> Lwe<T> {
     pub fn generate_random_zero_sample<M, R>(
         secret_key: &[T],
         modulus: M,
+        uniform: Uniform<T>,
         gaussian: &DiscreteGaussian<T>,
         rng: &mut R,
     ) -> Self
@@ -312,7 +313,6 @@ impl<T: UnsignedInteger> Lwe<T> {
         R: rand::Rng + rand::CryptoRng,
     {
         let len = secret_key.len();
-        let uniform = Uniform::new_inclusive(T::ZERO, modulus.minus_one()).unwrap();
 
         let a: Vec<T> = uniform.sample_iter(&mut *rng).take(len).collect();
         let e = gaussian.sample(rng);

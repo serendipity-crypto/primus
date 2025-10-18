@@ -1,6 +1,4 @@
 use primus_integer::{UnsignedInteger, size::Size};
-use primus_lattice::rlwe::Rlwe;
-use primus_poly::{ArrayBase, Polynomial};
 use primus_reduce::RingContext;
 use rand::distr::Distribution;
 
@@ -14,21 +12,21 @@ pub struct LweSecretKey<T>
 where
     T: UnsignedInteger,
 {
-    pub(crate) key: Vec<T>,
-    pub(crate) distr: LweSecretKeyType,
+    data: Vec<T>,
+    distr: LweSecretKeyType,
 }
 
 impl<T: UnsignedInteger> AsRef<[T]> for LweSecretKey<T> {
     #[inline]
     fn as_ref(&self) -> &[T] {
-        &self.key
+        &self.data
     }
 }
 
 impl<T: UnsignedInteger> Size for LweSecretKey<T> {
     #[inline]
     fn byte_count(&self) -> usize {
-        self.key.byte_count()
+        self.data.byte_count()
     }
 }
 
@@ -36,13 +34,13 @@ impl<T: UnsignedInteger> LweSecretKey<T> {
     /// Creates a new [`LweSecretKey<T>`].
     #[inline]
     pub fn new(key: Vec<T>, distr: LweSecretKeyType) -> Self {
-        Self { key, distr }
+        Self { data: key, distr }
     }
 
-    /// Returns the dimension of the secret key.
+    /// Returns the dimension of this [`LweSecretKey<T>`].
     #[inline]
     pub fn dimension(&self) -> usize {
-        self.key.len()
+        self.data.len()
     }
 
     /// Returns the distribution of this [`LweSecretKey<T>`].
@@ -51,7 +49,7 @@ impl<T: UnsignedInteger> LweSecretKey<T> {
         self.distr
     }
 
-    /// Generates a new `LweSecretKey` with random values.
+    /// Generates a new [`LweSecretKey<T>`] with random values.
     #[inline]
     pub fn generate<R, M>(params: &LweParameters<T, M>, rng: &mut R) -> Self
     where
@@ -67,27 +65,33 @@ impl<T: UnsignedInteger> LweSecretKey<T> {
                 rng,
             ),
         };
-        Self { key, distr }
+        Self { data: key, distr }
     }
 
-    /// Encrypts message into [`LweCiphertext<C>`].
+    /// Encrypts message into [`LweCiphertext<T>`].
     #[inline]
-    pub fn encrypt<Msg, R, Modulus>(
+    pub fn encrypt<R, M, Msg>(
         &self,
         message: Msg,
-        params: &LweParameters<T, Modulus>,
+        params: &LweParameters<T, M>,
         rng: &mut R,
     ) -> LweCiphertext<T>
     where
         Msg: TryInto<T>,
         R: rand::Rng + rand::CryptoRng,
-        Modulus: RingContext<T>,
+        M: RingContext<T>,
     {
         let gaussian = params.noise_distribution();
         let modulus = params.cipher_modulus();
+        let uniform = params.cipher_modulus_uniform_distr();
 
-        let mut ciphertext =
-            LweCiphertext::generate_random_zero_sample(self.as_ref(), modulus, &gaussian, rng);
+        let mut ciphertext = LweCiphertext::generate_random_zero_sample(
+            self.as_ref(),
+            modulus,
+            uniform,
+            &gaussian,
+            rng,
+        );
         modulus.reduce_add_assign(
             ciphertext.b_mut(),
             encode(message, params.plain_modulus_value(), modulus.value()),
@@ -97,79 +101,65 @@ impl<T: UnsignedInteger> LweSecretKey<T> {
     }
 
     /// Encrypts multiple messages using the secret key.
-    ///
-    /// # Arguments
-    ///
-    /// * `messages` - A slice of messages to be encrypted.
-    /// * `params` - The parameters for the LWE scheme.
-    /// * `csrng` - A mutable reference to a random number generator.
-    ///
-    /// # Returns
-    ///
-    /// A `CmLweCiphertext` containing the encrypted messages.
     #[inline]
-    pub fn encrypt_multi_messages<Msg, R, Modulus>(
+    pub fn encrypt_multi_messages<R, M, Msg>(
         &self,
         messages: &[Msg],
-        params: &LweParameters<T, Modulus>,
-        csrng: &mut R,
+        params: &LweParameters<T, M>,
+        rng: &mut R,
     ) -> MultiMsgLweCiphertext<T>
     where
         Msg: Copy + TryInto<T>,
         R: rand::Rng + rand::CryptoRng,
-        Modulus: RingContext<T>,
+        M: RingContext<T>,
     {
         let dimension = params.dimension();
         let gaussian = params.noise_distribution();
+        let uniform = params.cipher_modulus_uniform_distr();
         let modulus = params.cipher_modulus();
 
-        let distr = modulus.uniform_distribution();
+        let mut a: Vec<T> = vec![T::ZERO; dimension];
+        let mut b: Vec<T> = vec![T::ZERO; messages.len()];
 
-        let mut data: Rlwe<Vec<T>> = Rlwe::zero(dimension * 2);
-
-        let (a, b) = data.a_b_mut_slices();
-
-        for (i, o) in a.iter_mut().zip(distr.sample_iter(&mut *csrng)) {
+        for (i, o) in a.iter_mut().zip(uniform.sample_iter(&mut *rng)) {
             *i = o;
         }
 
-        Polynomial(ArrayBase(a)).naive_mul_inplace(
-            &Polynomial(ArrayBase(self.key.as_ref())),
-            &mut Polynomial(ArrayBase(&mut *b)),
-            modulus,
-        );
+        b.iter_mut().enumerate().for_each(|(i, bi)| {
+            if i != 0 {
+                *bi = modulus.reduce_dot_product_iter(
+                    a.iter()
+                        .skip(dimension - i)
+                        .map(|&ai| modulus.reduce_neg(ai))
+                        .chain(a.iter().take(dimension - i).copied()),
+                    self.data.iter().copied(),
+                )
+            } else {
+                *bi = modulus.reduce_dot_product(&a, self);
+            }
+        });
 
-        for (&message, bi) in messages.iter().zip(b.iter_mut()) {
+        for (bi, &message) in b.iter_mut().zip(messages) {
             modulus.reduce_add_assign(
                 bi,
                 encode(message, params.plain_modulus_value(), modulus.value()),
             );
         }
 
-        for (bi, ei) in b.iter_mut().zip(gaussian.sample_iter(&mut *csrng)) {
+        for (bi, ei) in b.iter_mut().zip(gaussian.sample_iter(&mut *rng)) {
             modulus.reduce_add_assign(bi, ei);
         }
 
-        data.extract_first_few_lwe_locally(messages.len(), modulus)
+        MultiMsgLweCiphertext::new(a, b)
     }
 
     /// Encrypts multiple zeros using the secret key.
-    ///
-    /// # Arguments
-    ///
-    /// * `zero_count` - The count of zeros to be encrypted.
-    /// * `params` - The parameters for the LWE scheme.
-    /// * `csrng` - A mutable reference to a random number generator.
-    ///
-    /// # Returns
-    ///
-    /// A `MultiMsgLweCiphertext` containing the encrypted messages.
     #[inline]
     pub fn encrypt_multi_zeros<R, Modulus>(
         &self,
         zero_count: usize,
         params: &LweParameters<T, Modulus>,
-        csrng: &mut R,
+        rng: &mut R,
     ) -> MultiMsgLweCiphertext<T>
     where
         R: rand::Rng + rand::CryptoRng,
@@ -177,43 +167,49 @@ impl<T: UnsignedInteger> LweSecretKey<T> {
     {
         let dimension = params.dimension();
         let gaussian = params.noise_distribution();
+        let uniform = params.cipher_modulus_uniform_distr();
         let modulus = params.cipher_modulus();
 
-        let distr = modulus.uniform_distribution();
-
-        let mut data: Rlwe<Vec<T>> = Rlwe::zero(dimension * 2);
-
-        let (a, b) = data.a_b_mut_slices();
+        let mut a: Vec<T> = vec![T::ZERO; dimension];
+        let mut b: Vec<T> = vec![T::ZERO; zero_count];
 
         a.iter_mut()
-            .zip(distr.sample_iter(&mut *csrng))
+            .zip(uniform.sample_iter(&mut *rng))
             .for_each(|(i, o): (&mut T, T)| {
                 *i = o;
             });
 
-        Polynomial(ArrayBase(a)).naive_mul_inplace(
-            &Polynomial(ArrayBase(self.key.as_ref())),
-            &mut Polynomial(ArrayBase(&mut *b)),
-            modulus,
-        );
+        b.iter_mut().enumerate().for_each(|(i, bi)| {
+            if i != 0 {
+                *bi = modulus.reduce_dot_product_iter(
+                    a.iter()
+                        .skip(dimension - i)
+                        .map(|&ai| modulus.reduce_neg(ai))
+                        .chain(a.iter().take(dimension - i).copied()),
+                    self.data.iter().copied(),
+                )
+            } else {
+                *bi = modulus.reduce_dot_product(&a, self);
+            }
+        });
 
-        for (bi, ei) in b.iter_mut().zip(gaussian.sample_iter(&mut *csrng)) {
+        for (bi, ei) in b.iter_mut().zip(gaussian.sample_iter(&mut *rng)) {
             modulus.reduce_add_assign(bi, ei);
         }
 
-        data.extract_first_few_lwe_locally(zero_count, modulus)
+        MultiMsgLweCiphertext::new(a, b)
     }
 
-    /// Decrypts the [`LweCiphertext`] back to message.
+    /// Decrypts the [`LweCiphertext<T>`] back to message.
     #[inline]
-    pub fn decrypt<Msg, Modulus>(
+    pub fn decrypt<M, Msg>(
         &self,
         cipher_text: &LweCiphertext<T>,
-        params: &LweParameters<T, Modulus>,
+        params: &LweParameters<T, M>,
     ) -> Msg
     where
         Msg: TryFrom<T>,
-        Modulus: RingContext<T>,
+        M: RingContext<T>,
     {
         let modulus = params.cipher_modulus();
 
@@ -223,16 +219,16 @@ impl<T: UnsignedInteger> LweSecretKey<T> {
         decode(plaintext, params.plain_modulus_value(), modulus.value())
     }
 
-    /// Decrypts the [`LweCiphertext`] back to message.
+    /// Decrypts the [`LweCiphertext<T>`] back to message.
     #[inline]
-    pub fn decrypt_with_noise<Msg, Modulus>(
+    pub fn decrypt_with_noise<M, Msg>(
         &self,
         cipher_text: &LweCiphertext<T>,
-        params: &LweParameters<T, Modulus>,
+        params: &LweParameters<T, M>,
     ) -> (Msg, T)
     where
         Msg: Copy + TryFrom<T> + TryInto<T>,
-        Modulus: RingContext<T>,
+        M: RingContext<T>,
     {
         let modulus = params.cipher_modulus();
         let a_mul_s = modulus.reduce_dot_product(cipher_text.a(), self);
@@ -251,16 +247,16 @@ impl<T: UnsignedInteger> LweSecretKey<T> {
         )
     }
 
-    /// Decrypts the [`LweCiphertext`] back to message.
+    /// Decrypts the [`MultiMsgLweCiphertext<T>`] back to message.
     #[inline]
-    pub fn decrypt_multi_messages<Msg, Modulus>(
+    pub fn decrypt_multi_messages<M, Msg>(
         &self,
         cipher_text: &MultiMsgLweCiphertext<T>,
-        params: &LweParameters<T, Modulus>,
+        params: &LweParameters<T, M>,
     ) -> Vec<Msg>
     where
         Msg: TryFrom<T>,
-        Modulus: RingContext<T>,
+        M: RingContext<T>,
     {
         let modulus = params.cipher_modulus();
         let dimension = cipher_text.a().len();
@@ -271,11 +267,13 @@ impl<T: UnsignedInteger> LweSecretKey<T> {
             .enumerate()
             .map(|(i, &b)| {
                 let a_mul_s = modulus.reduce_dot_product_iter(
-                    cipher_text.a()[dimension - i..]
+                    cipher_text
+                        .a()
                         .iter()
+                        .skip(dimension - i)
                         .map(|&v| modulus.reduce_neg(v))
-                        .chain(cipher_text.a()[..dimension - i].iter().copied()),
-                    self.key.iter().copied(),
+                        .chain(cipher_text.a().iter().take(dimension - i).copied()),
+                    self.data.iter().copied(),
                 );
                 let plaintext = modulus.reduce_sub(b, a_mul_s);
 
