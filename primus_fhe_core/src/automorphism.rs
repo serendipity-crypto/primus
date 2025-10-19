@@ -1,16 +1,16 @@
 use std::sync::Arc;
 
-use primus_decompose::big_integer::BigUintApproxSignedBasis;
-use primus_distr::SignedDiscreteGaussian;
 use primus_integer::{UnsignedInteger, izip};
+use primus_lattice::glev::DcrtGlev;
 use primus_modulus::PowOf2Modulus;
-use primus_ntt::{Dcrt, DcrtTable, Ntt};
-use primus_poly::{ArrayBase, Data, DataMut, NttPolynomial, RawData};
+use primus_ntt::{Dcrt, DcrtTable};
+use primus_poly::{
+    ArrayBase, BigUintPolynomial, Data, DataMut, RawData, crt::CrtPolynomial, dcrt::DcrtPolynomial,
+};
 use primus_reduce::FieldContext;
 use primus_reduce::ops::ReduceMul;
-use rand::distr::Distribution;
 
-use crate::{CrtGlweCiphertext, CrtGlweSecretKey, DcrtGlweSecretKey};
+use crate::{CrtGlevParameters, CrtGlweCiphertext, CrtGlweSecretKey, DcrtGlweSecretKey};
 
 /// This defines the operation when perform automorphism on each coefficient.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -45,7 +45,10 @@ where
     degree: usize,
     poly_length: usize,
     dimension: usize,
+    crt_poly_length: usize,
     decompose_length: usize,
+    dcrt_glwe_len: usize,
+    dcrt_glev_len: usize,
     auto_helper: AutoHelper,
     key: Vec<T>,
     moduli: Vec<M>,
@@ -59,114 +62,107 @@ where
     Table: DcrtTable<ValueT = T> + Dcrt,
 {
     pub fn new<R>(
+        params: &CrtGlevParameters<T, M>,
+        degree: usize,
         sk: &CrtGlweSecretKey<T>,
         dcrt_sk: &DcrtGlweSecretKey<T>,
-        degree: usize,
-        gaussian: &SignedDiscreteGaussian<<T as UnsignedInteger>::SignedInteger>,
-        basis: &BigUintApproxSignedBasis<T>,
-        moduli: &[M],
         table: Arc<Table>,
         rng: &mut R,
     ) -> Self
     where
         R: rand::Rng + rand::CryptoRng,
     {
-        // let poly_length = sk.poly_length();
-        // let dimension = sk.dimension();
-        // let moduli_count = sk.moduli_count();
-        // let decompose_length = basis.decompose_length();
+        let poly_length = sk.poly_length();
+        let dimension = sk.dimension();
+        let moduli_count = sk.moduli_count();
+        let crt_poly_length = sk.crt_poly_length();
+        let dcrt_glwe_len = dcrt_sk.crt_glwe_len();
+        let basis = params.basis();
+        let decompose_length = basis.decompose_length();
+        let dcrt_glev_len = decompose_length * dcrt_glwe_len;
+        let moduli = params.cipher_moduli();
+        let moduli_value = params.cipher_moduli_value();
+        let gaussian = params.noise_distribution();
 
-        // debug_assert_eq!(moduli_count, moduli.len());
+        let dcrt_glwe_mid = crt_poly_length * dimension;
 
-        // let a_b_mid = dimension * poly_length;
-        // let glwe_len = a_b_mid + poly_length;
-        // let glev_len = decompose_length * glwe_len;
-        // let single_modulus_len = dimension * glev_len;
+        debug_assert_eq!(moduli_count, params.cipher_moduli().len());
 
-        // let e_glev_len = decompose_length * poly_length;
-        // let e_single_modulus_len = dimension * e_glev_len;
+        let auto_helper = if degree == 1 {
+            AutoHelper::One
+        } else if degree == poly_length + 1 {
+            AutoHelper::DimensionPlusOne
+        } else {
+            AutoHelper::Permutation(generate_permutate_ops(degree, poly_length))
+        };
 
-        // let auto_helper = if degree == 1 {
-        //     AutoHelper::One
-        // } else if degree == poly_length + 1 {
-        //     AutoHelper::DimensionPlusOne
-        // } else {
-        //     AutoHelper::Permutation(generate_permutate_ops(degree, poly_length))
-        // };
+        let mut result = vec![T::ZERO; dimension * dcrt_glev_len];
+        let mut auto_si = vec![T::ZERO; crt_poly_length];
 
-        // let mut result = vec![T::ZERO; moduli_count * single_modulus_len];
-        // let mut e_all = vec![T::ZERO; moduli_count * e_single_modulus_len];
-        // let modulus_values: Vec<T> = moduli.iter().map(|m| m.value_unchecked()).collect();
+        result
+            .chunks_exact_mut(dcrt_glev_len)
+            .zip(sk.iter_crt_poly())
+            .for_each(|(dcrt_glev, si)| {
+                izip!(
+                    si.chunks_exact(poly_length),
+                    auto_si.chunks_exact_mut(poly_length),
+                    moduli
+                )
+                .for_each(|(a, b, &modulus)| {
+                    poly_auto_inplace(a, &auto_helper, b, modulus);
+                });
 
-        // primus_distr::sample_crt_gaussian_values_inplace(
-        //     &mut e_all,
-        //     e_single_modulus_len,
-        //     &modulus_values,
-        //     gaussian,
-        //     rng,
-        // );
+                izip!(
+                    dcrt_glev.chunks_exact_mut(dcrt_glwe_len),
+                    basis.scalars_residues_iter()
+                )
+                .for_each(|(dcrt_glwe, scalar_residues)| {
+                    let (a, b) = unsafe { dcrt_glwe.split_at_mut_unchecked(dcrt_glwe_mid) };
+                    primus_distr::sample_crt_gaussian_values_inplace(
+                        b,
+                        poly_length,
+                        moduli_value,
+                        gaussian,
+                        rng,
+                    );
 
-        // izip!(
-        //     result.chunks_exact_mut(single_modulus_len),
-        //     sk.iter_each_modulus(),
-        //     dcrt_sk.iter_each_modulus(),
-        //     e_all.chunks_exact_mut(e_single_modulus_len),
-        //     basis.scalars_residue().chunks_exact(decompose_length),
-        //     table.iter(),
-        //     moduli,
-        // )
-        // .for_each(|(auto_key, key, ntt_key, es, sclars, ntt_table, modulus)| {
-        //     let uniform_distr = modulus.uniform_distribution();
-        //     izip!(
-        //         auto_key.chunks_exact_mut(glev_len),
-        //         key.chunks_exact(poly_length),
-        //         es.chunks_exact_mut(e_glev_len)
-        //     )
-        //     .for_each(|(glev, key_part, e_glev)| {
-        //         izip!(
-        //             glev.chunks_exact_mut(glwe_len),
-        //             e_glev.chunks_exact_mut(poly_length),
-        //             sclars
-        //         )
-        //         .for_each(|(glwe, e_glwe, scalar)| {
-        //             let (a, b) = unsafe { glwe.split_at_mut_unchecked(a_b_mid) };
+                    let mut b_poly = CrtPolynomial(ArrayBase(b));
 
-        //             b.copy_from_slice(e_glwe);
+                    b_poly.add_mul_scalar_residues_assign(
+                        &CrtPolynomial(ArrayBase(auto_si.as_ref())),
+                        scalar_residues,
+                        poly_length,
+                        moduli,
+                    );
 
-        //             poly_auto_inplace(key_part, &auto_helper, e_glwe, *modulus);
-        //             ArrayBase(&mut *b).add_mul_scalar_assign(&ArrayBase(e_glwe), *scalar, *modulus);
-        //             ntt_table.transform_slice(b);
+                    let mut b_poly = table.transform_inplace(b_poly);
 
-        //             a.iter_mut()
-        //                 .zip(uniform_distr.sample_iter(&mut *rng))
-        //                 .for_each(|(i, o)| *i = o);
+                    a.chunks_exact_mut(crt_poly_length)
+                        .zip(dcrt_sk.iter_dcrt_poly())
+                        .for_each(|(ai, si)| {
+                            b_poly.add_mul_assign(
+                                &DcrtPolynomial(ArrayBase(ai)),
+                                &DcrtPolynomial(ArrayBase(si)),
+                                poly_length,
+                                moduli,
+                            );
+                        });
+                });
+            });
 
-        //             let mut b_poly = NttPolynomial(ArrayBase(b));
-
-        //             a.chunks_exact_mut(poly_length)
-        //                 .zip(ntt_key.chunks_exact(poly_length))
-        //                 .for_each(|(ai, s)| {
-        //                     b_poly.add_mul_assign(
-        //                         &NttPolynomial(ArrayBase(ai)),
-        //                         &NttPolynomial(ArrayBase(s)),
-        //                         *modulus,
-        //                     );
-        //                 });
-        //         });
-        //     });
-        // });
-
-        // Self {
-        //     degree,
-        //     poly_length,
-        //     dimension,
-        //     decompose_length,
-        //     auto_helper,
-        //     key: result,
-        //     moduli: moduli.to_vec(),
-        //     table: Arc::clone(&table),
-        // }
-        todo!()
+        Self {
+            degree,
+            poly_length,
+            dimension,
+            decompose_length,
+            crt_poly_length,
+            dcrt_glwe_len,
+            dcrt_glev_len,
+            auto_helper,
+            key: result,
+            moduli: moduli.to_vec(),
+            table: Arc::clone(&table),
+        }
     }
 
     pub fn degree(&self) -> usize {
@@ -177,33 +173,55 @@ where
         &self.table
     }
 
-    // pub fn automorphism_inplace<A, B>(
-    //     &self,
-    //     ciphertext: &CrtGlweCiphertext<A>,
-    //     result: &mut CrtGlweCiphertext<B>,
-    // ) where
-    //     A: RawData<Elem = T> + Data,
-    //     B: RawData<Elem = T> + DataMut,
-    // {
-    //     let poly_length = self.poly_length;
-    //     let single_modulus_len = self.dimension * poly_length;
+    pub fn automorphism_inplace<A, B>(
+        &self,
+        ciphertext: &CrtGlweCiphertext<A>,
+        result: &mut CrtGlweCiphertext<B>,
+        params: &CrtGlevParameters<T, M>,
+    ) where
+        A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + DataMut,
+    {
+        let poly_length = self.poly_length;
+        let crt_poly_length = self.crt_poly_length;
+        let dcrt_glwe_len = self.dcrt_glwe_len;
+        let dcrt_glev_len = self.dcrt_glev_len;
+        let moduli = self.moduli();
+        let auto_helper = &self.auto_helper;
 
-    //     izip!(
-    //         result.iter_each_modulus_mut(single_modulus_len),
-    //         ciphertext.iter_each_modulus(single_modulus_len),
-    //         self.moduli(),
-    //     )
-    //     .for_each(|(glwe_out, glwe_in, modulus)| {
-    //         glwe_out
-    //             .chunks_exact_mut(poly_length)
-    //             .zip(glwe_in.chunks_exact(poly_length))
-    //             .for_each(|(poly_out, poly_in)| {
-    //                 poly_auto_inplace(poly_in, &self.auto_helper, poly_out, *modulus);
-    //             });
-    //     });
+        let mut big_uint_poly: BigUintPolynomial<Vec<T>> =
+            BigUintPolynomial::zero(poly_length, params.big_uint_value_len());
+        let mut temp: CrtGlweCiphertext<Vec<T>> = CrtGlweCiphertext::zero(dcrt_glwe_len);
 
-    //     todo!()
-    // }
+        izip!(
+            temp.iter_crt_poly_mut(crt_poly_length),
+            ciphertext.iter_crt_poly(crt_poly_length),
+            self.key.chunks_exact(dcrt_glev_len)
+        )
+        .for_each(|(a, b, key_i)| {
+            izip!(
+                a.chunks_exact_mut(poly_length),
+                b.chunks_exact(poly_length),
+                moduli
+            )
+            .for_each(|(x, y, &modulus)| {
+                poly_auto_inplace(y, auto_helper, x, modulus);
+            });
+
+            todo!()
+
+            // DcrtGlev::new(ArrayBase(key_i)).mul_polynomial_inplace(
+            //     big_uint_polynomial,
+            //     result,
+            //     dimension,
+            //     basis,
+            //     table,
+            //     rns_base,
+            // );
+        });
+
+        todo!()
+    }
 
     pub fn moduli_count(&self) -> usize {
         self.moduli.len()

@@ -122,6 +122,11 @@ where
         self.moduli_product.len()
     }
 
+    #[inline]
+    pub fn moduli_count(&self) -> usize {
+        self.moduli.len()
+    }
+
     /// Decomposes a value into its RNS representation.
     #[inline]
     pub fn decompose(&self, value: &[T]) -> Vec<T> {

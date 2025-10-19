@@ -25,6 +25,7 @@ pub struct BigUintApproxSignedBasis<T: UnsignedInteger> {
     next_pow_of_2_sub_modulus: Vec<T>,
     scalars: Vec<T>,
     scalars_residue: Vec<T>,
+    moduli_count: usize,
     value_masks: Vec<ValueMask<T>>,
 }
 
@@ -43,12 +44,12 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
         assert!(!modulus.last().unwrap().is_zero());
         assert!(log_basis > 0 && T::BITS > log_basis);
 
-        let len = modulus.len();
-        let unused_bits = modulus[len - 1].leading_zeros();
+        let big_uint_len = modulus.len();
+        let unused_bits = modulus[big_uint_len - 1].leading_zeros();
 
         let basis = <T as ConstOne>::ONE << log_basis;
         let basis_minus_one = basis - <T as ConstOne>::ONE;
-        let modulus_bits_count = T::BITS * (len as u32) - unused_bits;
+        let modulus_bits_count = T::BITS * (big_uint_len as u32) - unused_bits;
         let decompose_length = modulus_bits_count / log_basis;
         let mut drop_bits = modulus_bits_count - decompose_length * log_basis;
         let mut decompose_length = decompose_length as usize;
@@ -121,7 +122,7 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
 
         let next_pow_of_2_sub_modulus: Vec<T> = {
             let mut next_pow_of_2_minus_one = vec![T::MAX; modulus.len()];
-            next_pow_of_2_minus_one[len - 1] >>= unused_bits;
+            next_pow_of_2_minus_one[big_uint_len - 1] >>= unused_bits;
 
             let mut modulus_minus_one = modulus.to_vec();
             let _ = modulus_minus_one.slice_sub_value_assign(T::ONE);
@@ -131,9 +132,9 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
             next_pow_of_2_minus_one
         };
 
-        let mut scalars = vec![T::ZERO; len * decompose_length];
+        let mut scalars = vec![T::ZERO; big_uint_len * decompose_length];
         let mut prev: Option<Vec<T>> = None;
-        scalars.chunks_exact_mut(len).for_each(|scalar| {
+        scalars.chunks_exact_mut(big_uint_len).for_each(|scalar| {
             if let Some(pre) = prev.as_mut() {
                 pre.slice_left_shift_assign(log_basis);
                 scalar.copy_from_slice(&pre);
@@ -144,13 +145,15 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
             }
         });
 
-        let mut scalars_residue = vec![T::ZERO; len * decompose_length];
+        let moduli_count = rns_base.moduli_count();
+        let mut scalars_residue = vec![T::ZERO; moduli_count * decompose_length];
 
-        rns_base.decompose_multiple_values_inplace(
-            &scalars,
-            &mut scalars_residue,
-            decompose_length,
-        );
+        scalars
+            .chunks_exact(big_uint_len)
+            .zip(scalars_residue.chunks_exact_mut(moduli_count))
+            .for_each(|(scalar, residues)| {
+                rns_base.decompose_inplace(scalar, residues);
+            });
 
         let mut value_masks = Vec::with_capacity(decompose_length);
         let mut prev = ValueMask::new(basis_minus_one, drop_bits);
@@ -174,6 +177,7 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
             next_pow_of_2_sub_modulus,
             scalars,
             scalars_residue,
+            moduli_count,
             value_masks,
         }
     }
@@ -246,8 +250,8 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
 
     /// Returns a reference to the scalars residue of this [`BigUintApproxSignedBasis<T>`].
     #[inline]
-    pub fn scalars_residue(&self) -> &[T] {
-        &self.scalars_residue
+    pub fn scalars_residues_iter(&self) -> std::slice::ChunksExact<'_, T> {
+        self.scalars_residue.chunks_exact(self.moduli_count)
     }
 
     /// Returns an iterator over the signed decomposition operators of this [`BigUintApproxSignedBasis<T>`].

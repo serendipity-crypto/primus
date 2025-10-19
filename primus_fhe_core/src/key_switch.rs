@@ -1,6 +1,6 @@
 use primus_distr::SignedDiscreteGaussian;
-use primus_integer::{UnsignedInteger, izip};
-use primus_ntt::{Dcrt, DcrtTable, Ntt};
+use primus_integer::UnsignedInteger;
+use primus_ntt::{Dcrt, DcrtTable};
 use primus_reduce::FieldContext;
 
 use crate::{CrtGlweSecretKey, DcrtGlweSecretKey};

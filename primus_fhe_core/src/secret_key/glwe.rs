@@ -241,6 +241,10 @@ impl<T: UnsignedInteger> CrtGlweSecretKey<T> {
         self.crt_poly_length
     }
 
+    pub fn iter_crt_poly(&self) -> std::slice::ChunksExact<'_, T> {
+        self.key.chunks_exact(self.crt_poly_length)
+    }
+
     /// Returns the distr of this [`CrtGlweSecretKey<T>`].
     #[inline]
     pub fn distr(&self) -> RingSecretKeyType {
@@ -311,6 +315,7 @@ pub struct DcrtGlweSecretKey<T: UnsignedInteger> {
     poly_length: usize,
     dimension: usize,
     crt_poly_length: usize,
+    crt_glwe_len: usize,
     distr: RingSecretKeyType,
 }
 
@@ -333,6 +338,11 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
     /// Returns the crt poly length of this [`DcrtGlweSecretKey<T>`].
     pub fn crt_poly_length(&self) -> usize {
         self.crt_poly_length
+    }
+
+    /// Returns the crt glwe len of this [`DcrtGlweSecretKey<T>`].
+    pub fn crt_glwe_len(&self) -> usize {
+        self.crt_glwe_len
     }
 
     /// Returns the distr of this [`DcrtGlweSecretKey<T>`].
@@ -367,6 +377,7 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
             poly_length,
             dimension,
             crt_poly_length,
+            crt_glwe_len: crt_poly_length * (dimension + 1),
             distr: secret_key.distr,
         }
     }

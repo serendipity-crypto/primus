@@ -52,4 +52,27 @@ where
             ArrayBase(xs).add_mul_scalar_assign(&ArrayBase(ys), scalar, modulus);
         });
     }
+
+    /// Performs `self += scalar * rhs` according to `moduli`.
+    #[inline]
+    pub fn add_mul_scalar_residues_assign<M, A>(
+        &mut self,
+        rhs: &CrtPolynomial<A, T>,
+        scalar_residues: &[T],
+        poly_length: usize,
+        moduli: &[M],
+    ) where
+        M: Copy + ReduceMulAdd<T, Output = T>,
+        A: RawData<Elem = T> + Data,
+    {
+        izip!(
+            self.iter_each_modulus_mut(poly_length),
+            rhs.iter_each_modulus(poly_length),
+            scalar_residues,
+            moduli
+        )
+        .for_each(|(xs, ys, &scalar, &modulus)| {
+            ArrayBase(xs).add_mul_scalar_assign(&ArrayBase(ys), scalar, modulus);
+        });
+    }
 }

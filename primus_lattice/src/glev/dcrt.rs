@@ -37,7 +37,7 @@ impl_crt_intt!(DcrtGlev<S, T>, CrtGlev);
 
 impl<S, T> DcrtGlev<S, T>
 where
-    S: RawData<Elem = T> + DataMut,
+    S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
 {
     pub fn mul_polynomial_inplace<M, Table, A, B>(

@@ -154,7 +154,7 @@ where
         dimension: usize,
         poly_length: usize,
         plain_modulus_value: T,
-        cipher_moduli: Vec<M>,
+        cipher_moduli: &[M],
         secret_key_type: RingSecretKeyType,
         noise_standard_deviation: f64,
     ) -> Self {
@@ -182,7 +182,7 @@ where
             plain_modulus_value,
             cipher_modulus,
             cipher_modulus_minus_one,
-            cipher_moduli,
+            cipher_moduli: cipher_moduli.to_vec(),
             cipher_moduli_value,
             cipher_moduli_minus_one,
             cipher_moduli_uniform_distr,
@@ -386,6 +386,12 @@ where
     cipher_modulus: Vec<T>,
     /// The moduli, refers to **Q=Q1*Q2*...** in the paper.
     cipher_moduli: Vec<M>,
+    /// The moduli, refers to **Q=Q1*Q2*...** in the paper.
+    cipher_moduli_value: Vec<T>,
+    /// Refers to `Q1-1`, `Q2-1` ...
+    cipher_moduli_minus_one: Vec<T>,
+
+    cipher_moduli_uniform_distr: Vec<Uniform<T>>,
     /// The distribution type of the secret key.
     secret_key_type: RingSecretKeyType,
     /// The noise's distribution.
@@ -404,18 +410,25 @@ where
     pub fn new(
         dimension: usize,
         poly_length: usize,
-        moduli: &[M],
+        cipher_moduli: &[M],
         secret_key_type: RingSecretKeyType,
         noise_standard_deviation: f64,
         basis: BigUintApproxSignedBasis<T>,
     ) -> Self {
-        let modulus_values: Vec<T> = moduli.iter().map(|m| m.value_unchecked()).collect();
-        let modulus = multiply_many_values(&modulus_values);
-        let modulus_minus_one = {
-            let mut temp = modulus.clone();
+        let cipher_moduli_value: Vec<T> =
+            cipher_moduli.iter().map(|m| m.value_unchecked()).collect();
+        let cipher_moduli_minus_one = cipher_moduli_value.iter().map(|&m| m - T::ONE).collect();
+        let cipher_modulus = multiply_many_values(&cipher_moduli_value);
+        let cipher_modulus_minus_one = {
+            let mut temp = cipher_modulus.clone();
             temp[0] -= T::ONE;
             temp
         };
+
+        let cipher_moduli_uniform_distr = cipher_moduli
+            .iter()
+            .map(|m| m.uniform_distribution())
+            .collect();
 
         let noise_distribution =
             SignedDiscreteGaussian::new(0.0, noise_standard_deviation).unwrap();
@@ -423,12 +436,15 @@ where
         Self {
             dimension,
             poly_length,
-            cipher_modulus_minus_one: modulus_minus_one,
-            cipher_modulus: modulus,
-            cipher_moduli: moduli.to_vec(),
+            cipher_modulus,
+            cipher_modulus_minus_one,
+            cipher_moduli: cipher_moduli.to_vec(),
+            cipher_moduli_value,
+            cipher_moduli_minus_one,
+            cipher_moduli_uniform_distr,
             secret_key_type,
-            basis,
             noise_distribution,
+            basis,
         }
     }
 
@@ -471,6 +487,21 @@ where
     #[inline]
     pub fn cipher_moduli_count(&self) -> usize {
         self.cipher_moduli.len()
+    }
+
+    /// Returns a reference to the cipher moduli value of this [`CrtGlevParameters<T, M>`].
+    pub fn cipher_moduli_value(&self) -> &[T] {
+        &self.cipher_moduli_value
+    }
+
+    /// Returns a reference to the cipher moduli minus one of this [`CrtGlevParameters<T, M>`].
+    pub fn cipher_moduli_minus_one(&self) -> &[T] {
+        &self.cipher_moduli_minus_one
+    }
+
+    /// Returns a reference to the cipher moduli uniform distr of this [`CrtGlevParameters<T, M>`].
+    pub fn cipher_moduli_uniform_distr(&self) -> &[Uniform<T>] {
+        &self.cipher_moduli_uniform_distr
     }
 
     /// Returns the secret key type of this [`CrtGlevParameters<T, M>`].
