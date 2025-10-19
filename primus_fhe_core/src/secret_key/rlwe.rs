@@ -41,6 +41,7 @@ where
     /// Creates a new [`RlweSecretKey<T>`].
     #[inline]
     pub fn new(key: PolynomialOwned<T>, distr: RingSecretKeyType) -> Self {
+        debug_assert!(key.poly_length().is_power_of_two());
         Self { key, distr }
     }
 

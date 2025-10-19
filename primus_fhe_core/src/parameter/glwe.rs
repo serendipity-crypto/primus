@@ -2,6 +2,7 @@ use primus_decompose::{big_integer::BigUintApproxSignedBasis, primitive::ApproxS
 use primus_distr::{DiscreteGaussian, SignedDiscreteGaussian};
 use primus_integer::{UnsignedInteger, multiply_many_values};
 use primus_reduce::FieldContext;
+use rand::distr::Uniform;
 
 use crate::RingSecretKeyType;
 
@@ -131,10 +132,16 @@ where
     cipher_modulus: Vec<T>,
     /// The moduli, refers to **Q=Q1*Q2*...** in the paper.
     cipher_moduli: Vec<M>,
+    /// The moduli, refers to **Q=Q1*Q2*...** in the paper.
+    cipher_moduli_value: Vec<T>,
+    /// Refers to `Q1-1`, `Q2-1` ...
+    cipher_moduli_minus_one: Vec<T>,
+
+    cipher_moduli_uniform_distr: Vec<Uniform<T>>,
     /// The distribution type of the secret key.
     secret_key_type: RingSecretKeyType,
     /// The noise distribution
-    noise_distribution: SignedDiscreteGaussian<T>,
+    noise_distribution: SignedDiscreteGaussian<T::SignedInteger>,
 }
 
 impl<T, M> CrtGlweParameters<T, M>
@@ -151,13 +158,20 @@ where
         secret_key_type: RingSecretKeyType,
         noise_standard_deviation: f64,
     ) -> Self {
-        let modulus_values: Vec<T> = cipher_moduli.iter().map(|m| m.value_unchecked()).collect();
-        let cipher_modulus = multiply_many_values(&modulus_values);
+        let cipher_moduli_value: Vec<T> =
+            cipher_moduli.iter().map(|m| m.value_unchecked()).collect();
+        let cipher_moduli_minus_one = cipher_moduli_value.iter().map(|&m| m - T::ONE).collect();
+        let cipher_modulus = multiply_many_values(&cipher_moduli_value);
         let cipher_modulus_minus_one = {
             let mut temp = cipher_modulus.clone();
             temp[0] -= T::ONE;
             temp
         };
+
+        let cipher_moduli_uniform_distr = cipher_moduli
+            .iter()
+            .map(|m| m.uniform_distribution())
+            .collect();
 
         let noise_distribution =
             SignedDiscreteGaussian::new(0.0, noise_standard_deviation).unwrap();
@@ -166,9 +180,12 @@ where
             dimension,
             poly_length,
             plain_modulus_value,
-            cipher_modulus_minus_one,
             cipher_modulus,
+            cipher_modulus_minus_one,
             cipher_moduli,
+            cipher_moduli_value,
+            cipher_moduli_minus_one,
+            cipher_moduli_uniform_distr,
             secret_key_type,
             noise_distribution,
         }
@@ -207,9 +224,24 @@ where
         &self.cipher_moduli
     }
 
+    /// Returns a reference to the cipher moduli value of this [`CrtGlweParameters<T, M>`].
+    pub fn cipher_moduli_value(&self) -> &[T] {
+        &self.cipher_moduli_value
+    }
+
+    /// Returns a reference to the cipher moduli minus one of this [`CrtGlweParameters<T, M>`].
+    pub fn cipher_moduli_minus_one(&self) -> &[T] {
+        &self.cipher_moduli_minus_one
+    }
+
     /// Returns the moduli count of this [`CrtGlweParameters<T, M>`].
     pub fn cipher_moduli_count(&self) -> usize {
         self.cipher_moduli.len()
+    }
+
+    /// Returns a reference to the cipher moduli uniform distr of this [`CrtGlweParameters<T, M>`].
+    pub fn cipher_moduli_uniform_distr(&self) -> &[Uniform<T>] {
+        &self.cipher_moduli_uniform_distr
     }
 
     /// Returns the big uint value len of this [`CrtGlweParameters<T, M>`].
@@ -224,7 +256,7 @@ where
     }
 
     /// Returns a reference to the noise distribution of this [`CrtGlweParameters<T, M>`].
-    pub fn noise_distribution(&self) -> &SignedDiscreteGaussian<T> {
+    pub fn noise_distribution(&self) -> &SignedDiscreteGaussian<T::SignedInteger> {
         &self.noise_distribution
     }
 

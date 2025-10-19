@@ -71,101 +71,102 @@ where
     where
         R: rand::Rng + rand::CryptoRng,
     {
-        let poly_length = sk.poly_length();
-        let dimension = sk.dimension();
-        let moduli_count = sk.moduli_count();
-        let decompose_length = basis.decompose_length();
+        // let poly_length = sk.poly_length();
+        // let dimension = sk.dimension();
+        // let moduli_count = sk.moduli_count();
+        // let decompose_length = basis.decompose_length();
 
-        debug_assert_eq!(moduli_count, moduli.len());
+        // debug_assert_eq!(moduli_count, moduli.len());
 
-        let a_b_mid = dimension * poly_length;
-        let glwe_len = a_b_mid + poly_length;
-        let glev_len = decompose_length * glwe_len;
-        let single_modulus_len = dimension * glev_len;
+        // let a_b_mid = dimension * poly_length;
+        // let glwe_len = a_b_mid + poly_length;
+        // let glev_len = decompose_length * glwe_len;
+        // let single_modulus_len = dimension * glev_len;
 
-        let e_glev_len = decompose_length * poly_length;
-        let e_single_modulus_len = dimension * e_glev_len;
+        // let e_glev_len = decompose_length * poly_length;
+        // let e_single_modulus_len = dimension * e_glev_len;
 
-        let auto_helper = if degree == 1 {
-            AutoHelper::One
-        } else if degree == poly_length + 1 {
-            AutoHelper::DimensionPlusOne
-        } else {
-            AutoHelper::Permutation(generate_permutate_ops(degree, poly_length))
-        };
+        // let auto_helper = if degree == 1 {
+        //     AutoHelper::One
+        // } else if degree == poly_length + 1 {
+        //     AutoHelper::DimensionPlusOne
+        // } else {
+        //     AutoHelper::Permutation(generate_permutate_ops(degree, poly_length))
+        // };
 
-        let mut result = vec![T::ZERO; moduli_count * single_modulus_len];
-        let mut e_all = vec![T::ZERO; moduli_count * e_single_modulus_len];
-        let modulus_values: Vec<T> = moduli.iter().map(|m| m.value_unchecked()).collect();
+        // let mut result = vec![T::ZERO; moduli_count * single_modulus_len];
+        // let mut e_all = vec![T::ZERO; moduli_count * e_single_modulus_len];
+        // let modulus_values: Vec<T> = moduli.iter().map(|m| m.value_unchecked()).collect();
 
-        primus_distr::sample_crt_gaussian_values_inplace(
-            &mut e_all,
-            e_single_modulus_len,
-            &modulus_values,
-            gaussian,
-            rng,
-        );
+        // primus_distr::sample_crt_gaussian_values_inplace(
+        //     &mut e_all,
+        //     e_single_modulus_len,
+        //     &modulus_values,
+        //     gaussian,
+        //     rng,
+        // );
 
-        izip!(
-            result.chunks_exact_mut(single_modulus_len),
-            sk.iter_each_modulus(),
-            dcrt_sk.iter_each_modulus(),
-            e_all.chunks_exact_mut(e_single_modulus_len),
-            basis.scalars_residue().chunks_exact(decompose_length),
-            table.iter(),
-            moduli,
-        )
-        .for_each(|(auto_key, key, ntt_key, es, sclars, ntt_table, modulus)| {
-            let uniform_distr = modulus.uniform_distribution();
-            izip!(
-                auto_key.chunks_exact_mut(glev_len),
-                key.chunks_exact(poly_length),
-                es.chunks_exact_mut(e_glev_len)
-            )
-            .for_each(|(glev, key_part, e_glev)| {
-                izip!(
-                    glev.chunks_exact_mut(glwe_len),
-                    e_glev.chunks_exact_mut(poly_length),
-                    sclars
-                )
-                .for_each(|(glwe, e_glwe, scalar)| {
-                    let (a, b) = unsafe { glwe.split_at_mut_unchecked(a_b_mid) };
+        // izip!(
+        //     result.chunks_exact_mut(single_modulus_len),
+        //     sk.iter_each_modulus(),
+        //     dcrt_sk.iter_each_modulus(),
+        //     e_all.chunks_exact_mut(e_single_modulus_len),
+        //     basis.scalars_residue().chunks_exact(decompose_length),
+        //     table.iter(),
+        //     moduli,
+        // )
+        // .for_each(|(auto_key, key, ntt_key, es, sclars, ntt_table, modulus)| {
+        //     let uniform_distr = modulus.uniform_distribution();
+        //     izip!(
+        //         auto_key.chunks_exact_mut(glev_len),
+        //         key.chunks_exact(poly_length),
+        //         es.chunks_exact_mut(e_glev_len)
+        //     )
+        //     .for_each(|(glev, key_part, e_glev)| {
+        //         izip!(
+        //             glev.chunks_exact_mut(glwe_len),
+        //             e_glev.chunks_exact_mut(poly_length),
+        //             sclars
+        //         )
+        //         .for_each(|(glwe, e_glwe, scalar)| {
+        //             let (a, b) = unsafe { glwe.split_at_mut_unchecked(a_b_mid) };
 
-                    b.copy_from_slice(e_glwe);
+        //             b.copy_from_slice(e_glwe);
 
-                    poly_auto_inplace(key_part, &auto_helper, e_glwe, *modulus);
-                    ArrayBase(&mut *b).add_mul_scalar_assign(&ArrayBase(e_glwe), *scalar, *modulus);
-                    ntt_table.transform_slice(b);
+        //             poly_auto_inplace(key_part, &auto_helper, e_glwe, *modulus);
+        //             ArrayBase(&mut *b).add_mul_scalar_assign(&ArrayBase(e_glwe), *scalar, *modulus);
+        //             ntt_table.transform_slice(b);
 
-                    a.iter_mut()
-                        .zip(uniform_distr.sample_iter(&mut *rng))
-                        .for_each(|(i, o)| *i = o);
+        //             a.iter_mut()
+        //                 .zip(uniform_distr.sample_iter(&mut *rng))
+        //                 .for_each(|(i, o)| *i = o);
 
-                    let mut b_poly = NttPolynomial(ArrayBase(b));
+        //             let mut b_poly = NttPolynomial(ArrayBase(b));
 
-                    a.chunks_exact_mut(poly_length)
-                        .zip(ntt_key.chunks_exact(poly_length))
-                        .for_each(|(ai, s)| {
-                            b_poly.add_mul_assign(
-                                &NttPolynomial(ArrayBase(ai)),
-                                &NttPolynomial(ArrayBase(s)),
-                                *modulus,
-                            );
-                        });
-                });
-            });
-        });
+        //             a.chunks_exact_mut(poly_length)
+        //                 .zip(ntt_key.chunks_exact(poly_length))
+        //                 .for_each(|(ai, s)| {
+        //                     b_poly.add_mul_assign(
+        //                         &NttPolynomial(ArrayBase(ai)),
+        //                         &NttPolynomial(ArrayBase(s)),
+        //                         *modulus,
+        //                     );
+        //                 });
+        //         });
+        //     });
+        // });
 
-        Self {
-            degree,
-            poly_length,
-            dimension,
-            decompose_length,
-            auto_helper,
-            key: result,
-            moduli: moduli.to_vec(),
-            table: Arc::clone(&table),
-        }
+        // Self {
+        //     degree,
+        //     poly_length,
+        //     dimension,
+        //     decompose_length,
+        //     auto_helper,
+        //     key: result,
+        //     moduli: moduli.to_vec(),
+        //     table: Arc::clone(&table),
+        // }
+        todo!()
     }
 
     pub fn degree(&self) -> usize {

@@ -46,15 +46,16 @@ where
 {
     /// Performs `result = self - rhs` according to `moduli`.
     #[inline]
-    pub fn sub_inplace<M, A>(
+    pub fn sub_inplace<M, A, B>(
         &self,
-        rhs: &Self,
-        result: &mut DcrtPolynomial<A, T>,
+        rhs: &DcrtPolynomial<A, T>,
+        result: &mut DcrtPolynomial<B, T>,
         poly_length: usize,
         moduli: &[M],
     ) where
         M: Copy + ReduceSub<T, Output = T>,
-        A: RawData<Elem = T> + DataMut,
+        A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + DataMut,
     {
         izip!(
             self.iter_each_modulus(poly_length),
@@ -64,6 +65,27 @@ where
         )
         .for_each(|(xs, ys, zs, &modulus)| {
             ArrayBase(xs).sub_element_wise_inplace(&ArrayBase(ys), &mut ArrayBase(zs), modulus);
+        });
+    }
+
+    /// Performs `rhs = self - rhs` according to `moduli`.
+    #[inline]
+    pub fn sub_to_right<M, A>(
+        &self,
+        rhs: &mut DcrtPolynomial<A, T>,
+        poly_length: usize,
+        moduli: &[M],
+    ) where
+        M: Copy + ReduceSub<T, Output = T>,
+        A: RawData<Elem = T> + DataMut,
+    {
+        izip!(
+            self.iter_each_modulus(poly_length),
+            rhs.iter_each_modulus_mut(poly_length),
+            moduli
+        )
+        .for_each(|(xs, ys, &modulus)| {
+            ArrayBase(xs).sub_element_wise_to_right(&mut ArrayBase(ys), modulus);
         });
     }
 }
