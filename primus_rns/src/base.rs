@@ -92,6 +92,11 @@ where
         &self.moduli
     }
 
+    #[inline]
+    pub fn moduli_count(&self) -> usize {
+        self.moduli.len()
+    }
+
     /// Returns a reference to the moduli product of this [`RNSBase<T, M>`].
     #[inline]
     pub fn moduli_product(&self) -> &[T] {
@@ -120,11 +125,6 @@ where
     #[inline]
     pub fn big_uint_value_len(&self) -> usize {
         self.moduli_product.len()
-    }
-
-    #[inline]
-    pub fn moduli_count(&self) -> usize {
-        self.moduli.len()
     }
 
     /// Decomposes a value into its RNS representation.
