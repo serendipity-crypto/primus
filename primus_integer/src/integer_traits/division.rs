@@ -22,11 +22,7 @@ impl_div_rem! { u8 u16 u32 u64 u128 usize }
 
 /// A trait for array types that support division and remainder operation by a scalar.
 pub trait DivRemScalar: Sized {
-    fn div_rem_scalar<const N: usize>(
-        dividend: &[Self; N],
-        divisor: Self,
-        quotient: &mut [Self; N],
-    ) -> Self;
+    fn div_rem_scalar(dividend: &[Self], divisor: Self, quotient: &mut [Self]) -> Self;
 }
 
 macro_rules! impl_div_rem_scalar {
@@ -63,11 +59,8 @@ macro_rules! impl_div_rem_scalar {
         }
 
         impl DivRemScalar for $T {
-            fn div_rem_scalar<const N: usize>(
-                dividend: &[Self; N],
-                divisor: Self,
-                quotient: &mut [Self; N],
-            ) -> $T {
+            fn div_rem_scalar(dividend: &[Self], divisor: Self, quotient: &mut [Self]) -> $T {
+                debug_assert_eq!(dividend.len(), quotient.len());
                 if divisor.is_zero() {
                     panic!("attempt to divide by zero")
                 }
@@ -179,14 +172,13 @@ mod big_digit {
     const LO_MASK_U128: u128 = u64::MAX as u128;
 
     impl DivRemScalar for u128 {
-        fn div_rem_scalar<const N: usize>(
-            dividend: &[u128; N],
-            divisor: u128,
-            quotient: &mut [u128; N],
-        ) -> u128 {
+        fn div_rem_scalar(dividend: &[u128], divisor: u128, quotient: &mut [u128]) -> u128 {
             debug_assert!(divisor != 0);
+            debug_assert_eq!(dividend.len(), quotient.len());
 
-            if N == 1 {
+            let len = dividend.len();
+
+            if len == 1 {
                 quotient[0] = dividend[0] / divisor;
                 dividend[0] % divisor
             } else if divisor <= LO_MASK_U128 {
@@ -201,25 +193,29 @@ mod big_digit {
                 let mut remainder = 0;
                 let non_zero_divisor = unsafe { NonZeroU128::new_unchecked(divisor) };
 
-                if dividend[N - 1] < divisor {
+                if dividend[len - 1] < divisor {
                     // The result fits in 128 bits.
-                    quotient[N - 1] = 0;
-                    quotient[N - 2] = udiv256_by_128_to_128(
-                        dividend[N - 1],
-                        dividend[N - 2],
+                    quotient[len - 1] = 0;
+                    quotient[len - 2] = udiv256_by_128_to_128(
+                        dividend[len - 1],
+                        dividend[len - 2],
                         non_zero_divisor,
                         &mut remainder,
                     );
                 } else {
                     // First, divide with the high part to get the remainder in dividend.s.high.
                     // After that dividend.s.high < divisor.s.low.
-                    let (q, r) = dividend[N - 1].div_rem(divisor);
-                    quotient[N - 1] = q;
-                    quotient[N - 2] =
-                        udiv256_by_128_to_128(r, dividend[N - 2], non_zero_divisor, &mut remainder);
+                    let (q, r) = dividend[len - 1].div_rem(divisor);
+                    quotient[len - 1] = q;
+                    quotient[len - 2] = udiv256_by_128_to_128(
+                        r,
+                        dividend[len - 2],
+                        non_zero_divisor,
+                        &mut remainder,
+                    );
                 }
 
-                for i in (0..N - 2).rev() {
+                for i in (0..len - 2).rev() {
                     quotient[i] = udiv256_by_128_to_128(
                         remainder,
                         dividend[i],

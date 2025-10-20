@@ -1,7 +1,7 @@
-use primus_integer::{UnsignedInteger, izip};
+use primus_integer::UnsignedInteger;
 use primus_ntt::{Dcrt, DcrtTable, Ntt, NttTable};
 use primus_poly::{
-    ArrayBase, Data, NttPolynomial, PolynomialOwned, RawData, crt::CrtPolynomial,
+    ArrayBase, Data, DataMut, NttPolynomial, PolynomialOwned, RawData, crt::CrtPolynomial,
     dcrt::DcrtPolynomial,
 };
 use primus_reduce::FieldContext;
@@ -382,39 +382,119 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
         }
     }
 
-    /// Performs `b-as`.
-    pub fn phase_inplace<Table, M, S>(
+    pub fn encrypt_inplace<R, M, Table, A, B>(
         &self,
-        cipher: &DcrtGlweCiphertext<S>,
-        result: &mut CrtPolynomial<Vec<T>>,
-        moduli: &[M],
+        msg: &CrtPolynomial<A>,
+        result: &mut DcrtGlweCiphertext<B>,
+        params: &CrtGlweParameters<T, M>,
+        table: &Table,
+        rng: &mut R,
+    ) where
+        R: rand::Rng + rand::CryptoRng,
+        M: FieldContext<T>,
+        Table: DcrtTable<ValueT = T> + Dcrt,
+        A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + DataMut,
+    {
+        let poly_length = self.poly_length;
+        let crt_poly_length = self.crt_poly_length;
+        let moduli = params.cipher_moduli();
+        let uniform_distrs = params.cipher_moduli_uniform_distr();
+
+        let (a, b) = result.a_b_mut_slices(self.crt_glwe_len - crt_poly_length);
+
+        primus_distr::sample_crt_gaussian_values_inplace(
+            b,
+            poly_length,
+            params.cipher_moduli_value(),
+            params.noise_distribution(),
+            rng,
+        );
+
+        let mut b_crt_poly = CrtPolynomial(ArrayBase(b));
+        b_crt_poly.add_mul_scalar_residues_assign(
+            msg,
+            params.delta_residues(),
+            poly_length,
+            moduli,
+        );
+        let mut b_dcrt_poly = table.transform_inplace(b_crt_poly);
+
+        a.chunks_exact_mut(crt_poly_length)
+            .zip(self.iter_dcrt_poly())
+            .for_each(|(ai, si)| {
+                primus_distr::sample_crt_uniform_values_inplace(
+                    ai,
+                    poly_length,
+                    uniform_distrs,
+                    rng,
+                );
+
+                b_dcrt_poly.add_mul_assign(
+                    &DcrtPolynomial(ArrayBase(ai)),
+                    &DcrtPolynomial(ArrayBase(si)),
+                    poly_length,
+                    moduli,
+                );
+            });
+    }
+
+    /// Performs `b-as`.
+    pub fn phase_inplace<M, Table, A, B>(
+        &self,
+        ciphertext: &DcrtGlweCiphertext<A>,
+        msg: &mut CrtPolynomial<B>,
+        params: &CrtGlweParameters<T, M>,
         table: &Table,
     ) where
         M: FieldContext<T>,
         Table: DcrtTable<ValueT = T> + Dcrt,
-        S: RawData<Elem = T> + Data,
+        A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + DataMut,
     {
-        let mid = self.crt_poly_length * self.dimension;
+        let poly_length = self.poly_length;
+        let moduli = params.cipher_moduli();
 
-        result.set_zero();
-        let mut result_poly = DcrtPolynomial(ArrayBase(result.as_mut()));
+        let mut temp = DcrtPolynomial::new(ArrayBase(msg.as_mut()));
+        temp.set_zero();
 
-        let (a, b) = unsafe { cipher.data.split_at_unchecked(mid) };
+        let (a, b) = ciphertext.a_b_slices(self.crt_glwe_len - self.crt_poly_length);
 
-        izip!(
-            a.chunks_exact(self.crt_poly_length),
-            self.key.chunks_exact(self.crt_poly_length),
-        )
-        .for_each(|(ai, si)| {
-            result_poly.add_mul_assign(
-                &DcrtPolynomial(ArrayBase(ai)),
-                &DcrtPolynomial(ArrayBase(si)),
-                self.poly_length,
-                moduli,
-            );
-        });
-        DcrtPolynomial(ArrayBase(b)).sub_to_right(&mut result_poly, self.poly_length, moduli);
+        // temp = ∑a*s
+        a.chunks_exact(self.crt_poly_length)
+            .zip(self.iter_dcrt_poly())
+            .for_each(|(ai, si)| {
+                temp.add_mul_assign(
+                    &DcrtPolynomial(ArrayBase(ai)),
+                    &DcrtPolynomial(ArrayBase(si)),
+                    poly_length,
+                    moduli,
+                );
+            });
 
-        table.inverse_transform_slice(result.as_mut());
+        // temp = b - ∑a*s
+        DcrtPolynomial(ArrayBase(b)).sub_to_right(&mut temp, poly_length, moduli);
+        table.inverse_transform_slice(temp.as_mut());
+    }
+
+    pub fn decrypt_inplace<M, Table, A, B>(
+        &self,
+        ciphertext: &DcrtGlweCiphertext<A>,
+        msg: &mut CrtPolynomial<B>,
+        params: &CrtGlweParameters<T, M>,
+        table: &Table,
+    ) where
+        M: FieldContext<T>,
+        Table: DcrtTable<ValueT = T> + Dcrt,
+        A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + DataMut,
+    {
+        let inverse_delta_residues = params.inverse_delta_residues();
+        self.phase_inplace(ciphertext, msg, params, table);
+        msg.mul_scalar_residues_assign(
+            inverse_delta_residues,
+            self.poly_length,
+            params.cipher_moduli(),
+        );
     }
 }

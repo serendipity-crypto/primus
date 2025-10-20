@@ -28,7 +28,7 @@ impl<T: UnsignedInteger> PrimitiveRoot for T {
     where
         M: FieldContext<Self>,
     {
-        let modulus_value = modulus.value().unwrap();
+        let modulus_value = modulus.value_unchecked();
 
         debug_assert!(self < modulus_value);
         debug_assert!(
@@ -40,7 +40,7 @@ impl<T: UnsignedInteger> PrimitiveRoot for T {
             return false;
         }
 
-        self.exp_power_of_2_modulo(log_degree, modulus) == modulus.minus_one()
+        self.exp_power_of_2_modulo(log_degree - 1, modulus) == modulus.minus_one()
     }
 
     fn try_primitive_root<M>(log_degree: u32, modulus: M) -> Result<Self, NttError<Self>>

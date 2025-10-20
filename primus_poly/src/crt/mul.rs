@@ -31,6 +31,24 @@ where
             .for_each(|(poly, &modulus)| ArrayBase(poly).mul_scalar_assign(scalar, modulus))
     }
 
+    /// Performs `self *= scalar` according to `moduli`.
+    #[inline]
+    pub fn mul_scalar_residues_assign<M>(
+        &mut self,
+        scalar_residues: &[T],
+        poly_length: usize,
+        moduli: &[M],
+    ) where
+        M: Copy + ReduceMulAssign<T>,
+    {
+        izip!(
+            self.iter_each_modulus_mut(poly_length),
+            scalar_residues,
+            moduli
+        )
+        .for_each(|(poly, &scalar, &modulus)| ArrayBase(poly).mul_scalar_assign(scalar, modulus))
+    }
+
     /// Performs `self += scalar * rhs` according to `moduli`.
     #[inline]
     pub fn add_mul_scalar_assign<M, A>(

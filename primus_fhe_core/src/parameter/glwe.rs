@@ -1,6 +1,6 @@
 use primus_decompose::{big_integer::BigUintApproxSignedBasis, primitive::ApproxSignedBasis};
 use primus_distr::{DiscreteGaussian, SignedDiscreteGaussian};
-use primus_integer::{UnsignedInteger, multiply_many_values};
+use primus_integer::{BigIntegerOps, DivRemScalar, UnsignedInteger, multiply_many_values};
 use primus_reduce::FieldContext;
 use rand::distr::Uniform;
 
@@ -138,6 +138,11 @@ where
     cipher_moduli_minus_one: Vec<T>,
 
     cipher_moduli_uniform_distr: Vec<Uniform<T>>,
+
+    /// Refers to `Q/t`.
+    delta: Vec<T>,
+    delta_residues: Vec<T>,
+    inverse_delta_residues: Vec<T>,
     /// The distribution type of the secret key.
     secret_key_type: RingSecretKeyType,
     /// The noise distribution
@@ -176,6 +181,25 @@ where
         let noise_distribution =
             SignedDiscreteGaussian::new(0.0, noise_standard_deviation).unwrap();
 
+        let mut delta = vec![T::ZERO; cipher_modulus.len()];
+
+        let rem = DivRemScalar::div_rem_scalar(&cipher_modulus, plain_modulus_value, &mut delta);
+
+        if rem * T::TWO >= plain_modulus_value {
+            let _ = delta.slice_add_value_assign(T::ONE);
+        }
+
+        let delta_residues: Vec<T> = cipher_moduli
+            .iter()
+            .map(|modulus| modulus.reduce(delta.as_ref()))
+            .collect();
+
+        let inverse_delta_residues: Vec<T> = delta_residues
+            .iter()
+            .zip(cipher_moduli)
+            .map(|(&v, modulus)| modulus.reduce_inv(v))
+            .collect();
+
         Self {
             dimension,
             poly_length,
@@ -186,6 +210,9 @@ where
             cipher_moduli_value,
             cipher_moduli_minus_one,
             cipher_moduli_uniform_distr,
+            delta,
+            delta_residues,
+            inverse_delta_residues,
             secret_key_type,
             noise_distribution,
         }
@@ -263,6 +290,21 @@ where
     /// Returns the noise standard deviation of this [`CrtGlweParameters<T, M>`].
     pub fn noise_standard_deviation(&self) -> f64 {
         self.noise_distribution.standard_deviation()
+    }
+
+    /// Returns a reference to the delta of this [`CrtGlweParameters<T, M>`].
+    pub fn delta(&self) -> &[T] {
+        &self.delta
+    }
+
+    /// Returns a reference to the delta residues of this [`CrtGlweParameters<T, M>`].
+    pub fn delta_residues(&self) -> &[T] {
+        &self.delta_residues
+    }
+
+    /// Returns a reference to the inverse delta residues of this [`CrtGlweParameters<T, M>`].
+    pub fn inverse_delta_residues(&self) -> &[T] {
+        &self.inverse_delta_residues
     }
 }
 
