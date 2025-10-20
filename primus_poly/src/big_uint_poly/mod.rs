@@ -32,8 +32,8 @@ where
 {
     /// Creates a [`BigUintPolynomial<S>`] with all coefficients equal to zero.
     #[inline]
-    pub fn zero(poly_length: usize, value_len: usize) -> Self {
-        Self(ArrayBase::zero(poly_length * value_len))
+    pub fn zero(big_uint_poly_len: usize) -> Self {
+        Self(ArrayBase::zero(big_uint_poly_len))
     }
 
     /// Drop self, and return the vector.

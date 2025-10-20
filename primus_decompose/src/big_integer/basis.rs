@@ -256,7 +256,7 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
 
     /// Returns an iterator over the signed decomposition operators of this [`BigUintApproxSignedBasis<T>`].
     #[inline]
-    pub fn decompose_iter<'a>(
+    pub fn decomposer_iter<'a>(
         &'a self,
     ) -> std::iter::Map<
         std::iter::Copied<std::slice::Iter<'a, ValueMask<T>>>,
@@ -328,15 +328,15 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
     #[inline]
     pub fn init_value_carry_slice(
         &self,
-        values: &[T],
-        adjust_values: &mut [T],
+        big_uint_values: &[T],
+        adjust_big_uint_values: &mut [T],
         carries: &mut [bool],
-        value_chunk_size: usize,
+        big_uint_value_len: usize,
     ) {
         if let Some(split) = &self.split_value {
-            adjust_values
-                .chunks_exact_mut(value_chunk_size)
-                .zip(values.chunks_exact(value_chunk_size))
+            adjust_big_uint_values
+                .chunks_exact_mut(big_uint_value_len)
+                .zip(big_uint_values.chunks_exact(big_uint_value_len))
                 .for_each(|(adjust_value, value)| {
                     adjust_value.copy_from_slice(value);
                     if value.slice_cmp(split).is_ge() {
@@ -346,8 +346,8 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
         }
 
         match self.init_carry_mask {
-            Some((i, mask)) => adjust_values
-                .chunks_exact_mut(value_chunk_size)
+            Some((i, mask)) => adjust_big_uint_values
+                .chunks_exact_mut(big_uint_value_len)
                 .zip(carries)
                 .for_each(|(value, carry)| {
                     *carry = !(value[i] & mask).is_zero();

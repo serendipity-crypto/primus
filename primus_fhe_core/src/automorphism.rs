@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use primus_integer::{UnsignedInteger, izip};
+use primus_lattice::context::DcrtGlevContext;
 use primus_lattice::glev::DcrtGlev;
 use primus_modulus::PowOf2Modulus;
 use primus_ntt::{Dcrt, DcrtTable};
@@ -9,8 +10,44 @@ use primus_poly::{
 };
 use primus_reduce::FieldContext;
 use primus_reduce::ops::ReduceMul;
+use primus_rns::RNSBase;
 
-use crate::{CrtGlevParameters, CrtGlweCiphertext, CrtGlweSecretKey, DcrtGlweSecretKey};
+use crate::{
+    CrtGlevParameters, CrtGlweCiphertext, CrtGlweSecretKey, DcrtGlweCiphertext, DcrtGlweSecretKey,
+};
+
+pub struct CrtGlweAutoContext<T: UnsignedInteger> {
+    big_uint_poly: BigUintPolynomial<Vec<T>>,
+    auto_crt_poly: CrtPolynomial<Vec<T>>,
+    glev_context: DcrtGlevContext<T>,
+}
+
+impl<T: UnsignedInteger> CrtGlweAutoContext<T> {
+    pub fn new(poly_length: usize, crt_poly_len: usize, big_uint_poly_len: usize) -> Self {
+        let big_uint_poly = BigUintPolynomial::zero(big_uint_poly_len);
+        let auto_crt_poly = CrtPolynomial::zero(crt_poly_len);
+        let glev_context = DcrtGlevContext::new(poly_length, crt_poly_len, big_uint_poly_len);
+        Self {
+            big_uint_poly,
+            auto_crt_poly,
+            glev_context,
+        }
+    }
+
+    pub fn as_mut(
+        &mut self,
+    ) -> (
+        &mut BigUintPolynomial<Vec<T>, T>,
+        &mut CrtPolynomial<Vec<T>, T>,
+        &mut DcrtGlevContext<T>,
+    ) {
+        (
+            &mut self.big_uint_poly,
+            &mut self.auto_crt_poly,
+            &mut self.glev_context,
+        )
+    }
+}
 
 /// This defines the operation when perform automorphism on each coefficient.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -36,32 +73,29 @@ pub enum AutoHelper {
 
 /// Automorphism key
 #[derive(Clone)]
-pub struct CrtGlweAutoKey<T, M, Table>
+pub struct CrtGlweAutoKey<T, Table>
 where
     T: UnsignedInteger,
-    M: FieldContext<T>,
     Table: DcrtTable<ValueT = T> + Dcrt,
 {
     degree: usize,
     poly_length: usize,
     dimension: usize,
     crt_poly_length: usize,
-    decompose_length: usize,
+    dcrt_glwe_mid: usize,
     dcrt_glwe_len: usize,
     dcrt_glev_len: usize,
     auto_helper: AutoHelper,
     key: Vec<T>,
-    moduli: Vec<M>,
     table: Arc<Table>,
 }
 
-impl<T, M, Table> CrtGlweAutoKey<T, M, Table>
+impl<T, Table> CrtGlweAutoKey<T, Table>
 where
     T: UnsignedInteger,
-    M: FieldContext<T>,
     Table: DcrtTable<ValueT = T> + Dcrt,
 {
-    pub fn new<R>(
+    pub fn new<M, R>(
         params: &CrtGlevParameters<T, M>,
         degree: usize,
         sk: &CrtGlweSecretKey<T>,
@@ -71,6 +105,7 @@ where
     ) -> Self
     where
         R: rand::Rng + rand::CryptoRng,
+        M: FieldContext<T>,
     {
         let poly_length = sk.poly_length();
         let dimension = sk.dimension();
@@ -83,6 +118,7 @@ where
         let moduli = params.cipher_moduli();
         let moduli_value = params.cipher_moduli_value();
         let gaussian = params.noise_distribution();
+        let uniform_distrs = params.cipher_moduli_uniform_distr();
 
         let dcrt_glwe_mid = crt_poly_length * dimension;
 
@@ -103,14 +139,7 @@ where
             .chunks_exact_mut(dcrt_glev_len)
             .zip(sk.iter_crt_poly())
             .for_each(|(dcrt_glev, si)| {
-                izip!(
-                    si.chunks_exact(poly_length),
-                    auto_si.chunks_exact_mut(poly_length),
-                    moduli
-                )
-                .for_each(|(a, b, &modulus)| {
-                    poly_auto_inplace(a, &auto_helper, b, modulus);
-                });
+                crt_poly_auto_inplace(si, &mut auto_si, &auto_helper, poly_length, moduli);
 
                 izip!(
                     dcrt_glev.chunks_exact_mut(dcrt_glwe_len),
@@ -126,21 +155,27 @@ where
                         rng,
                     );
 
-                    let mut b_poly = CrtPolynomial(ArrayBase(b));
+                    let mut b_crt_poly = CrtPolynomial(ArrayBase(b));
 
-                    b_poly.add_mul_scalar_residues_assign(
+                    b_crt_poly.add_mul_scalar_residues_assign(
                         &CrtPolynomial(ArrayBase(auto_si.as_ref())),
                         scalar_residues,
                         poly_length,
                         moduli,
                     );
 
-                    let mut b_poly = table.transform_inplace(b_poly);
+                    let mut b_dcrt_poly = table.transform_inplace(b_crt_poly);
 
                     a.chunks_exact_mut(crt_poly_length)
                         .zip(dcrt_sk.iter_dcrt_poly())
                         .for_each(|(ai, si)| {
-                            b_poly.add_mul_assign(
+                            primus_distr::sample_crt_uniform_values_inplace(
+                                ai,
+                                poly_length,
+                                uniform_distrs,
+                                rng,
+                            );
+                            b_dcrt_poly.add_mul_assign(
                                 &DcrtPolynomial(ArrayBase(ai)),
                                 &DcrtPolynomial(ArrayBase(si)),
                                 poly_length,
@@ -154,13 +189,12 @@ where
             degree,
             poly_length,
             dimension,
-            decompose_length,
             crt_poly_length,
             dcrt_glwe_len,
+            dcrt_glwe_mid,
             dcrt_glev_len,
             auto_helper,
             key: result,
-            moduli: moduli.to_vec(),
             table: Arc::clone(&table),
         }
     }
@@ -173,62 +207,81 @@ where
         &self.table
     }
 
-    pub fn automorphism_inplace<A, B>(
+    pub fn iter_dcrt_glev(&self) -> std::slice::ChunksExact<'_, T> {
+        self.key.chunks_exact(self.dcrt_glev_len)
+    }
+
+    pub fn automorphism_inplace<M, A, B>(
         &self,
         ciphertext: &CrtGlweCiphertext<A>,
         result: &mut CrtGlweCiphertext<B>,
         params: &CrtGlevParameters<T, M>,
+        rns_base: &RNSBase<T, M>,
+        context: &mut CrtGlweAutoContext<T>,
     ) where
+        M: FieldContext<T>,
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + DataMut,
     {
         let poly_length = self.poly_length;
         let crt_poly_length = self.crt_poly_length;
-        let dcrt_glwe_len = self.dcrt_glwe_len;
-        let dcrt_glev_len = self.dcrt_glev_len;
-        let moduli = self.moduli();
+        let dcrt_glwe_mid = self.dcrt_glwe_mid;
+        let moduli = params.cipher_moduli();
         let auto_helper = &self.auto_helper;
 
-        let mut big_uint_poly: BigUintPolynomial<Vec<T>> =
-            BigUintPolynomial::zero(poly_length, params.big_uint_value_len());
-        let mut temp: CrtGlweCiphertext<Vec<T>> = CrtGlweCiphertext::zero(dcrt_glwe_len);
+        let (big_uint_poly, auto_crt_poly, glev_context) = context.as_mut();
 
-        izip!(
-            temp.iter_crt_poly_mut(crt_poly_length),
-            ciphertext.iter_crt_poly(crt_poly_length),
-            self.key.chunks_exact(dcrt_glev_len)
-        )
-        .for_each(|(a, b, key_i)| {
-            izip!(
-                a.chunks_exact_mut(poly_length),
-                b.chunks_exact(poly_length),
-                moduli
-            )
-            .for_each(|(x, y, &modulus)| {
-                poly_auto_inplace(y, auto_helper, x, modulus);
+        result.set_zero();
+        let mut temp = DcrtGlweCiphertext::new(ArrayBase(result.as_mut()));
+
+        let (a_in, b_in) = ciphertext.a_b_slices(dcrt_glwe_mid);
+
+        izip!(a_in.chunks_exact(crt_poly_length), self.iter_dcrt_glev()).for_each(
+            |(in_crt_poly, auto_key_i)| {
+                crt_poly_auto_inplace(
+                    in_crt_poly,
+                    auto_crt_poly.as_mut(),
+                    auto_helper,
+                    poly_length,
+                    moduli,
+                );
+
+                rns_base.compose_polynomial_inplace(&auto_crt_poly, big_uint_poly, poly_length);
+
+                let auto_key = DcrtGlev::new(ArrayBase(auto_key_i));
+
+                temp.add_dcrt_glev_mul_big_uint_poly_assign(
+                    &auto_key,
+                    &big_uint_poly,
+                    params.basis(),
+                    self.table(),
+                    rns_base,
+                    glev_context,
+                );
+            },
+        );
+
+        crt_poly_auto_inplace(
+            b_in,
+            auto_crt_poly.as_mut(),
+            auto_helper,
+            poly_length,
+            moduli,
+        );
+
+        let (a_out, b_out) = result.a_b_mut_slices(dcrt_glwe_mid);
+
+        a_out
+            .chunks_exact_mut(crt_poly_length)
+            .for_each(|crt_poly| {
+                let mut temp = CrtPolynomial(ArrayBase(crt_poly));
+                temp.neg_assign(poly_length, moduli);
+                self.table.transform_inplace(temp);
             });
 
-            todo!()
-
-            // DcrtGlev::new(ArrayBase(key_i)).mul_polynomial_inplace(
-            //     big_uint_polynomial,
-            //     result,
-            //     dimension,
-            //     basis,
-            //     table,
-            //     rns_base,
-            // );
-        });
-
-        todo!()
-    }
-
-    pub fn moduli_count(&self) -> usize {
-        self.moduli.len()
-    }
-
-    pub fn moduli(&self) -> &[M] {
-        &self.moduli
+        let mut temp = CrtPolynomial(ArrayBase(b_out));
+        temp.sub_assign(auto_crt_poly, poly_length, moduli);
+        self.table.transform_inplace(temp);
     }
 }
 
@@ -260,6 +313,26 @@ fn generate_permutate_ops(degree: usize, poly_length: usize) -> Vec<FromOp> {
         }
     }
     result
+}
+
+fn crt_poly_auto_inplace<T, M>(
+    crt_poly: &[T],
+    auto_crt_poly: &mut [T],
+    auto_helper: &AutoHelper,
+    poly_length: usize,
+    moduli: &[M],
+) where
+    T: UnsignedInteger,
+    M: FieldContext<T>,
+{
+    izip!(
+        crt_poly.chunks_exact(poly_length),
+        auto_crt_poly.chunks_exact_mut(poly_length),
+        moduli
+    )
+    .for_each(|(in_poly, auto_poly, &modulus)| {
+        poly_auto_inplace(in_poly, auto_helper, auto_poly, modulus);
+    });
 }
 
 #[inline]

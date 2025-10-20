@@ -68,7 +68,7 @@ mod tests {
         println!("value_d");
         show(&value_d);
 
-        for b in basis.decompose_iter() {
+        for b in basis.decomposer_iter() {
             let (di, ci) = b.decompose(&value_d, carry);
             decv.push(di);
             carry = ci;

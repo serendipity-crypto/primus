@@ -40,8 +40,8 @@ where
 {
     /// Creates a [`CrtPolynomial<T>`] with all coefficients equal to zero.
     #[inline]
-    pub fn zero(moduli_count: usize, poly_length: usize) -> Self {
-        Self(ArrayBase::zero(moduli_count * poly_length))
+    pub fn zero(crt_poly_len: usize) -> Self {
+        Self(ArrayBase::zero(crt_poly_len))
     }
 
     #[inline]

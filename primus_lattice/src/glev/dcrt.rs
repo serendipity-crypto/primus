@@ -7,7 +7,7 @@ use primus_poly::{
 use primus_reduce::FieldContext;
 use primus_rns::RNSBase;
 
-use crate::glwe::DcrtGlwe;
+use crate::{context::DcrtGlevContext, glwe::DcrtGlwe};
 
 use super::CrtGlev;
 
@@ -40,14 +40,14 @@ where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
 {
-    pub fn mul_polynomial_inplace<M, Table, A, B>(
+    pub fn mul_big_uint_poly_inplace<M, Table, A, B>(
         &self,
-        big_uint_polynomial: &BigUintPolynomial<A>,
+        big_uint_poly: &BigUintPolynomial<A>,
         result: &mut DcrtGlwe<B>,
-        dimension: usize,
         basis: &BigUintApproxSignedBasis<T>,
         table: &Table,
         rns_base: &RNSBase<T, M>,
+        context: &mut DcrtGlevContext<T>,
     ) where
         M: FieldContext<T>,
         Table: DcrtTable<ValueT = T> + Dcrt,
@@ -57,40 +57,35 @@ where
         result.set_zero();
 
         let poly_length = table.poly_length();
-        let single_value_len = rns_base.single_value_len();
-        let big_uint_poly_len = big_uint_polynomial.len();
+        let big_uint_value_len = rns_base.big_uint_value_len();
+        let big_uint_poly_len = big_uint_poly.len();
 
-        debug_assert_eq!(big_uint_poly_len, single_value_len * poly_length);
+        debug_assert_eq!(big_uint_poly_len, big_uint_value_len * poly_length);
 
         let moduli = rns_base.moduli();
-        let moduli_count = moduli.len();
+        let dcrt_glwe_len = result.data.len();
 
-        let dcrt_poly_len = moduli_count * poly_length;
-        let dcrt_glwe_len = (dimension + 1) * dcrt_poly_len;
-
-        let mut adjust_values = vec![T::ZERO; big_uint_poly_len];
-        let mut decomposed_values = vec![T::ZERO; big_uint_poly_len];
-        let mut carries = vec![false; poly_length];
-        let mut multi_residues = vec![T::ZERO; dcrt_poly_len];
+        let (adjust_big_uint_values, decomposed_big_uint_values, carries, multi_residues) =
+            context.as_mut();
 
         basis.init_value_carry_slice(
-            big_uint_polynomial.as_slice(),
-            adjust_values.as_mut(),
+            big_uint_poly.as_slice(),
+            adjust_big_uint_values.as_mut(),
             carries.as_mut(),
-            single_value_len,
+            big_uint_value_len,
         );
 
-        izip!(self.iter_dcrt_glwe(dcrt_glwe_len), basis.decompose_iter()).for_each(
-            |(dcrt_glwe, once_decompose)| {
-                once_decompose.decompose_slice_inplace(
-                    adjust_values.as_ref(),
-                    decomposed_values.as_mut(),
+        izip!(self.iter_dcrt_glwe(dcrt_glwe_len), basis.decomposer_iter()).for_each(
+            |(dcrt_glwe, once_decomposer)| {
+                once_decomposer.decompose_slice_inplace(
+                    adjust_big_uint_values.as_ref(),
+                    decomposed_big_uint_values.as_mut(),
                     carries.as_mut(),
-                    single_value_len,
+                    big_uint_value_len,
                 );
 
                 rns_base.decompose_multiple_values_inplace(
-                    decomposed_values.as_ref(),
+                    decomposed_big_uint_values.as_ref(),
                     multi_residues.as_mut(),
                     poly_length,
                 );

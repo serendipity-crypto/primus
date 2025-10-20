@@ -30,9 +30,27 @@ impl_crt_ntt!(CrtGlwe<S, T>, DcrtGlwe);
 
 impl<S, T> CrtGlwe<S, T>
 where
+    S: RawData<Elem = T> + DataMut,
+    T: UnsignedInteger,
+{
+    /// Extracts mutable slice of `a` and `b` of this [`CrtGlwe<S>`].
+    #[inline]
+    pub fn a_b_mut_slices(&mut self, mid: usize) -> (&mut [T], &mut [T]) {
+        unsafe { self.data.0.split_at_mut_unchecked(mid) }
+    }
+}
+
+impl<S, T> CrtGlwe<S, T>
+where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
 {
+    /// Extracts slice of `a` and `b` of this [`CrtGlwe<S>`].
+    #[inline]
+    pub fn a_b_slices(&self, mid: usize) -> (&[T], &[T]) {
+        unsafe { self.data.split_at_unchecked(mid) }
+    }
+
     /// Performs a multiplication on the `self` [`CrtGlwe<S>`] with another `dcrt_polynomial` [`DcrtPolynomial<A>`],
     /// store the result into `result` [`DcrtGlwe<T>`].
     #[inline]

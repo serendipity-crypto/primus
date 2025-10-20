@@ -3,6 +3,8 @@
 #[macro_use]
 mod macros;
 
+pub mod context;
+
 pub mod lwe;
 
 pub mod glwe;

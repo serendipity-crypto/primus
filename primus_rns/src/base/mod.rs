@@ -118,7 +118,7 @@ where
     }
 
     #[inline]
-    pub fn single_value_len(&self) -> usize {
+    pub fn big_uint_value_len(&self) -> usize {
         self.moduli_product.len()
     }
 

@@ -112,14 +112,14 @@ impl<'a, T: UnsignedInteger> OnceBigUintSignedDecomposer<'a, T> {
     #[inline]
     pub fn decompose_slice_inplace(
         &self,
-        values: &[T],
-        decomposed_values: &mut [T],
+        big_uint_values: &[T],
+        decomposed_big_uint_values: &mut [T],
         carries: &mut [bool],
-        value_chunk_size: usize,
+        big_uint_value_len: usize,
     ) {
         for (value, decomposed_value, carry) in izip!(
-            values.chunks_exact(value_chunk_size),
-            decomposed_values.chunks_exact_mut(value_chunk_size),
+            big_uint_values.chunks_exact(big_uint_value_len),
+            decomposed_big_uint_values.chunks_exact_mut(big_uint_value_len),
             carries
         ) {
             self.decompose_inplace(value, decomposed_value, carry);
