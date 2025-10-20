@@ -489,12 +489,13 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + DataMut,
     {
-        let inverse_delta_residues = params.inverse_delta_residues();
+        // let inverse_delta_residues = params.inverse_delta_residues();
         self.phase_inplace(ciphertext, msg, params, table);
-        msg.mul_scalar_residues_assign(
-            inverse_delta_residues,
-            self.poly_length,
-            params.cipher_moduli(),
-        );
+        todo!()
+        // msg.mul_scalar_residues_assign(
+        //     inverse_delta_residues,
+        //     self.poly_length,
+        //     params.cipher_moduli(),
+        // );
     }
 }
