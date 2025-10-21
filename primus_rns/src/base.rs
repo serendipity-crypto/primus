@@ -23,10 +23,10 @@ where
     T: UnsignedInteger,
     M: FieldContext<T>,
 {
-    pub moduli: Vec<M>,
-    pub moduli_product: Vec<T>,
-    pub punctured_product: Vec<T>,
-    pub inv_punctured_product_mod_modulus: Vec<ShoupFactor<T>>,
+    moduli: Vec<M>,
+    moduli_product: Vec<T>,
+    punctured_product: Vec<T>,
+    inv_punctured_product_mod_modulus: Vec<ShoupFactor<T>>,
 }
 
 impl<T, M> RNSBase<T, M>
@@ -45,12 +45,12 @@ where
     /// This function will return an error if moduli are not co-prime with each others.
     #[inline]
     pub fn new(moduli: &[M]) -> Result<Self, RNSError> {
-        let modulus_values = moduli
+        let moduli_values = moduli
             .iter()
             .map(|m| m.value_unchecked())
             .collect::<Vec<_>>();
 
-        if modulus_values
+        if moduli_values
             .iter()
             .tuple_combinations()
             .any(|(&a, &b)| a.not_coprime(b))
@@ -58,7 +58,7 @@ where
             return Err(RNSError::CoPrimeError);
         }
 
-        let moduli_product = multiply_many_values(&modulus_values);
+        let moduli_product = multiply_many_values(&moduli_values);
 
         let big_uint_len = moduli_product.len();
         let mut punctured_product = vec![T::ZERO; big_uint_len * moduli.len()];
@@ -66,7 +66,7 @@ where
             .chunks_exact_mut(big_uint_len)
             .enumerate()
             .for_each(|(i, chunk)| {
-                multiply_many_values_except_inplace(&modulus_values, i, chunk);
+                multiply_many_values_except_inplace(&moduli_values, i, chunk);
             });
 
         let inv_punctured_product_mod_modulus = punctured_product
@@ -103,6 +103,11 @@ where
         &self.moduli_product
     }
 
+    #[inline]
+    pub fn big_uint_value_len(&self) -> usize {
+        self.moduli_product.len()
+    }
+
     /// Returns a reference to the punctured product of this [`RNSBase<T, M>`].
     #[inline]
     pub fn punctured_product(&self) -> &[T] {
@@ -111,7 +116,7 @@ where
 
     /// Returns an iterator over the punctured product of this [`RNSBase<T, M>`].
     #[inline]
-    pub fn punctured_product_iter(&self) -> std::slice::ChunksExact<'_, T> {
+    pub fn iter_punctured_product(&self) -> std::slice::ChunksExact<'_, T> {
         self.punctured_product
             .chunks_exact(self.moduli_product.len())
     }
@@ -120,11 +125,6 @@ where
     #[inline]
     pub fn inv_punctured_product_mod_modulus(&self) -> &[ShoupFactor<T>] {
         &self.inv_punctured_product_mod_modulus
-    }
-
-    #[inline]
-    pub fn big_uint_value_len(&self) -> usize {
-        self.moduli_product.len()
     }
 
     /// Decomposes a value into its RNS representation.

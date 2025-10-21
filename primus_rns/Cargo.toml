@@ -8,6 +8,7 @@ primus_gcd = { path = "../primus_gcd" }
 primus_integer = { path = "../primus_integer" }
 primus_reduce = { path = "../primus_reduce" }
 primus_modulo = { path = "../primus_modulo" }
+primus_modulus = { path = "../primus_modulus" }
 primus_factor = { path = "../primus_factor" }
 primus_poly = { path = "../primus_poly" }
 
@@ -15,5 +16,4 @@ thiserror = { workspace = true }
 itertools = { workspace = true }
 
 [dev-dependencies]
-primus_modulus = { path = "../primus_modulus" }
 rand = { workspace = true }

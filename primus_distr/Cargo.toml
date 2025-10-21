@@ -12,7 +12,7 @@ rand = { workspace = true }
 # rand_distr = { workspace = true }
 
 [target.'cfg(not(target_os = "linux"))'.dependencies]
-bigdecimal = "0.4.8"
+bigdecimal = { workspace = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 rug = "=1.28"

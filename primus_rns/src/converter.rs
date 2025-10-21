@@ -1,5 +1,9 @@
 use primus_factor::FactorMul;
+use primus_integer::AsInto;
 use primus_integer::{UnsignedInteger, izip};
+use primus_modulo::Modulo;
+use primus_modulo::MulModulo;
+use primus_modulus::UintModulus;
 use primus_reduce::FieldContext;
 
 use crate::RNSBase;
@@ -15,22 +19,22 @@ pub struct BaseConverter<T: UnsignedInteger, M: FieldContext<T>> {
 
 impl<T: UnsignedInteger, M: FieldContext<T>> BaseConverter<T, M> {
     pub fn new(ibase: &RNSBase<T, M>, obase: &RNSBase<T, M>) -> Self {
-        let input_len = ibase.moduli_count();
-        let output_len = obase.moduli_count();
+        let ibase_moduli_count = ibase.moduli_count();
+        let obase_moduli_count = obase.moduli_count();
 
         assert!(
-            input_len.checked_mul(output_len).is_some(),
+            ibase_moduli_count.checked_mul(obase_moduli_count).is_some(),
             "the len can not be too large!"
         );
 
-        let mut base_change_matrix = vec![T::ZERO; input_len * output_len];
+        let mut base_change_matrix = vec![T::ZERO; ibase_moduli_count * obase_moduli_count];
 
-        for (row, modulus) in base_change_matrix
-            .chunks_exact_mut(input_len)
+        for (row, &modulus) in base_change_matrix
+            .chunks_exact_mut(ibase_moduli_count)
             .zip(obase.moduli())
         {
-            for (ele, mi) in row.iter_mut().zip(ibase.punctured_product_iter()) {
-                *ele = modulus.reduce(mi);
+            for (ele, m_i) in row.iter_mut().zip(ibase.iter_punctured_product()) {
+                *ele = m_i.modulo(modulus);
             }
         }
 
@@ -41,32 +45,188 @@ impl<T: UnsignedInteger, M: FieldContext<T>> BaseConverter<T, M> {
         }
     }
 
-    fn iter_base_change_matrix(&self) -> std::slice::ChunksExact<'_, T> {
-        self.base_change_matrix
-            .chunks_exact(self.ibase.moduli_count())
+    pub fn ibase(&self) -> &RNSBase<T, M> {
+        &self.ibase
     }
 
-    /// Convert residue numbers between different basis, output the result into `values_out`.
-    pub fn fast_convert(&self, residues_in: &[T], residues_out: &mut [T]) {
-        debug_assert_eq!(residues_in.len(), self.ibase.moduli_count());
-        debug_assert_eq!(residues_out.len(), self.obase.moduli_count());
+    pub fn obase(&self) -> &RNSBase<T, M> {
+        &self.obase
+    }
 
-        let mut temp: Vec<T> = Vec::with_capacity(residues_in.len());
-        for (&value, &inv, modulus) in izip!(
+    pub fn ibase_moduli_count(&self) -> usize {
+        self.ibase.moduli_count()
+    }
+
+    pub fn obase_moduli_count(&self) -> usize {
+        self.obase.moduli_count()
+    }
+
+    fn iter_base_change_matrix(&self) -> std::slice::ChunksExact<'_, T> {
+        self.base_change_matrix
+            .chunks_exact(self.ibase_moduli_count())
+    }
+
+    /// Convert residue numbers between different basis, output the result into `residues_out`.
+    pub fn fast_convert(&self, residues_in: &[T], residues_out: &mut [T]) {
+        debug_assert_eq!(residues_in.len(), self.ibase_moduli_count());
+        debug_assert_eq!(residues_out.len(), self.obase_moduli_count());
+
+        let temp: Vec<T> = izip!(
             residues_in,
             self.ibase.inv_punctured_product_mod_modulus(),
             self.ibase.moduli()
-        ) {
-            temp.push(inv.factor_mul_modulo(value, modulus.value_unchecked()));
-        }
+        )
+        .map(|(&value, &inv, modulus)| inv.factor_mul_modulo(value, modulus.value_unchecked()))
+        .collect();
 
-        for (ele, rhs, modulus) in izip!(
-            residues_out.iter_mut(),
+        izip!(
+            residues_out,
             self.iter_base_change_matrix(),
             self.obase.moduli()
-        ) {
-            *ele = modulus.reduce_dot_product(&temp, rhs);
-        }
+        )
+        .for_each(|(ele, base_chang_row, modulus)| {
+            *ele = modulus.reduce_dot_product(&temp, base_chang_row);
+        });
+    }
+
+    pub fn fast_convert_array(
+        &self,
+        crt_poly_in: &[T],
+        crt_poly_out: &mut [T],
+        poly_length: usize,
+    ) {
+        let ibase_moduli_count = self.ibase_moduli_count();
+
+        let mut temp: Vec<T> = vec![T::ZERO; ibase_moduli_count * poly_length];
+
+        izip!(
+            crt_poly_in.chunks_exact(poly_length),
+            self.ibase.inv_punctured_product_mod_modulus(),
+            self.ibase.moduli()
+        )
+        .enumerate()
+        .for_each(
+            |(i, (poly, &inv_punctured_product_mod_modulus, &modulus))| {
+                if inv_punctured_product_mod_modulus.value().is_one() {
+                    izip!(poly, temp.iter_mut().skip(i).step_by(ibase_moduli_count)).for_each(
+                        |(&x, ele)| {
+                            *ele = x.modulo(modulus);
+                        },
+                    );
+                } else {
+                    izip!(poly, temp.iter_mut().skip(i).step_by(ibase_moduli_count)).for_each(
+                        |(&x, ele)| {
+                            *ele = x.mul_modulo(
+                                inv_punctured_product_mod_modulus,
+                                UintModulus(modulus.value_unchecked()),
+                            );
+                        },
+                    );
+                }
+            },
+        );
+
+        izip!(
+            crt_poly_out.chunks_exact_mut(poly_length),
+            self.iter_base_change_matrix(),
+            self.obase.moduli()
+        )
+        .for_each(|(poly, inv_punctured_product_mod_modulus, modulus)| {
+            izip!(poly, temp.chunks_exact(ibase_moduli_count)).for_each(|(ele, product)| {
+                *ele = modulus.reduce_dot_product(product, inv_punctured_product_mod_modulus);
+            });
+        });
+    }
+
+    pub fn exact_convert_array(
+        &self,
+        crt_poly_in: &[T],
+        crt_poly_out: &mut [T],
+        poly_length: usize,
+    ) {
+        let ibase_moduli_count = self.ibase_moduli_count();
+
+        assert_eq!(
+            self.obase_moduli_count(),
+            1,
+            "out base in exact_convert_array must be one."
+        );
+
+        let mut temp: Vec<T> = vec![T::ZERO; ibase_moduli_count * poly_length];
+        let mut v: Vec<f64> = vec![0.0f64; ibase_moduli_count * poly_length];
+        let mut aggregated_rounded_v: Vec<T> = vec![T::ZERO; poly_length];
+
+        // Calculate [x_{i} * \hat{q_{i}}]_{q_{i}}
+        izip!(
+            crt_poly_in.chunks_exact(poly_length),
+            self.ibase.inv_punctured_product_mod_modulus(),
+            self.ibase.moduli()
+        )
+        .enumerate()
+        .for_each(
+            |(i, (poly, &inv_punctured_product_mod_modulus, &modulus))| {
+                let divisor: f64 = modulus.value_unchecked().as_into();
+                if inv_punctured_product_mod_modulus.value().is_one() {
+                    // No multiplication needed
+                    izip!(
+                        poly,
+                        temp.iter_mut().skip(i).step_by(ibase_moduli_count),
+                        v.iter_mut().skip(i).step_by(ibase_moduli_count)
+                    )
+                    .for_each(|(&x, ele, fele)| {
+                        // Reduce modulo ibase element
+                        *ele = x.modulo(modulus);
+                        let dividend: f64 = (*ele).as_into();
+                        *fele = dividend / divisor;
+                    });
+                } else {
+                    // Multiplication needed
+                    izip!(
+                        poly,
+                        temp.iter_mut().skip(i).step_by(ibase_moduli_count),
+                        v.iter_mut().skip(i).step_by(ibase_moduli_count)
+                    )
+                    .for_each(|(&x, ele, fele)| {
+                        // Multiply coefficient of in with ibase_.inv_punctured_prod_mod_base_array_ element
+                        *ele = x.mul_modulo(
+                            inv_punctured_product_mod_modulus,
+                            UintModulus(modulus.value_unchecked()),
+                        );
+                        let dividend: f64 = (*ele).as_into();
+                        *fele = dividend / divisor;
+                    });
+                }
+            },
+        );
+
+        // Aggrate v and rounding
+        izip!(
+            v.chunks_exact(ibase_moduli_count),
+            aggregated_rounded_v.iter_mut()
+        )
+        .for_each(|(vi, ri)| {
+            // Otherwise a memory space of the last execution will be used.
+            let aggregated_v: f64 = vi.iter().sum();
+            *ri = (aggregated_v + 0.5).as_into();
+        });
+
+        let p = self.obase.moduli()[0];
+        let q_mod_p = self.ibase.moduli_product().modulo(p);
+        let base_change_matrix_first = self.iter_base_change_matrix().next().unwrap();
+
+        // Final multiplication
+        izip!(
+            crt_poly_out,
+            temp.chunks_exact(ibase_moduli_count),
+            aggregated_rounded_v,
+        )
+        .for_each(|(coeff, b, v)| {
+            // Compute the base conversion sum modulo obase element
+            let sum_mod_obase = p.reduce_dot_product(b, base_change_matrix_first);
+            // Minus v*[q]_{p} mod p
+            let v_q_mod_p = p.reduce_mul(v, q_mod_p);
+            *coeff = p.reduce_sub(sum_mod_obase, v_q_mod_p);
+        });
     }
 }
 
@@ -82,8 +242,8 @@ mod tests {
 
     #[test]
     #[ignore = "just for pirint"]
-    fn test_basis_convert() {
-        let mut r = rand::rng();
+    fn test_base_convert() {
+        let mut rng = rand::rng();
 
         let i = [31, 37, 41, 43];
         let o = [47, 53, 59, 61];
@@ -115,7 +275,7 @@ mod tests {
         for _ in 0..10 {
             let mut residues_in = Vec::with_capacity(in_len);
             for i in 0..in_len {
-                residues_in.push(r.random_range(0..converter.ibase.moduli()[i].value()));
+                residues_in.push(rng.random_range(0..converter.ibase.moduli()[i].value()));
             }
 
             let value = ibasis.compose(&residues_in);

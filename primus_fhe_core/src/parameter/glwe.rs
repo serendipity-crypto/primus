@@ -169,7 +169,7 @@ where
         let cipher_modulus = multiply_many_values(&cipher_moduli_value);
         let cipher_modulus_minus_one = {
             let mut temp = cipher_modulus.clone();
-            temp[0] -= T::ONE;
+            let _ = temp.slice_sub_value_assign(T::ONE);
             temp
         };
 
