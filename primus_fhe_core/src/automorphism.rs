@@ -107,8 +107,8 @@ where
         R: rand::Rng + rand::CryptoRng,
         M: FieldContext<T>,
     {
-        let poly_length = sk.poly_length();
         let dimension = sk.dimension();
+        let poly_length = sk.poly_length();
         let moduli_count = sk.moduli_count();
         let crt_poly_length = sk.crt_poly_length();
         let dcrt_glwe_len = dcrt_sk.crt_glwe_len();
@@ -330,25 +330,25 @@ fn crt_poly_auto_inplace<T, M>(
         auto_crt_poly.chunks_exact_mut(poly_length),
         moduli
     )
-    .for_each(|(in_poly, auto_poly, &modulus)| {
-        poly_auto_inplace(in_poly, auto_helper, auto_poly, modulus);
+    .for_each(|(poly, auto_poly, &modulus)| {
+        poly_auto_inplace(poly, auto_poly, auto_helper, modulus);
     });
 }
 
 #[inline]
-fn poly_auto_inplace<T, M>(poly: &[T], auto_helper: &AutoHelper, result: &mut [T], modulus: M)
+fn poly_auto_inplace<T, M>(poly: &[T], auto_poly: &mut [T], auto_helper: &AutoHelper, modulus: M)
 where
     T: UnsignedInteger,
     M: FieldContext<T>,
 {
     match auto_helper {
         AutoHelper::Permutation(from_ops) => {
-            poly_auto_inplace_for_permutation(poly, result, from_ops, modulus);
+            poly_auto_inplace_for_permutation(poly, auto_poly, from_ops, modulus);
         }
         AutoHelper::DimensionPlusOne => {
-            poly_auto_inplace_for_dimension_plus_one(poly, result, modulus);
+            poly_auto_inplace_for_dimension_plus_one(poly, auto_poly, modulus);
         }
-        AutoHelper::One => poly_auto_inplace_for_one(poly, result),
+        AutoHelper::One => poly_auto_inplace_for_one(poly, auto_poly),
     }
 }
 

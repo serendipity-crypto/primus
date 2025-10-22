@@ -1,5 +1,6 @@
 use primus_factor::FactorMul;
 use primus_integer::{UnsignedInteger, izip};
+use primus_lattice::glev::DcrtGlev;
 use primus_ntt::{Dcrt, DcrtTable, Ntt, NttTable};
 use primus_poly::{
     ArrayBase, Data, DataMut, NttPolynomial, Polynomial, PolynomialOwned, RawData,
@@ -7,7 +8,9 @@ use primus_poly::{
 };
 use primus_reduce::FieldContext;
 
-use crate::{CrtGlweParameters, DcrtGlweCiphertext, GlweParameters, NttGlweCiphertext};
+use crate::{
+    CrtGlevParameters, CrtGlweParameters, DcrtGlweCiphertext, GlweParameters, NttGlweCiphertext,
+};
 
 use super::RingSecretKeyType;
 
@@ -63,8 +66,8 @@ impl<T: UnsignedInteger> GlweSecretKey<T> {
         R: rand::Rng + rand::CryptoRng,
         M: FieldContext<T>,
     {
-        let poly_length = params.poly_length();
         let dimension = params.dimension();
+        let poly_length = params.poly_length();
 
         let key_len = poly_length * dimension;
         let mut key = PolynomialOwned::zero(key_len);
@@ -432,6 +435,63 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
                     poly_length,
                     q,
                 );
+            });
+    }
+
+    pub fn encrypt_dcrt_glev_inplace<R, M, Table, A, B>(
+        &self,
+        msg: &CrtPolynomial<A>,
+        result: &mut DcrtGlev<B>,
+        params: &CrtGlevParameters<T, M>,
+        table: &Table,
+        rng: &mut R,
+    ) where
+        R: rand::Rng + rand::CryptoRng,
+        M: FieldContext<T>,
+        Table: DcrtTable<ValueT = T> + Dcrt,
+        A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + DataMut,
+    {
+        let poly_length = self.poly_length();
+        let crt_poly_length = self.crt_poly_length();
+        let crt_glwe_len = self.crt_glwe_len();
+        let basis = params.basis();
+        let dcrt_glwe_mid = crt_glwe_len - crt_poly_length;
+        let moduli = params.cipher_moduli();
+
+        result
+            .iter_dcrt_glwe_mut(crt_glwe_len)
+            .zip(basis.scalars_residues_iter())
+            .for_each(|(dcrt_glwe, scalar)| {
+                let (a, b) = dcrt_glwe.split_at_mut(dcrt_glwe_mid);
+                primus_distr::sample_crt_gaussian_values_inplace(
+                    b,
+                    poly_length,
+                    params.cipher_moduli_value(),
+                    params.noise_distribution(),
+                    &mut *rng,
+                );
+
+                let mut b_crt_poly = CrtPolynomial(ArrayBase(b));
+                b_crt_poly.add_mul_scalar_assign(&msg, scalar, poly_length, moduli);
+                let mut b_dcrt_poly = table.transform_inplace(b_crt_poly);
+
+                a.chunks_exact_mut(crt_poly_length)
+                    .zip(self.iter_dcrt_poly())
+                    .for_each(|(ai, si)| {
+                        primus_distr::sample_crt_uniform_values_inplace(
+                            ai,
+                            poly_length,
+                            params.cipher_moduli_uniform_distr(),
+                            &mut *rng,
+                        );
+                        b_dcrt_poly.add_mul_assign(
+                            &DcrtPolynomial(ArrayBase(ai)),
+                            &DcrtPolynomial(ArrayBase(si)),
+                            poly_length,
+                            moduli,
+                        );
+                    });
             });
     }
 

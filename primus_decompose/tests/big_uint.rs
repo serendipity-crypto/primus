@@ -4,7 +4,7 @@ mod tests {
     use primus_decompose::big_integer::BigUintApproxSignedBasis;
     use primus_integer::{BigIntegerOps, izip, multiply_many_values};
     use primus_modulus::BarrettModulus;
-    use primus_reduce::ops::ReduceMulAdd;
+    use primus_reduce::ops::*;
     use primus_rns::RNSBase;
     use rand::{Rng, distr::Uniform};
 
@@ -12,7 +12,7 @@ mod tests {
     type SignedT = i64;
 
     #[test]
-    fn test_single_decompose() {
+    fn test_big_uint_value_single_decompose() {
         let mut rng = rand::rng();
 
         let moduli_value: [ValueT; 2] = [134215681, 134176769];
@@ -117,5 +117,119 @@ mod tests {
         } else {
             println!("differ={:?}", sub2);
         }
+    }
+
+    #[test]
+    fn test_big_uint_value_slice_decompose() {
+        const N: usize = 32;
+
+        let mut rng = rand::rng();
+
+        let moduli_value: [ValueT; 2] = [134215681, 134176769];
+        let moduli_count = moduli_value.len();
+        let moduli = moduli_value.map(BarrettModulus::new);
+        let distrs = moduli_value.map(|m| Uniform::new(0, m).unwrap());
+
+        let rns_base = RNSBase::new(&moduli).unwrap();
+        let modulus: Vec<ValueT> = multiply_many_values(&moduli_value);
+        let big_uint_value_len = modulus.len();
+        let basis = BigUintApproxSignedBasis::new(&modulus, 5, None, &rns_base);
+
+        let difference_bound = basis
+            .init_carry_mask()
+            .map(|(a, b)| {
+                assert_eq!(a, 0);
+                b
+            })
+            .unwrap_or(0);
+
+        println!("difference bound: {}", difference_bound);
+
+        let mut input_residues: Vec<ValueT> = vec![0; N * moduli_count];
+        input_residues
+            .chunks_exact_mut(N)
+            .zip(distrs)
+            .for_each(|(r, d)| {
+                r.iter_mut()
+                    .zip((&mut rng).sample_iter(d))
+                    .for_each(|(a, b)| {
+                        *a = b;
+                    });
+            });
+
+        let mut input_values: Vec<ValueT> = vec![0; N * big_uint_value_len];
+        rns_base.compose_multiple_values_inplace(&input_residues, &mut input_values, N);
+
+        let mut adjust_big_uint_values = vec![0; N * big_uint_value_len];
+        let mut carries = vec![false; N];
+        basis.init_value_carry_slice(
+            &input_values,
+            &mut adjust_big_uint_values,
+            &mut carries,
+            big_uint_value_len,
+        );
+
+        let mut residues: Vec<ValueT> = vec![0; N * moduli_count];
+        basis
+            .decomposer_iter()
+            .zip(basis.scalars_residues_iter())
+            .for_each(|(once_decomposer, scalar)| {
+                let mut decomposed_big_uint_values = vec![0; N * big_uint_value_len];
+                once_decomposer.decompose_slice_inplace(
+                    &adjust_big_uint_values,
+                    &mut decomposed_big_uint_values,
+                    &mut carries,
+                    big_uint_value_len,
+                );
+
+                let mut temp: Vec<ValueT> = vec![0; N * moduli_count];
+                rns_base.decompose_multiple_values_inplace(
+                    &decomposed_big_uint_values,
+                    &mut temp,
+                    N,
+                );
+
+                izip!(
+                    residues.chunks_exact_mut(N),
+                    temp.chunks_exact(N),
+                    scalar,
+                    &moduli
+                )
+                .for_each(|(a, b, &scalar, m)| {
+                    a.iter_mut()
+                        .zip(b.iter())
+                        .for_each(|(x, &y)| *x = m.reduce_mul_add(y, scalar, *x));
+                });
+            });
+
+        let mut output_values: Vec<ValueT> = vec![0; N * big_uint_value_len];
+        rns_base.compose_multiple_values_inplace(&residues, &mut output_values, N);
+
+        let mut min: Vec<ValueT> = vec![0; N * big_uint_value_len];
+
+        izip!(
+            input_values.chunks_exact(big_uint_value_len),
+            output_values.chunks_exact(big_uint_value_len),
+            min.chunks_exact_mut(big_uint_value_len),
+        )
+        .for_each(|(i, o, m)| {
+            if i.slice_cmp(o).is_le() {
+                let _ = o.slice_sub_inplace(i, m);
+            } else {
+                let _ = i.slice_sub_inplace(o, m);
+            }
+        });
+
+        for &differ in min.iter().step_by(big_uint_value_len) {
+            if differ > difference_bound {
+                println!("differ={}", differ);
+            }
+        }
+
+        assert!(
+            min.iter()
+                .step_by(big_uint_value_len)
+                .all(|&v| v <= difference_bound)
+        )
     }
 }

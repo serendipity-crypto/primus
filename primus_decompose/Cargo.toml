@@ -14,6 +14,5 @@ serde = { workspace = true }
 [dev-dependencies]
 primus_modulus = { path = "../primus_modulus" }
 
-
 rand = { workspace = true }
 itertools = { workspace = true }

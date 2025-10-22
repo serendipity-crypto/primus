@@ -127,29 +127,30 @@ where
     dimension: usize,
     /// The polynomial length, refers to **N** in the paper.
     poly_length: usize,
-    /// **RLWE** message modulus, refers to **t** in the paper.
+    /// The message modulus, refers to **t** in the paper.
     plain_modulus_value: T,
+    /// The message modulus, refers to **t** in the paper.
     plain_modulus: M,
-    /// **RLWE** cipher modulus minus one, refers to **Q-1**.
+    /// The cipher modulus minus one, refers to **Q-1**.
     cipher_modulus_minus_one: Vec<T>,
-    /// The moduli, refers to **Q=Q1*Q2*...** in the paper.
+    /// The moduli, refers to *Q1, Q2, ...* in the paper.
     cipher_moduli: Vec<M>,
-    /// The moduli, refers to **Q=Q1*Q2*...** in the paper.
+    /// The moduli, refers to *Q1, Q2, ...* in the paper.
     cipher_moduli_value: Vec<T>,
     /// Refers to `Q1-1`, `Q2-1` ...
     cipher_moduli_minus_one: Vec<T>,
     /// The uniform distribuition to sample values over `Q1`, `Q2` ...
     cipher_moduli_uniform_distr: Vec<Uniform<T>>,
+    base_q: RNSBase<T, M>,
     /// Refers to `Q/t`.
     delta: Vec<T>,
     delta_mod_q: Vec<T>,
     inv_delta_mod_q: Vec<T>,
     gamma: T,
+    base_t_gamma: RNSBase<T, M>,
     t_gamma_mod_q: Vec<T>,
     minus_inv_q_mod_t_gamma: Vec<T>,
     inv_gamma_mod_t: ShoupFactor<T>,
-    base_q: RNSBase<T, M>,
-    base_t_gamma: RNSBase<T, M>,
     converter: BaseConverter<T, M>,
     /// The distribution type of the secret key.
     secret_key_type: RingSecretKeyType,
@@ -175,9 +176,11 @@ where
         let t = plain_modulus.value_unchecked();
         let gamma = gamma_modulus.value_unchecked();
 
-        let cipher_moduli_value: Vec<T> =
-            cipher_moduli.iter().map(|m| m.value_unchecked()).collect();
-        let cipher_moduli_minus_one = cipher_moduli_value.iter().map(|&m| m - T::ONE).collect();
+        let cipher_moduli_value: Vec<T> = cipher_moduli
+            .iter()
+            .map(|qi| qi.value_unchecked())
+            .collect();
+        let cipher_moduli_minus_one = cipher_moduli_value.iter().map(|&qi| qi - T::ONE).collect();
         let base_q = RNSBase::new(cipher_moduli).unwrap();
         let cipher_modulus = base_q.moduli_product();
         let cipher_modulus_minus_one = {
@@ -188,7 +191,7 @@ where
 
         let cipher_moduli_uniform_distr = cipher_moduli
             .iter()
-            .map(|m| m.uniform_distribution())
+            .map(|qi| qi.uniform_distribution())
             .collect();
 
         let noise_distribution =
@@ -197,10 +200,6 @@ where
         let mut delta = vec![T::ZERO; cipher_modulus.len()];
 
         let _rem = DivRemScalar::div_rem_scalar(&cipher_modulus, t, &mut delta);
-
-        // if rem * T::TWO >= plain_modulus_value {
-        //     let _ = delta.slice_add_value_assign(T::ONE);
-        // }
 
         let delta_mod_q: Vec<T> = base_q.decompose(delta.as_ref());
 
@@ -265,6 +264,10 @@ where
     /// Returns the plain modulus value of this [`CrtGlweParameters<T, M>`].
     pub fn plain_modulus_value(&self) -> T {
         self.plain_modulus_value
+    }
+
+    pub fn plain_modulus(&self) -> M {
+        self.plain_modulus
     }
 
     /// Returns a reference to the cipher modulus of this [`CrtGlweParameters<T, M>`].
@@ -335,7 +338,7 @@ where
     }
 
     /// Returns a reference to the inverse delta residues of this [`CrtGlweParameters<T, M>`].
-    pub fn inverse_delta_residues(&self) -> &[T] {
+    pub fn inv_delta_mod_q(&self) -> &[T] {
         &self.inv_delta_mod_q
     }
 
@@ -517,9 +520,11 @@ where
         noise_standard_deviation: f64,
         basis: BigUintApproxSignedBasis<T>,
     ) -> Self {
-        let cipher_moduli_value: Vec<T> =
-            cipher_moduli.iter().map(|m| m.value_unchecked()).collect();
-        let cipher_moduli_minus_one = cipher_moduli_value.iter().map(|&m| m - T::ONE).collect();
+        let cipher_moduli_value: Vec<T> = cipher_moduli
+            .iter()
+            .map(|qi| qi.value_unchecked())
+            .collect();
+        let cipher_moduli_minus_one = cipher_moduli_value.iter().map(|&qi| qi - T::ONE).collect();
         let cipher_modulus = multiply_many_values(&cipher_moduli_value);
         let cipher_modulus_minus_one = {
             let mut temp = cipher_modulus.clone();
@@ -546,6 +551,25 @@ where
             cipher_moduli_uniform_distr,
             secret_key_type,
             noise_distribution,
+            basis,
+        }
+    }
+
+    pub fn with_glwe_params(
+        glwe_params: &CrtGlweParameters<T, M>,
+        basis: BigUintApproxSignedBasis<T>,
+    ) -> Self {
+        Self {
+            dimension: glwe_params.dimension,
+            poly_length: glwe_params.poly_length,
+            cipher_modulus_minus_one: glwe_params.cipher_modulus_minus_one().to_vec(),
+            cipher_modulus: glwe_params.cipher_modulus().to_vec(),
+            cipher_moduli: glwe_params.cipher_moduli().to_vec(),
+            cipher_moduli_value: glwe_params.cipher_moduli_value().to_vec(),
+            cipher_moduli_minus_one: glwe_params.cipher_moduli_minus_one().to_vec(),
+            cipher_moduli_uniform_distr: glwe_params.cipher_moduli_uniform_distr().to_vec(),
+            secret_key_type: glwe_params.secret_key_type,
+            noise_distribution: glwe_params.noise_distribution().clone(),
             basis,
         }
     }
