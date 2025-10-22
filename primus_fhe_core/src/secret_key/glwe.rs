@@ -1,8 +1,9 @@
-use primus_integer::UnsignedInteger;
+use primus_factor::FactorMul;
+use primus_integer::{UnsignedInteger, izip};
 use primus_ntt::{Dcrt, DcrtTable, Ntt, NttTable};
 use primus_poly::{
-    ArrayBase, Data, DataMut, NttPolynomial, PolynomialOwned, RawData, crt::CrtPolynomial,
-    dcrt::DcrtPolynomial,
+    ArrayBase, Data, DataMut, NttPolynomial, Polynomial, PolynomialOwned, RawData,
+    crt::CrtPolynomial, dcrt::DcrtPolynomial,
 };
 use primus_reduce::FieldContext;
 
@@ -398,7 +399,7 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
     {
         let poly_length = self.poly_length;
         let crt_poly_length = self.crt_poly_length;
-        let moduli = params.cipher_moduli();
+        let q = params.cipher_moduli();
         let uniform_distrs = params.cipher_moduli_uniform_distr();
 
         let (a, b) = result.a_b_mut_slices(self.crt_glwe_len - crt_poly_length);
@@ -412,7 +413,7 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
         );
 
         let mut b_crt_poly = CrtPolynomial(ArrayBase(b));
-        b_crt_poly.add_mul_scalar_assign(msg, params.delta_residues(), poly_length, moduli);
+        b_crt_poly.add_mul_scalar_assign(msg, params.delta_mod_q(), poly_length, q);
         let mut b_dcrt_poly = table.transform_inplace(b_crt_poly);
 
         a.chunks_exact_mut(crt_poly_length)
@@ -429,7 +430,7 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
                     &DcrtPolynomial(ArrayBase(ai)),
                     &DcrtPolynomial(ArrayBase(si)),
                     poly_length,
-                    moduli,
+                    q,
                 );
             });
     }
@@ -475,7 +476,7 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
     pub fn decrypt_inplace<M, Table, A, B>(
         &self,
         ciphertext: &DcrtGlweCiphertext<A>,
-        msg: &mut CrtPolynomial<B>,
+        msg: &mut Polynomial<B>,
         params: &CrtGlweParameters<T, M>,
         table: &Table,
     ) where
@@ -484,13 +485,36 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + DataMut,
     {
-        // let inverse_delta_residues = params.inverse_delta_residues();
-        self.phase_inplace(ciphertext, msg, params, table);
-        todo!()
-        // msg.mul_scalar_residues_assign(
-        //     inverse_delta_residues,
-        //     self.poly_length,
-        //     params.cipher_moduli(),
-        // );
+        let poly_length = params.poly_length();
+        let q = params.cipher_moduli();
+        let t = params.plain_modulus_value();
+        let gamma = params.gamma();
+        let inv_gamma_mod_t = params.inv_gamma_mod_t();
+
+        let mut msg_mod_q: CrtPolynomial<Vec<T>> =
+            CrtPolynomial::zero(params.cipher_moduli_count() * poly_length);
+        let mut msg_mod_t_gamma: CrtPolynomial<Vec<T>> = CrtPolynomial::zero(2 * poly_length);
+
+        self.phase_inplace(ciphertext, &mut msg_mod_q, params, table);
+
+        msg_mod_q.mul_scalar_assign(params.t_gamma_mod_q(), poly_length, q);
+
+        params.converter().fast_convert_array(
+            msg_mod_q.as_ref(),
+            msg_mod_t_gamma.as_mut(),
+            poly_length,
+        );
+
+        msg_mod_t_gamma.mul_scalar_assign(
+            params.minus_inv_q_mod_t_gamma(),
+            poly_length,
+            params.t_gamma(),
+        );
+
+        let (y_t_slices, y_gamma_slices) = msg_mod_t_gamma.as_ref().split_at(poly_length);
+
+        izip!(msg.iter_mut(), y_t_slices, y_gamma_slices).for_each(|(res, &y_t, &y_gamma)| {
+            *res = inv_gamma_mod_t.factor_mul_modulo(gamma - y_gamma + y_t, t);
+        });
     }
 }

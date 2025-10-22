@@ -8,6 +8,7 @@ use primus_reduce::FieldContext;
 
 use crate::RNSBase;
 
+#[derive(Clone)]
 pub struct BaseConverter<T: UnsignedInteger, M: FieldContext<T>> {
     /// The base convert from.
     ibase: RNSBase<T, M>,

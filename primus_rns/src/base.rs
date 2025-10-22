@@ -6,7 +6,7 @@ use primus_integer::{
     BigIntegerOps, UnsignedInteger, izip, multiply_many_values, multiply_many_values_except_inplace,
 };
 use primus_modulo::ops::*;
-use primus_poly::{BigUintPolynomial, Data, DataMut, RawData, crt::CrtPolynomial};
+use primus_poly::{BigUintPolynomial, Data, DataMut, Polynomial, RawData, crt::CrtPolynomial};
 use primus_reduce::FieldContext;
 
 use crate::RNSError;
@@ -161,6 +161,25 @@ where
                 .iter_mut()
                 .zip(big_uint_values.chunks_exact(value_len))
             {
+                *residue = value.modulo(modulus);
+            }
+        }
+    }
+
+    pub fn decompose_small_polynomial_inplace<A, B>(
+        &self,
+        poly: &Polynomial<A>,
+        crt_poly: &mut CrtPolynomial<B>,
+        poly_length: usize,
+    ) where
+        A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + DataMut,
+    {
+        for (crt_poly_residue, &modulus) in crt_poly
+            .iter_each_modulus_mut(poly_length)
+            .zip(self.moduli())
+        {
+            for (residue, &value) in crt_poly_residue.iter_mut().zip(poly.iter()) {
                 *residue = value.modulo(modulus);
             }
         }

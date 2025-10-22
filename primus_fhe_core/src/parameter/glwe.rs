@@ -1,7 +1,10 @@
 use primus_decompose::{big_integer::BigUintApproxSignedBasis, primitive::ApproxSignedBasis};
 use primus_distr::{DiscreteGaussian, SignedDiscreteGaussian};
+use primus_factor::ShoupFactor;
 use primus_integer::{BigIntegerOps, DivRemScalar, UnsignedInteger, multiply_many_values};
+use primus_modulo::ops::*;
 use primus_reduce::FieldContext;
+use primus_rns::{BaseConverter, RNSBase};
 use rand::distr::Uniform;
 
 use crate::RingSecretKeyType;
@@ -126,23 +129,28 @@ where
     poly_length: usize,
     /// **RLWE** message modulus, refers to **t** in the paper.
     plain_modulus_value: T,
+    plain_modulus: M,
     /// **RLWE** cipher modulus minus one, refers to **Q-1**.
     cipher_modulus_minus_one: Vec<T>,
-    /// **RLWE** cipher modulus, refers to **Q**.
-    cipher_modulus: Vec<T>,
     /// The moduli, refers to **Q=Q1*Q2*...** in the paper.
     cipher_moduli: Vec<M>,
     /// The moduli, refers to **Q=Q1*Q2*...** in the paper.
     cipher_moduli_value: Vec<T>,
     /// Refers to `Q1-1`, `Q2-1` ...
     cipher_moduli_minus_one: Vec<T>,
-
+    /// The uniform distribuition to sample values over `Q1`, `Q2` ...
     cipher_moduli_uniform_distr: Vec<Uniform<T>>,
-
     /// Refers to `Q/t`.
     delta: Vec<T>,
-    delta_residues: Vec<T>,
-    inverse_delta_residues: Vec<T>,
+    delta_mod_q: Vec<T>,
+    inv_delta_mod_q: Vec<T>,
+    gamma: T,
+    t_gamma_mod_q: Vec<T>,
+    minus_inv_q_mod_t_gamma: Vec<T>,
+    inv_gamma_mod_t: ShoupFactor<T>,
+    base_q: RNSBase<T, M>,
+    base_t_gamma: RNSBase<T, M>,
+    converter: BaseConverter<T, M>,
     /// The distribution type of the secret key.
     secret_key_type: RingSecretKeyType,
     /// The noise distribution
@@ -158,17 +166,22 @@ where
     pub fn new(
         dimension: usize,
         poly_length: usize,
-        plain_modulus_value: T,
+        plain_modulus: M,
+        gamma_modulus: M,
         cipher_moduli: &[M],
         secret_key_type: RingSecretKeyType,
         noise_standard_deviation: f64,
     ) -> Self {
+        let t = plain_modulus.value_unchecked();
+        let gamma = gamma_modulus.value_unchecked();
+
         let cipher_moduli_value: Vec<T> =
             cipher_moduli.iter().map(|m| m.value_unchecked()).collect();
         let cipher_moduli_minus_one = cipher_moduli_value.iter().map(|&m| m - T::ONE).collect();
-        let cipher_modulus = multiply_many_values(&cipher_moduli_value);
+        let base_q = RNSBase::new(cipher_moduli).unwrap();
+        let cipher_modulus = base_q.moduli_product();
         let cipher_modulus_minus_one = {
-            let mut temp = cipher_modulus.clone();
+            let mut temp = cipher_modulus.to_vec();
             let _ = temp.slice_sub_value_assign(T::ONE);
             temp
         };
@@ -183,36 +196,55 @@ where
 
         let mut delta = vec![T::ZERO; cipher_modulus.len()];
 
-        let rem = DivRemScalar::div_rem_scalar(&cipher_modulus, plain_modulus_value, &mut delta);
+        let _rem = DivRemScalar::div_rem_scalar(&cipher_modulus, t, &mut delta);
 
-        if rem * T::TWO >= plain_modulus_value {
-            let _ = delta.slice_add_value_assign(T::ONE);
-        }
+        // if rem * T::TWO >= plain_modulus_value {
+        //     let _ = delta.slice_add_value_assign(T::ONE);
+        // }
 
-        let delta_residues: Vec<T> = cipher_moduli
-            .iter()
-            .map(|modulus| modulus.reduce(delta.as_ref()))
-            .collect();
+        let delta_mod_q: Vec<T> = base_q.decompose(delta.as_ref());
 
-        let inverse_delta_residues: Vec<T> = delta_residues
+        let inv_delta_mod_q: Vec<T> = delta_mod_q
             .iter()
             .zip(cipher_moduli)
             .map(|(&v, modulus)| modulus.reduce_inv(v))
             .collect();
 
+        let t_gamma = [plain_modulus, gamma_modulus];
+        let base_t_gamma = RNSBase::new(&t_gamma).unwrap();
+        let q_mod_t_gamma = base_t_gamma.decompose(cipher_modulus);
+        let minus_inv_q_mod_t_gamma: Vec<T> = q_mod_t_gamma
+            .iter()
+            .zip(&t_gamma)
+            .map(|(&x, modulus)| modulus.reduce_neg(modulus.reduce_inv(x)))
+            .collect();
+        let inv_gamma_mod_t =
+            ShoupFactor::new(gamma.modulo(plain_modulus).inv_modulo(plain_modulus), t);
+        let t_gamma_value = multiply_many_values(&[t, gamma]);
+        let t_gamma_mod_q: Vec<T> = base_q.decompose(t_gamma_value.as_ref());
+
+        let converter = BaseConverter::new(&base_q, &base_t_gamma);
+
         Self {
             dimension,
             poly_length,
-            plain_modulus_value,
-            cipher_modulus,
+            plain_modulus_value: t,
+            plain_modulus,
             cipher_modulus_minus_one,
             cipher_moduli: cipher_moduli.to_vec(),
             cipher_moduli_value,
             cipher_moduli_minus_one,
             cipher_moduli_uniform_distr,
             delta,
-            delta_residues,
-            inverse_delta_residues,
+            delta_mod_q,
+            inv_delta_mod_q,
+            gamma,
+            t_gamma_mod_q,
+            minus_inv_q_mod_t_gamma,
+            inv_gamma_mod_t,
+            base_q,
+            base_t_gamma,
+            converter,
             secret_key_type,
             noise_distribution,
         }
@@ -237,7 +269,7 @@ where
 
     /// Returns a reference to the cipher modulus of this [`CrtGlweParameters<T, M>`].
     pub fn cipher_modulus(&self) -> &[T] {
-        &self.cipher_modulus
+        &self.base_q.moduli_product()
     }
 
     /// Returns a reference to the modulus minus one of this [`CrtGlweParameters<T, M>`].
@@ -274,7 +306,7 @@ where
     /// Returns the big uint value len of this [`CrtGlweParameters<T, M>`].
     #[inline]
     pub fn big_uint_value_len(&self) -> usize {
-        self.cipher_modulus.len()
+        self.base_q.big_uint_value_len()
     }
 
     /// Returns the secret key type of this [`CrtGlweParameters<T, M>`].
@@ -298,13 +330,41 @@ where
     }
 
     /// Returns a reference to the delta residues of this [`CrtGlweParameters<T, M>`].
-    pub fn delta_residues(&self) -> &[T] {
-        &self.delta_residues
+    pub fn delta_mod_q(&self) -> &[T] {
+        &self.delta_mod_q
     }
 
     /// Returns a reference to the inverse delta residues of this [`CrtGlweParameters<T, M>`].
     pub fn inverse_delta_residues(&self) -> &[T] {
-        &self.inverse_delta_residues
+        &self.inv_delta_mod_q
+    }
+
+    pub fn t_gamma_mod_q(&self) -> &[T] {
+        &self.t_gamma_mod_q
+    }
+
+    pub fn converter(&self) -> &BaseConverter<T, M> {
+        &self.converter
+    }
+
+    pub fn minus_inv_q_mod_t_gamma(&self) -> &[T] {
+        &self.minus_inv_q_mod_t_gamma
+    }
+
+    pub fn t_gamma(&self) -> &[M] {
+        self.base_t_gamma.moduli()
+    }
+
+    pub fn gamma(&self) -> T {
+        self.gamma
+    }
+
+    pub fn inv_gamma_mod_t(&self) -> ShoupFactor<T> {
+        self.inv_gamma_mod_t
+    }
+
+    pub fn base_q(&self) -> &RNSBase<T, M> {
+        &self.base_q
     }
 }
 
