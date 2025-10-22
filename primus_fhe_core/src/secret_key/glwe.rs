@@ -412,12 +412,7 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
         );
 
         let mut b_crt_poly = CrtPolynomial(ArrayBase(b));
-        b_crt_poly.add_mul_scalar_residues_assign(
-            msg,
-            params.delta_residues(),
-            poly_length,
-            moduli,
-        );
+        b_crt_poly.add_mul_scalar_assign(msg, params.delta_residues(), poly_length, moduli);
         let mut b_dcrt_poly = table.transform_inplace(b_crt_poly);
 
         a.chunks_exact_mut(crt_poly_length)

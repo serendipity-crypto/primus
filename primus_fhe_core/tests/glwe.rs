@@ -83,7 +83,7 @@ fn test_rns_glwe() {
 
     converter.fast_convert_array(msg.as_ref(), crt_poly_out.as_mut(), poly_length);
 
-    crt_poly_out.mul_scalar_residues_assign(&minus_inv_q_mod_t_gamma, poly_length, &t_gamma);
+    crt_poly_out.mul_scalar_assign(&minus_inv_q_mod_t_gamma, poly_length, &t_gamma);
 
     let (y_t, y_gamma) = crt_poly_out.as_ref().split_at(poly_length);
     let dec: Vec<_> = izip!(y_gamma, y_t)
@@ -156,15 +156,15 @@ fn test_rns() {
                 *a = modulus.reduce(*b);
             });
         });
-    msg.mul_scalar_residues_assign(&delta_residue, poly_length, &moduli);
+    msg.mul_scalar_assign(&delta_residue, poly_length, &moduli);
 
-    msg.mul_scalar_residues_assign(&t_gamma_mod_q, poly_length, &moduli);
+    msg.mul_scalar_assign(&t_gamma_mod_q, poly_length, &moduli);
 
     let mut crt_poly_out: CrtPolynomial<Vec<ValueT>> = CrtPolynomial::zero(2 * poly_length);
 
     converter.fast_convert_array(msg.as_ref(), crt_poly_out.as_mut(), poly_length);
 
-    crt_poly_out.mul_scalar_residues_assign(&minus_inv_q_mod_t_gamma, poly_length, &t_gamma);
+    crt_poly_out.mul_scalar_assign(&minus_inv_q_mod_t_gamma, poly_length, &t_gamma);
 
     let (y_t, y_gamma) = crt_poly_out.as_ref().split_at(poly_length);
     let dec: Vec<_> = izip!(y_gamma, y_t)

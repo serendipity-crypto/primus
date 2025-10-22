@@ -50,6 +50,10 @@ pub trait BigIntegerOps: BigInteger {
     #[must_use]
     fn slice_add_value_inplace(&self, value: Self::ValueT, result: &mut Self) -> bool;
 
+    /// Subtracts a value to the big integer slice, returning true if there was a borrow.
+    #[must_use]
+    fn slice_sub_value_inplace(&self, value: Self::ValueT, result: &mut Self) -> bool;
+
     /// Multiplies the big integer slice by a value, storing the result in another slice.
     #[must_use]
     fn slice_mul_value_inplace(&self, value: Self::ValueT, result: &mut Self) -> Self::ValueT;
@@ -203,6 +207,36 @@ impl<T: UnsignedInteger> BigIntegerOps for [T] {
         }
 
         carry
+    }
+
+    fn slice_sub_value_inplace(&self, value: Self::ValueT, result: &mut Self) -> bool {
+        debug_assert_eq!(self.len(), result.len());
+
+        let mut borrow;
+
+        let mut a_iter = self.iter();
+        let mut b_iter = result.iter_mut();
+
+        let a_first = a_iter.next().unwrap();
+        let b_first = b_iter.next().unwrap();
+
+        (*b_first, borrow) = a_first.overflowing_sub(value);
+
+        while borrow {
+            if let Some(a_next) = a_iter.next()
+                && let Some(b_next) = b_iter.next()
+            {
+                (*b_next, borrow) = a_next.overflowing_sub(T::ONE);
+            } else {
+                return borrow;
+            }
+        }
+
+        for (a, b) in a_iter.zip(b_iter) {
+            *b = *a;
+        }
+
+        borrow
     }
 
     #[inline]

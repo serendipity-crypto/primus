@@ -157,7 +157,7 @@ where
 
                     let mut b_crt_poly = CrtPolynomial(ArrayBase(b));
 
-                    b_crt_poly.add_mul_scalar_residues_assign(
+                    b_crt_poly.add_mul_scalar_assign(
                         &CrtPolynomial(ArrayBase(auto_si.as_ref())),
                         scalar_residues,
                         poly_length,
