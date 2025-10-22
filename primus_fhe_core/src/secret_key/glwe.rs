@@ -435,32 +435,29 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
             });
     }
 
-    /// Performs `b-as`.
-    pub fn phase_inplace<M, Table, A, B>(
+    /// Performs `b - ∑ a*s`.
+    fn phase_inplace<M, A, B>(
         &self,
         ciphertext: &DcrtGlweCiphertext<A>,
-        msg: &mut CrtPolynomial<B>,
+        msg_mod_q: &mut DcrtPolynomial<B>,
         params: &CrtGlweParameters<T, M>,
-        table: &Table,
     ) where
         M: FieldContext<T>,
-        Table: DcrtTable<ValueT = T> + Dcrt,
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + DataMut,
     {
         let poly_length = self.poly_length;
         let moduli = params.cipher_moduli();
 
-        let mut temp = DcrtPolynomial::new(ArrayBase(msg.as_mut()));
-        temp.set_zero();
-
         let (a, b) = ciphertext.a_b_slices(self.crt_glwe_len - self.crt_poly_length);
 
-        // temp = ∑a*s
+        msg_mod_q.set_zero();
+
+        // msg_mod_q = ∑a*s
         a.chunks_exact(self.crt_poly_length)
             .zip(self.iter_dcrt_poly())
             .for_each(|(ai, si)| {
-                temp.add_mul_assign(
+                msg_mod_q.add_mul_assign(
                     &DcrtPolynomial(ArrayBase(ai)),
                     &DcrtPolynomial(ArrayBase(si)),
                     poly_length,
@@ -468,9 +465,25 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
                 );
             });
 
-        // temp = b - ∑a*s
-        DcrtPolynomial(ArrayBase(b)).sub_to_right(&mut temp, poly_length, moduli);
-        table.inverse_transform_slice(temp.as_mut());
+        // msg_mod_q = b - ∑ a*s
+        DcrtPolynomial(ArrayBase(b)).sub_to_right(msg_mod_q, poly_length, moduli);
+    }
+
+    pub fn decrypt<M, Table, A>(
+        &self,
+        ciphertext: &DcrtGlweCiphertext<A>,
+        params: &CrtGlweParameters<T, M>,
+        table: &Table,
+        context: &mut DcrtGlweDecryptContext<T>,
+    ) -> PolynomialOwned<T>
+    where
+        M: FieldContext<T>,
+        Table: DcrtTable<ValueT = T> + Dcrt,
+        A: RawData<Elem = T> + Data,
+    {
+        let mut msg = PolynomialOwned::zero(params.poly_length());
+        self.decrypt_inplace(ciphertext, &mut msg, params, table, context);
+        msg
     }
 
     pub fn decrypt_inplace<M, Table, A, B>(
@@ -479,6 +492,7 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
         msg: &mut Polynomial<B>,
         params: &CrtGlweParameters<T, M>,
         table: &Table,
+        context: &mut DcrtGlweDecryptContext<T>,
     ) where
         M: FieldContext<T>,
         Table: DcrtTable<ValueT = T> + Dcrt,
@@ -491,11 +505,11 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
         let gamma = params.gamma();
         let inv_gamma_mod_t = params.inv_gamma_mod_t();
 
-        let mut msg_mod_q: CrtPolynomial<Vec<T>> =
-            CrtPolynomial::zero(params.cipher_moduli_count() * poly_length);
-        let mut msg_mod_t_gamma: CrtPolynomial<Vec<T>> = CrtPolynomial::zero(2 * poly_length);
+        let (msg_mod_q, msg_mod_t_gamma) = context.as_mut();
 
-        self.phase_inplace(ciphertext, &mut msg_mod_q, params, table);
+        self.phase_inplace(ciphertext, msg_mod_q, params);
+
+        table.inverse_transform_slice(msg_mod_q.as_mut());
 
         msg_mod_q.mul_scalar_assign(params.t_gamma_mod_q(), poly_length, q);
 
@@ -516,5 +530,34 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
         izip!(msg.iter_mut(), y_t_slices, y_gamma_slices).for_each(|(res, &y_t, &y_gamma)| {
             *res = inv_gamma_mod_t.factor_mul_modulo(gamma - y_gamma + y_t, t);
         });
+    }
+}
+
+pub struct DcrtGlweDecryptContext<T: UnsignedInteger> {
+    msg_mod_q: DcrtPolynomial<Vec<T>>,
+    msg_mod_t_gamma: CrtPolynomial<Vec<T>>,
+}
+
+impl<T: UnsignedInteger> DcrtGlweDecryptContext<T> {
+    /// Creates a new [`DcrtGlweDecryptContext<T>`].
+    #[inline]
+    pub fn new(moduli_count: usize, poly_length: usize) -> Self {
+        let msg_mod_q: DcrtPolynomial<Vec<T>> = DcrtPolynomial::zero(moduli_count * poly_length);
+        let msg_mod_t_gamma: CrtPolynomial<Vec<T>> = CrtPolynomial::zero(2 * poly_length);
+
+        Self {
+            msg_mod_q,
+            msg_mod_t_gamma,
+        }
+    }
+
+    #[inline]
+    pub fn as_mut(
+        &mut self,
+    ) -> (
+        &mut DcrtPolynomial<Vec<T>, T>,
+        &mut CrtPolynomial<Vec<T>, T>,
+    ) {
+        (&mut self.msg_mod_q, &mut self.msg_mod_t_gamma)
     }
 }

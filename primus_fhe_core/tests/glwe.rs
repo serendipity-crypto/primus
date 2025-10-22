@@ -1,5 +1,6 @@
 use primus_fhe_core::{
-    CrtGlweParameters, CrtGlweSecretKey, DcrtGlweCiphertext, DcrtGlweSecretKey, RingSecretKeyType,
+    CrtGlweParameters, CrtGlweSecretKey, DcrtGlweCiphertext, DcrtGlweDecryptContext,
+    DcrtGlweSecretKey, RingSecretKeyType,
 };
 use primus_lattice::glwe::DcrtGlwe;
 use primus_modulus::BarrettModulus;
@@ -47,8 +48,9 @@ fn test_rns_glwe() {
     let mut c0: DcrtGlwe<Vec<ValueT>> = DcrtGlweCiphertext::zero(crt_glwe_len);
     dcrt_sk.encrypt_inplace(&crt_poly, &mut c0, &params, &table, &mut rng);
 
-    let mut msg: Polynomial<Vec<ValueT>> = Polynomial::zero(poly_length);
-    dcrt_sk.decrypt_inplace(&c0, &mut msg, &params, &table);
+    let mut decrypt_context =
+        DcrtGlweDecryptContext::new(params.cipher_moduli_count(), poly_length);
+    let msg = dcrt_sk.decrypt(&c0, &params, &table, &mut decrypt_context);
 
     debug_assert_eq!(input.as_ref(), msg.as_ref());
 }

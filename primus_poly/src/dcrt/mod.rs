@@ -46,8 +46,8 @@ where
 {
     /// Creates a [`DcrtPolynomial<T>`] with all coefficients equal to zero.
     #[inline]
-    pub fn zero(moduli_count: usize, poly_length: usize) -> Self {
-        Self(ArrayBase::zero(moduli_count * poly_length))
+    pub fn zero(dcrt_poly_length: usize) -> Self {
+        Self(ArrayBase::zero(dcrt_poly_length))
     }
 
     #[inline]
