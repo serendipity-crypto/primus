@@ -22,3 +22,4 @@ rand = { workspace = true }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }
+indicatif = { workspace = true }

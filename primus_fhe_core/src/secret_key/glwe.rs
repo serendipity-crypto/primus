@@ -588,7 +588,11 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
         let (y_t_slices, y_gamma_slices) = msg_mod_t_gamma.as_ref().split_at(poly_length);
 
         izip!(msg.iter_mut(), y_t_slices, y_gamma_slices).for_each(|(res, &y_t, &y_gamma)| {
-            *res = inv_gamma_mod_t.factor_mul_modulo(gamma - y_gamma + y_t, t);
+            let mut temp = gamma - y_gamma + y_t;
+            if temp >= gamma {
+                temp -= gamma;
+            }
+            *res = inv_gamma_mod_t.factor_mul_modulo(temp, t);
         });
     }
 }
