@@ -54,42 +54,42 @@ fn test_rns_glwe_auto() {
 
     let basis =
         BigUintApproxSignedBasis::new(glwe_params.cipher_modulus(), 20, None, glwe_params.base_q());
-    let crt_glev_len = basis.decompose_length() * crt_glwe_len;
     let glev_params = CrtGlevParameters::with_glwe_params(&glwe_params, basis);
 
     let auto_key = CrtGlweAutoKey::new(&glev_params, 1, &sk, &dcrt_sk, Arc::new(table), &mut rng);
-
     let table = auto_key.table();
 
     let crt_glwe_len = dcrt_sk.crt_glwe_len();
 
-    let input: Polynomial<Vec<ValueT>> = Polynomial::random(poly_length, mod_t, &mut rng);
-
-    let mut crt_poly: CrtPolynomial<Vec<ValueT>> = CrtPolynomial::zero(crt_poly_length);
-    glwe_params
-        .base_q()
-        .decompose_small_polynomial_inplace(&input, &mut crt_poly, poly_length);
-
-    let mut c0: DcrtGlwe<Vec<ValueT>> = DcrtGlweCiphertext::zero(crt_glwe_len);
-    dcrt_sk.encrypt_inplace(&crt_poly, &mut c0, &glwe_params, table, &mut rng);
-
-    let c1 = c0.into_coeff_form(table);
-
+    let input1: Polynomial<Vec<ValueT>> = Polynomial::random(poly_length, mod_t, &mut rng);
+    let mut msg1_crt_poly: CrtPolynomial<Vec<ValueT>> = CrtPolynomial::zero(crt_poly_length);
+    let mut c1: DcrtGlwe<Vec<ValueT>> = DcrtGlweCiphertext::zero(crt_glwe_len);
     let mut c2: CrtGlwe<Vec<ValueT>> = CrtGlwe::zero(crt_glwe_len);
-    let mut context = CrtGlweAutoContext::new(poly_length, crt_poly_length, big_uint_poly_len);
+    let mut auto_context = CrtGlweAutoContext::new(poly_length, crt_poly_length, big_uint_poly_len);
+    let mut decrypt_context = DcrtGlweDecryptContext::new(moduli_count, poly_length);
+
+    glwe_params.base_q().decompose_small_polynomial_inplace(
+        &input1,
+        &mut msg1_crt_poly,
+        poly_length,
+    );
+
+    dcrt_sk.encrypt_inplace(&msg1_crt_poly, &mut c1, &glwe_params, table, &mut rng);
+
+    let c1 = c1.into_coeff_form(table);
+
     auto_key.automorphism_inplace(
         &c1,
         &mut c2,
         &glev_params,
         glwe_params.base_q(),
-        &mut context,
+        &mut auto_context,
     );
 
-    let c3 = c2.into_ntt_form(table);
+    let c2 = c2.into_ntt_form(table);
 
-    let mut decrypt_context = DcrtGlweDecryptContext::new(moduli_count, poly_length);
-    let msg = dcrt_sk.decrypt(&c3, &glwe_params, table, &mut decrypt_context);
+    let msg = dcrt_sk.decrypt(&c2, &glwe_params, table, &mut decrypt_context);
 
-    println!("{:?}", input.as_ref());
+    println!("{:?}", input1.as_ref());
     println!("{:?}", msg.as_ref());
 }

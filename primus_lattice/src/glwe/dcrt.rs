@@ -45,6 +45,15 @@ where
         unsafe { self.data.0.split_at_mut_unchecked(mid) }
     }
 
+    pub fn neg_assign<M>(&mut self, dcrt_poly_length: usize, poly_length: usize, moduli: &[M])
+    where
+        M: FieldContext<T>,
+    {
+        self.data.chunks_exact_mut(dcrt_poly_length).for_each(|a| {
+            DcrtPolynomial(ArrayBase(a)).neg_assign(poly_length, moduli);
+        });
+    }
+
     pub fn add_dcrt_glwe_mul_dcrt_polynomial_assign<M, A, B>(
         &mut self,
         dcrt_glwe: &DcrtGlwe<A>,

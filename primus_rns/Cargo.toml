@@ -17,3 +17,5 @@ itertools = { workspace = true }
 
 [dev-dependencies]
 rand = { workspace = true }
+indicatif = { workspace = true }
+pretty_assertions = { workspace = true }

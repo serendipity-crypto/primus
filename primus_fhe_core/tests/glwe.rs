@@ -65,7 +65,7 @@ fn test_rns_glwe() {
             .base_q()
             .decompose_small_polynomial_inplace(&m0, &mut msg0, poly_length);
 
-        let m1: Polynomial<Vec<ValueT>> = Polynomial::random(poly_length, mod_t, &mut rng);
+        let mut m1: Polynomial<Vec<ValueT>> = Polynomial::random(poly_length, mod_t, &mut rng);
 
         let mut msg1: CrtPolynomial<Vec<ValueT>> = CrtPolynomial::zero(crt_poly_length);
         glwe_params
@@ -116,5 +116,14 @@ fn test_rns_glwe() {
         m1.naive_mul_inplace(&m2, &mut m1_mul_m2, mod_t);
 
         assert_eq!(m1_mul_m2, m_dec);
+
+        // Negate
+        c1.neg_assign(crt_poly_length, poly_length, &qi);
+
+        dcrt_sk.decrypt_inplace(&c1, &mut m_dec, &glwe_params, &table, &mut decrypt_context);
+
+        m1.neg_assign(mod_t);
+
+        assert_eq!(m1, m_dec);
     }
 }
