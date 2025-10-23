@@ -19,8 +19,6 @@ fn test_rns() {
     let value = base.compose(residues);
     let dec = base.decompose(&value);
     assert_eq!(dec, residues);
-
-    println!("Result: {:?}", value);
 }
 
 #[test]
@@ -32,8 +30,6 @@ fn test_rns2() {
     let value = base.compose(residues);
     let dec = base.decompose(&value);
     assert_eq!(dec, residues);
-
-    println!("Result: {:?}", value);
 }
 
 #[test]

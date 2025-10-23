@@ -139,7 +139,7 @@ where
     /// Decomposes a value into its RNS representation, writing the result into the provided slice.
     #[inline]
     pub fn decompose_inplace(&self, value: &[T], residues: &mut [T]) {
-        debug_assert_eq!(self.moduli.len(), residues.len());
+        debug_assert_eq!(self.moduli_count(), residues.len());
 
         for (residue, &modulus) in residues.iter_mut().zip(self.moduli.iter()) {
             *residue = value.modulo(modulus);
@@ -152,6 +152,12 @@ where
         multi_residues: &mut [T],
         value_count: usize,
     ) {
+        debug_assert_eq!(multi_residues.len(), self.moduli_count() * value_count);
+        debug_assert_eq!(
+            big_uint_values.len(),
+            self.big_uint_value_len() * value_count
+        );
+
         let value_len = self.moduli_product.len();
         for (residues, &modulus) in multi_residues
             .chunks_exact_mut(value_count)
@@ -175,6 +181,12 @@ where
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + DataMut,
     {
+        debug_assert_eq!(
+            crt_poly.crt_poly_length(),
+            self.moduli_count() * poly_length
+        );
+        debug_assert_eq!(poly.poly_length(), poly_length);
+
         for (crt_poly_residue, &modulus) in crt_poly
             .iter_each_modulus_mut(poly_length)
             .zip(self.moduli())
@@ -194,6 +206,12 @@ where
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + DataMut,
     {
+        debug_assert_eq!(
+            crt_poly.crt_poly_length(),
+            self.moduli_count() * poly_length
+        );
+        debug_assert_eq!(big_uint_poly.len(), self.big_uint_value_len() * poly_length);
+
         let value_len = self.moduli_product.len();
         for (poly, &modulus) in crt_poly
             .iter_each_modulus_mut(poly_length)
@@ -207,9 +225,9 @@ where
 
     /// Composes a value from its RNS representation.
     pub fn compose(&self, residues: &[T]) -> Vec<T> {
-        debug_assert_eq!(self.moduli.len(), residues.len());
+        debug_assert_eq!(self.moduli_count(), residues.len());
 
-        let value_len = self.moduli_product.len();
+        let value_len = self.big_uint_value_len();
 
         let mut value = vec![T::ZERO; value_len];
 
@@ -233,8 +251,8 @@ where
     }
 
     pub fn compose_inplace(&self, residues: &[T], value: &mut [T]) {
-        debug_assert_eq!(self.moduli.len(), residues.len());
-        debug_assert_eq!(self.moduli_product.len(), value.len());
+        debug_assert_eq!(self.moduli_count(), residues.len());
+        debug_assert_eq!(self.big_uint_value_len(), value.len());
 
         let value_len = self.moduli_product.len();
 
@@ -261,6 +279,12 @@ where
         big_uint_values: &mut [T],
         value_count: usize,
     ) {
+        debug_assert_eq!(multi_residues.len(), self.moduli_count() * value_count);
+        debug_assert_eq!(
+            big_uint_values.len(),
+            self.big_uint_value_len() * value_count
+        );
+
         let value_len = self.moduli_product.len();
         let mut residues = vec![T::ZERO; self.moduli.len()];
 
@@ -286,6 +310,12 @@ where
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + DataMut,
     {
+        debug_assert_eq!(
+            crt_poly.crt_poly_length(),
+            self.moduli_count() * poly_length
+        );
+        debug_assert_eq!(big_uint_poly.len(), self.big_uint_value_len() * poly_length);
+
         let value_len = self.moduli_product.len();
 
         let mut residues = vec![T::ZERO; self.moduli.len()];

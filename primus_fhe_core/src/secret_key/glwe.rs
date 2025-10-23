@@ -1,6 +1,6 @@
 use primus_factor::FactorMul;
 use primus_integer::{UnsignedInteger, izip};
-use primus_lattice::glev::DcrtGlev;
+use primus_lattice::{glev::DcrtGlev, glwe::DcrtGlwe};
 use primus_ntt::{Dcrt, DcrtTable, Ntt, NttTable};
 use primus_poly::{
     ArrayBase, Data, DataMut, NttPolynomial, Polynomial, PolynomialOwned, RawData,
@@ -438,6 +438,57 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
             });
     }
 
+    fn encrypt_custom_delta_dcrt_glwe_inplace<R, M, Table, A, B>(
+        &self,
+        msg: &CrtPolynomial<A>,
+        delta: &[T],
+        result: &mut DcrtGlwe<B>,
+        params: &CrtGlevParameters<T, M>,
+        table: &Table,
+        rng: &mut R,
+    ) where
+        R: rand::Rng + rand::CryptoRng,
+        M: FieldContext<T>,
+        Table: DcrtTable<ValueT = T> + Dcrt,
+        A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + DataMut,
+    {
+        let poly_length = self.poly_length();
+        let crt_poly_length = self.crt_poly_length();
+        let moduli = params.cipher_moduli();
+        let uniform_distrs = params.cipher_moduli_uniform_distr();
+
+        let (a, b) = result.a_b_mut_slices(self.crt_glwe_len() - crt_poly_length);
+        primus_distr::sample_crt_gaussian_values_inplace(
+            b,
+            poly_length,
+            params.cipher_moduli_value(),
+            params.noise_distribution(),
+            &mut *rng,
+        );
+
+        let mut b_crt_poly = CrtPolynomial(ArrayBase(b));
+        b_crt_poly.add_mul_scalar_assign(&msg, delta, poly_length, moduli);
+        let mut b_dcrt_poly = table.transform_inplace(b_crt_poly);
+
+        a.chunks_exact_mut(crt_poly_length)
+            .zip(self.iter_dcrt_poly())
+            .for_each(|(ai, si)| {
+                primus_distr::sample_crt_uniform_values_inplace(
+                    ai,
+                    poly_length,
+                    uniform_distrs,
+                    &mut *rng,
+                );
+                b_dcrt_poly.add_mul_assign(
+                    &DcrtPolynomial(ArrayBase(ai)),
+                    &DcrtPolynomial(ArrayBase(si)),
+                    poly_length,
+                    moduli,
+                );
+            });
+    }
+
     pub fn encrypt_dcrt_glev_inplace<R, M, Table, A, B>(
         &self,
         msg: &CrtPolynomial<A>,
@@ -452,46 +503,18 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + DataMut,
     {
-        let poly_length = self.poly_length();
-        let crt_poly_length = self.crt_poly_length();
-        let crt_glwe_len = self.crt_glwe_len();
-        let basis = params.basis();
-        let dcrt_glwe_mid = crt_glwe_len - crt_poly_length;
-        let moduli = params.cipher_moduli();
-
         result
-            .iter_dcrt_glwe_mut(crt_glwe_len)
-            .zip(basis.scalars_residues_iter())
+            .iter_dcrt_glwe_mut(self.crt_glwe_len())
+            .zip(params.basis().scalars_residues_iter())
             .for_each(|(dcrt_glwe, scalar)| {
-                let (a, b) = dcrt_glwe.split_at_mut(dcrt_glwe_mid);
-                primus_distr::sample_crt_gaussian_values_inplace(
-                    b,
-                    poly_length,
-                    params.cipher_moduli_value(),
-                    params.noise_distribution(),
-                    &mut *rng,
+                self.encrypt_custom_delta_dcrt_glwe_inplace(
+                    msg,
+                    scalar,
+                    &mut DcrtGlwe::new(ArrayBase(dcrt_glwe)),
+                    params,
+                    table,
+                    rng,
                 );
-
-                let mut b_crt_poly = CrtPolynomial(ArrayBase(b));
-                b_crt_poly.add_mul_scalar_assign(&msg, scalar, poly_length, moduli);
-                let mut b_dcrt_poly = table.transform_inplace(b_crt_poly);
-
-                a.chunks_exact_mut(crt_poly_length)
-                    .zip(self.iter_dcrt_poly())
-                    .for_each(|(ai, si)| {
-                        primus_distr::sample_crt_uniform_values_inplace(
-                            ai,
-                            poly_length,
-                            params.cipher_moduli_uniform_distr(),
-                            &mut *rng,
-                        );
-                        b_dcrt_poly.add_mul_assign(
-                            &DcrtPolynomial(ArrayBase(ai)),
-                            &DcrtPolynomial(ArrayBase(si)),
-                            poly_length,
-                            moduli,
-                        );
-                    });
             });
     }
 

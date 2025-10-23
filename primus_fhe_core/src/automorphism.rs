@@ -67,7 +67,7 @@ pub struct FromOp {
 #[derive(Debug, Clone)]
 pub enum AutoHelper {
     Permutation(Vec<FromOp>),
-    DimensionPlusOne,
+    PolyLengthPlusOne,
     One,
 }
 
@@ -116,9 +116,6 @@ where
         let decompose_length = basis.decompose_length();
         let dcrt_glev_len = decompose_length * dcrt_glwe_len;
         let moduli = params.cipher_moduli();
-        let moduli_value = params.cipher_moduli_value();
-        let gaussian = params.noise_distribution();
-        let uniform_distrs = params.cipher_moduli_uniform_distr();
 
         let dcrt_glwe_mid = crt_poly_length * dimension;
 
@@ -127,7 +124,7 @@ where
         let auto_helper = if degree == 1 {
             AutoHelper::One
         } else if degree == poly_length + 1 {
-            AutoHelper::DimensionPlusOne
+            AutoHelper::PolyLengthPlusOne
         } else {
             AutoHelper::Permutation(generate_permutate_ops(degree, poly_length))
         };
@@ -141,48 +138,13 @@ where
             .for_each(|(dcrt_glev, si)| {
                 crt_poly_auto_inplace(si, &mut auto_si, &auto_helper, poly_length, moduli);
 
-                izip!(
-                    dcrt_glev.chunks_exact_mut(dcrt_glwe_len),
-                    basis.scalars_residues_iter()
-                )
-                .for_each(|(dcrt_glwe, scalar_residues)| {
-                    let (a, b) = unsafe { dcrt_glwe.split_at_mut_unchecked(dcrt_glwe_mid) };
-                    primus_distr::sample_crt_gaussian_values_inplace(
-                        b,
-                        poly_length,
-                        moduli_value,
-                        gaussian,
-                        rng,
-                    );
-
-                    let mut b_crt_poly = CrtPolynomial(ArrayBase(b));
-
-                    b_crt_poly.add_mul_scalar_assign(
-                        &CrtPolynomial(ArrayBase(auto_si.as_ref())),
-                        scalar_residues,
-                        poly_length,
-                        moduli,
-                    );
-
-                    let mut b_dcrt_poly = table.transform_inplace(b_crt_poly);
-
-                    a.chunks_exact_mut(crt_poly_length)
-                        .zip(dcrt_sk.iter_dcrt_poly())
-                        .for_each(|(ai, si)| {
-                            primus_distr::sample_crt_uniform_values_inplace(
-                                ai,
-                                poly_length,
-                                uniform_distrs,
-                                rng,
-                            );
-                            b_dcrt_poly.add_mul_assign(
-                                &DcrtPolynomial(ArrayBase(ai)),
-                                &DcrtPolynomial(ArrayBase(si)),
-                                poly_length,
-                                moduli,
-                            );
-                        });
-                });
+                dcrt_sk.encrypt_dcrt_glev_inplace(
+                    &CrtPolynomial(ArrayBase(auto_si.as_ref())),
+                    &mut DcrtGlev::new(ArrayBase(dcrt_glev)),
+                    params,
+                    table.as_ref(),
+                    rng,
+                );
             });
 
         Self {
@@ -345,7 +307,7 @@ where
         AutoHelper::Permutation(from_ops) => {
             poly_auto_inplace_for_permutation(poly, auto_poly, from_ops, modulus);
         }
-        AutoHelper::DimensionPlusOne => {
+        AutoHelper::PolyLengthPlusOne => {
             poly_auto_inplace_for_dimension_plus_one(poly, auto_poly, modulus);
         }
         AutoHelper::One => poly_auto_inplace_for_one(poly, auto_poly),
