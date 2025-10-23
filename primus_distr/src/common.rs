@@ -16,19 +16,7 @@ where
     R: Rng + CryptoRng,
 {
     let mut v = vec![T::ZERO; length];
-    let mut iter = v.chunks_exact_mut(32);
-    for chunk in &mut iter {
-        let mut r = rng.next_u32();
-        for elem in chunk.iter_mut() {
-            *elem = T::as_from(r & 0b1);
-            r >>= 1;
-        }
-    }
-    let mut r = rng.next_u32();
-    for elem in iter.into_remainder() {
-        *elem = T::as_from(r & 0b1);
-        r >>= 1;
-    }
+    sample_binary_values_inplace(&mut v, rng);
     v
 }
 
@@ -38,17 +26,19 @@ where
     T: Integer,
     R: Rng + CryptoRng,
 {
-    let mut iter = result.chunks_exact_mut(32);
-    for chunk in &mut iter {
+    let s = [T::ZERO, T::ONE];
+
+    let (chunks, remainder) = result.as_chunks_mut::<32>();
+    for chunk in chunks {
         let mut r = rng.next_u32();
         for elem in chunk.iter_mut() {
-            *elem = T::as_from(r & 0b1);
+            *elem = s[(r & 0b1) as usize];
             r >>= 1;
         }
     }
     let mut r = rng.next_u32();
-    for elem in iter.into_remainder() {
-        *elem = T::as_from(r & 0b1);
+    for elem in remainder {
+        *elem = s[(r & 0b1) as usize];
         r >>= 1;
     }
 }
@@ -59,21 +49,8 @@ where
     T: Integer,
     R: Rng + CryptoRng,
 {
-    let s = [T::ZERO, T::ZERO, T::ONE, minus_one];
     let mut v = vec![T::ZERO; length];
-    let mut iter = v.chunks_exact_mut(16);
-    for chunk in &mut iter {
-        let mut r = rng.next_u32();
-        for elem in chunk.iter_mut() {
-            *elem = s[(r & 0b11) as usize];
-            r >>= 2;
-        }
-    }
-    let mut r = rng.next_u32();
-    for elem in iter.into_remainder() {
-        *elem = s[(r & 0b11) as usize];
-        r >>= 2;
-    }
+    sample_ternary_values_inplace(&mut v, minus_one, rng);
     v
 }
 
@@ -85,8 +62,8 @@ where
 {
     let s = [T::ZERO, T::ZERO, T::ONE, minus_one];
 
-    let mut iter = result.chunks_exact_mut(16);
-    for chunk in &mut iter {
+    let (chunks, remainder) = result.as_chunks_mut::<16>();
+    for chunk in chunks {
         let mut r = rng.next_u32();
         for elem in chunk.iter_mut() {
             *elem = s[(r & 0b11) as usize];
@@ -94,7 +71,7 @@ where
         }
     }
     let mut r = rng.next_u32();
-    for elem in iter.into_remainder() {
+    for elem in remainder {
         *elem = s[(r & 0b11) as usize];
         r >>= 2;
     }
@@ -119,19 +96,7 @@ where
 {
     let (v, w) = result.split_at_mut(length);
 
-    let mut iter = v.chunks_exact_mut(32);
-    for chunk in &mut iter {
-        let mut r = rng.next_u32();
-        for elem in chunk.iter_mut() {
-            *elem = T::as_from(r & 0b1);
-            r >>= 1;
-        }
-    }
-    let mut r = rng.next_u32();
-    for elem in iter.into_remainder() {
-        *elem = T::as_from(r & 0b1);
-        r >>= 1;
-    }
+    sample_binary_values_inplace(v, rng);
 
     w.chunks_exact_mut(length)
         .for_each(|s| s.copy_from_slice(v));

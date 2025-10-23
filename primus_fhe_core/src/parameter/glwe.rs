@@ -199,7 +199,10 @@ where
 
         let mut delta = vec![T::ZERO; cipher_modulus.len()];
 
-        let _rem = DivRemScalar::div_rem_scalar(&cipher_modulus, t, &mut delta);
+        let rem = DivRemScalar::div_rem_scalar(&cipher_modulus, t, &mut delta);
+        if rem * T::TWO >= t {
+            let _ = delta.slice_add_value_assign(T::ONE);
+        }
 
         let delta_mod_q: Vec<T> = base_q.decompose(delta.as_ref());
 
