@@ -172,7 +172,7 @@ mod tests {
         let mut residues: Vec<ValueT> = vec![0; N * moduli_count];
         basis
             .decomposer_iter()
-            .zip(basis.scalars_residues_iter())
+            .zip(basis.iter_scalar_residues())
             .for_each(|(once_decomposer, scalar)| {
                 let mut decomposed_big_uint_values = vec![0; N * big_uint_value_len];
                 once_decomposer.decompose_slice_inplace(

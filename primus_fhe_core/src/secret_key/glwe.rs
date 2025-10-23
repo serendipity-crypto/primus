@@ -505,7 +505,7 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
     {
         result
             .iter_dcrt_glwe_mut(self.crt_glwe_len())
-            .zip(params.basis().scalars_residues_iter())
+            .zip(params.basis().iter_scalar_residues())
             .for_each(|(dcrt_glwe, scalar)| {
                 self.encrypt_custom_delta_dcrt_glwe_inplace(
                     msg,

@@ -1,3 +1,5 @@
+use std::iter::FusedIterator;
+
 use primus_integer::{BigIntegerOps, UnsignedInteger, izip};
 use serde::{Deserialize, Serialize};
 
@@ -58,6 +60,30 @@ impl<T: UnsignedInteger> ValueMask<T> {
         }
     }
 }
+
+pub struct BigUintSignedDecomposerIter<'a, T: UnsignedInteger> {
+    pub(super) value_masks: std::slice::Iter<'a, ValueMask<T>>,
+    pub(super) carry_mask: T,
+    pub(super) basis_minus_one: T,
+    pub(super) modulus_minus_basis: &'a [T],
+}
+
+impl<'a, T: UnsignedInteger> Iterator for BigUintSignedDecomposerIter<'a, T> {
+    type Item = OnceBigUintSignedDecomposer<'a, T>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.value_masks
+            .next()
+            .map(|&value_mask| OnceBigUintSignedDecomposer {
+                value_mask,
+                carry_mask: self.carry_mask,
+                basis_minus_one: self.basis_minus_one,
+                modulus_minus_basis: self.modulus_minus_basis,
+            })
+    }
+}
+
+impl<'a, T: UnsignedInteger> FusedIterator for BigUintSignedDecomposerIter<'a, T> {}
 
 /// The signed decomposition operator which can execute once decomposition.
 pub struct OnceBigUintSignedDecomposer<'a, T: UnsignedInteger> {

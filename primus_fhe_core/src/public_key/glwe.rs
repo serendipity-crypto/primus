@@ -186,7 +186,7 @@ impl<T: UnsignedInteger> DcrtGlwePublicKey<T> {
 
         izip!(
             dcrt_glev.chunks_exact_mut(crt_glwe_len),
-            params.basis().scalars_residues_iter()
+            params.basis().iter_scalar_residues()
         )
         .for_each(|(dcrt_glwe, scalar_residues)| {
             primus_distr::sample_crt_ternary_values_inplace(

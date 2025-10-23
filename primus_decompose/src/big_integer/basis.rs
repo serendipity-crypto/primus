@@ -1,10 +1,10 @@
 use num_traits::ConstOne;
-use primus_integer::{BigIntegerOps, UnsignedInteger};
+use primus_integer::{BigIntegerOps, DivRem, UnsignedInteger};
 use primus_reduce::FieldContext;
 use primus_rns::RNSBase;
 use serde::{Deserialize, Serialize};
 
-use crate::big_integer::OnceBigUintSignedDecomposer;
+use crate::big_integer::BigUintSignedDecomposerIter;
 
 use super::ValueMask;
 
@@ -21,7 +21,7 @@ pub struct BigUintApproxSignedBasis<T: UnsignedInteger> {
     init_carry_mask: Option<(usize, T)>,
     carry_mask: T,
     split_value: Option<Vec<T>>,
-    modulus_minus_basis: Vec<T>,
+    modulus_sub_basis: Vec<T>,
     next_pow_of_2_sub_modulus: Vec<T>,
     scalars: Vec<T>,
     scalars_residue: Vec<T>,
@@ -43,13 +43,14 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
         // FIXME: log_basis may be bigger than T::BITS
         assert!(!modulus.last().unwrap().is_zero());
         assert!(log_basis > 0 && T::BITS > log_basis);
+        assert_eq!(modulus, rns_base.moduli_product());
 
-        let big_uint_len = modulus.len();
-        let unused_bits = modulus[big_uint_len - 1].leading_zeros();
+        let modulus_value_len = modulus.len();
+        let unused_bits = modulus.last().unwrap().leading_zeros();
 
         let basis = <T as ConstOne>::ONE << log_basis;
         let basis_minus_one = basis - <T as ConstOne>::ONE;
-        let modulus_bits_count = T::BITS * (big_uint_len as u32) - unused_bits;
+        let modulus_bits_count = T::BITS * (modulus_value_len as u32) - unused_bits;
         let decompose_length = modulus_bits_count / log_basis;
         let mut drop_bits = modulus_bits_count - decompose_length * log_basis;
         let mut decompose_length = decompose_length as usize;
@@ -64,7 +65,8 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
 
         let init_carry_mask = if drop_bits > 0 {
             let bits = drop_bits - 1;
-            let (index, bits) = (bits / T::BITS, bits % T::BITS);
+
+            let (index, bits) = bits.div_rem(T::BITS);
             Some((index as usize, T::ONE << bits))
         } else {
             None
@@ -80,7 +82,7 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
             if drop_bits == 0 {
                 None
             } else {
-                let mut value = vec![T::ZERO; modulus.len()];
+                let mut value = vec![T::ZERO; modulus_value_len];
                 for _ in 0..decompose_length {
                     value.slice_left_shift_assign(1);
                     value[0] |= T::ONE;
@@ -95,7 +97,7 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
                 }
             }
         } else {
-            let mut value = vec![T::ZERO; modulus.len()];
+            let mut value = vec![T::ZERO; modulus_value_len];
             for _ in 0..decompose_length {
                 value.slice_left_shift_assign(log_basis);
                 value[0] |= basis_minus_one >> 1u32;
@@ -116,13 +118,13 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
             }
         };
 
-        let mut modulus_minus_basis = modulus.to_vec();
-        let borrow = modulus_minus_basis.slice_sub_value_assign(basis);
+        let mut modulus_sub_basis = modulus.to_vec();
+        let borrow = modulus_sub_basis.slice_sub_value_assign(basis);
         assert!(!borrow);
 
         let next_pow_of_2_sub_modulus: Vec<T> = {
-            let mut next_pow_of_2_minus_one = vec![T::MAX; modulus.len()];
-            next_pow_of_2_minus_one[big_uint_len - 1] >>= unused_bits;
+            let mut next_pow_of_2_minus_one = vec![T::MAX; modulus_value_len];
+            next_pow_of_2_minus_one[modulus_value_len - 1] >>= unused_bits;
 
             let mut modulus_minus_one = modulus.to_vec();
             let _ = modulus_minus_one.slice_sub_value_assign(T::ONE);
@@ -132,24 +134,26 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
             next_pow_of_2_minus_one
         };
 
-        let mut scalars = vec![T::ZERO; big_uint_len * decompose_length];
+        let mut scalars = vec![T::ZERO; modulus_value_len * decompose_length];
         let mut prev: Option<Vec<T>> = None;
-        scalars.chunks_exact_mut(big_uint_len).for_each(|scalar| {
-            if let Some(pre) = prev.as_mut() {
-                pre.slice_left_shift_assign(log_basis);
-                scalar.copy_from_slice(&pre);
-            } else {
-                scalar[0] = T::ONE;
-                scalar.slice_left_shift_assign(drop_bits);
-                prev = Some(scalar.to_vec());
-            }
-        });
+        scalars
+            .chunks_exact_mut(modulus_value_len)
+            .for_each(|scalar| {
+                if let Some(pre) = prev.as_mut() {
+                    pre.slice_left_shift_assign(log_basis);
+                    scalar.copy_from_slice(&pre);
+                } else {
+                    scalar[0] = T::ONE;
+                    scalar.slice_left_shift_assign(drop_bits);
+                    prev = Some(scalar.to_vec());
+                }
+            });
 
         let moduli_count = rns_base.moduli_count();
         let mut scalars_residue = vec![T::ZERO; moduli_count * decompose_length];
 
         scalars
-            .chunks_exact(big_uint_len)
+            .chunks_exact(modulus_value_len)
             .zip(scalars_residue.chunks_exact_mut(moduli_count))
             .for_each(|(scalar, residues)| {
                 rns_base.decompose_inplace(scalar, residues);
@@ -173,7 +177,7 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
             init_carry_mask,
             carry_mask,
             split_value,
-            modulus_minus_basis,
+            modulus_sub_basis,
             next_pow_of_2_sub_modulus,
             scalars,
             scalars_residue,
@@ -236,10 +240,10 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
         self.split_value.as_ref()
     }
 
-    /// Returns a reference to the modulus minus basis of this [`BigUintApproxSignedBasis<T>`].
+    /// Returns a reference to the modulus sub basis of this [`BigUintApproxSignedBasis<T>`].
     #[inline]
-    pub fn modulus_minus_basis(&self) -> &[T] {
-        &self.modulus_minus_basis
+    pub fn modulus_sub_basis(&self) -> &[T] {
+        &self.modulus_sub_basis
     }
 
     /// Returns a reference to the next pow of 2 sub modulus of this [`BigUintApproxSignedBasis<T>`].
@@ -250,27 +254,19 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
 
     /// Returns a reference to the scalars residue of this [`BigUintApproxSignedBasis<T>`].
     #[inline]
-    pub fn scalars_residues_iter(&self) -> std::slice::ChunksExact<'_, T> {
+    pub fn iter_scalar_residues(&self) -> std::slice::ChunksExact<'_, T> {
         self.scalars_residue.chunks_exact(self.moduli_count)
     }
 
     /// Returns an iterator over the signed decomposition operators of this [`BigUintApproxSignedBasis<T>`].
     #[inline]
-    pub fn decomposer_iter<'a>(
-        &'a self,
-    ) -> std::iter::Map<
-        std::iter::Copied<std::slice::Iter<'a, ValueMask<T>>>,
-        impl FnMut(ValueMask<T>) -> OnceBigUintSignedDecomposer<'a, T>,
-    > {
-        self.value_masks
-            .iter()
-            .copied()
-            .map(|value_mask| OnceBigUintSignedDecomposer {
-                value_mask,
-                carry_mask: self.carry_mask,
-                basis_minus_one: self.basis_minus_one,
-                modulus_minus_basis: &self.modulus_minus_basis,
-            })
+    pub fn decomposer_iter<'a>(&'a self) -> BigUintSignedDecomposerIter<'a, T> {
+        BigUintSignedDecomposerIter {
+            value_masks: self.value_masks.iter(),
+            carry_mask: self.carry_mask,
+            basis_minus_one: self.basis_minus_one,
+            modulus_minus_basis: &self.modulus_sub_basis,
+        }
     }
 
     /// Returns an iterator over scalars of this [`BigUintApproxSignedBasis<T>`].
@@ -303,19 +299,21 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
         &self,
         values: &mut [T],
         carries: &mut [bool],
-        value_chunk_size: usize,
+        big_uint_value_len: usize,
     ) {
         if let Some(split) = &self.split_value {
-            values.chunks_exact_mut(value_chunk_size).for_each(|value| {
-                if value.slice_cmp(split).is_ge() {
-                    let _ = value.slice_add_assign(&self.next_pow_of_2_sub_modulus);
-                }
-            })
+            values
+                .chunks_exact_mut(big_uint_value_len)
+                .for_each(|value| {
+                    if value.slice_cmp(split).is_ge() {
+                        let _ = value.slice_add_assign(&self.next_pow_of_2_sub_modulus);
+                    }
+                })
         }
 
         match self.init_carry_mask {
             Some((i, mask)) => values
-                .chunks_exact_mut(value_chunk_size)
+                .chunks_exact_mut(big_uint_value_len)
                 .zip(carries)
                 .for_each(|(value, carry)| {
                     *carry = !(value[i] & mask).is_zero();
@@ -333,26 +331,7 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
         carries: &mut [bool],
         big_uint_value_len: usize,
     ) {
-        if let Some(split) = &self.split_value {
-            adjust_big_uint_values
-                .chunks_exact_mut(big_uint_value_len)
-                .zip(big_uint_values.chunks_exact(big_uint_value_len))
-                .for_each(|(adjust_value, value)| {
-                    adjust_value.copy_from_slice(value);
-                    if value.slice_cmp(split).is_ge() {
-                        let _ = adjust_value.slice_add_assign(&self.next_pow_of_2_sub_modulus);
-                    }
-                })
-        }
-
-        match self.init_carry_mask {
-            Some((i, mask)) => adjust_big_uint_values
-                .chunks_exact_mut(big_uint_value_len)
-                .zip(carries)
-                .for_each(|(value, carry)| {
-                    *carry = !(value[i] & mask).is_zero();
-                }),
-            None => carries.fill(false),
-        };
+        adjust_big_uint_values.copy_from_slice(big_uint_values);
+        self.init_value_carry_slice_inplace(adjust_big_uint_values, carries, big_uint_value_len);
     }
 }
