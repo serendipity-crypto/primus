@@ -80,7 +80,7 @@ where
             result.iter_crt_poly_mut(crt_poly_length),
         )
         .for_each(|(big_uint_poly, crt_poly)| {
-            rns_base.decompose_multiple_values_inplace(big_uint_poly, crt_poly, poly_length);
+            rns_base.decompose_big_uint_values_inplace(big_uint_poly, crt_poly, poly_length);
         });
     }
 }

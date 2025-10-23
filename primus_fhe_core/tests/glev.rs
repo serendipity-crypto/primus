@@ -5,7 +5,7 @@ use primus_fhe_core::{
 };
 use primus_lattice::{context::DcrtGlevContext, glev::DcrtGlev, glwe::DcrtGlwe};
 use primus_modulus::BarrettModulus;
-use primus_ntt::{Dcrt, DcrtTable, UintCrtNttTable};
+use primus_ntt::{DcrtTable, UintCrtNttTable};
 use primus_poly::{BigUintPolynomial, Polynomial, crt::CrtPolynomial};
 
 #[test]
@@ -66,43 +66,34 @@ fn test_rns_glev() {
     let input1: Polynomial<Vec<ValueT>> = Polynomial::random(poly_length, mod_t, &mut rng);
     let input2: Polynomial<Vec<ValueT>> = Polynomial::random(poly_length, mod_t, &mut rng);
 
+    input1.naive_mul_inplace(&input2, &mut desired, mod_t);
+
+    let mut msg2_big_uint_poly: BigUintPolynomial<Vec<ValueT>> =
+        BigUintPolynomial::zero(big_uint_poly_len);
+
     let mut msg1: CrtPolynomial<Vec<ValueT>> = CrtPolynomial::zero(crt_poly_length);
+    let mut msg2: CrtPolynomial<Vec<ValueT>> = CrtPolynomial::zero(crt_poly_length);
+
     glwe_params
         .base_q()
-        .decompose_small_polynomial_inplace(&input1, &mut msg1, poly_length);
+        .wrapping_decompose_small_polynomial_inplace(&input1, &mut msg1, poly_length, t);
 
-    let mut msg2_big_poly: BigUintPolynomial<Vec<ValueT>> =
-        BigUintPolynomial::zero(big_uint_poly_len);
-    let mut msg2_crt_poly: CrtPolynomial<Vec<ValueT>> = CrtPolynomial::zero(crt_poly_length);
+    glwe_params
+        .base_q()
+        .wrapping_decompose_small_polynomial_inplace(&input2, &mut msg2, poly_length, t);
 
-    msg2_big_poly
-        .iter_mut(big_uint_value_len)
-        .zip(input2.iter())
-        .for_each(|(a, &b)| {
-            a[0] = b;
-        });
-    glwe_params.base_q().decompose_polynomial_inplace(
-        &msg2_big_poly,
-        &mut msg2_crt_poly,
-        poly_length,
-    );
-    table.transform_slice(msg2_crt_poly.as_mut());
-    msg2_crt_poly.mul_scalar_assign(glwe_params.delta_mod_q(), poly_length, &qi);
-    table.inverse_transform_slice(msg2_crt_poly.as_mut());
-    glwe_params.base_q().compose_polynomial_inplace(
-        &msg2_crt_poly,
-        &mut msg2_big_poly,
-        poly_length,
-    );
+    msg2.mul_scalar_assign(glwe_params.delta_mod_q(), poly_length, &qi);
 
-    input1.naive_mul_inplace(&input2, &mut desired, mod_t);
+    glwe_params
+        .base_q()
+        .compose_polynomial_inplace(&msg2, &mut msg2_big_uint_poly, poly_length);
 
     let mut c1: DcrtGlwe<Vec<ValueT>> = DcrtGlwe::zero(crt_glwe_len);
 
     dcrt_sk.encrypt_dcrt_glev_inplace(&msg1, &mut dcrt_glev, &glev_params, &table, &mut rng);
 
     dcrt_glev.mul_big_uint_poly_inplace(
-        &msg2_big_poly,
+        &msg2_big_uint_poly,
         &mut c1,
         glev_params.basis(),
         &table,

@@ -84,7 +84,7 @@ where
                     big_uint_value_len,
                 );
 
-                rns_base.decompose_multiple_values_inplace(
+                rns_base.decompose_big_uint_values_inplace(
                     decomposed_big_uint_values.as_ref(),
                     multi_residues.as_mut(),
                     poly_length,

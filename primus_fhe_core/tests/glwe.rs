@@ -59,24 +59,23 @@ fn test_rns_glwe() {
 
     for _ in (0..1000).progress_with_style(style) {
         let m0: Polynomial<Vec<ValueT>> = Polynomial::random(poly_length, mod_t, &mut rng);
+        let mut m1: Polynomial<Vec<ValueT>> = Polynomial::random(poly_length, mod_t, &mut rng);
+        let m2: Polynomial<Vec<ValueT>> = Polynomial::random_binary(poly_length, &mut rng);
 
         let mut msg0: CrtPolynomial<Vec<ValueT>> = CrtPolynomial::zero(crt_poly_length);
         glwe_params
             .base_q()
-            .decompose_small_polynomial_inplace(&m0, &mut msg0, poly_length);
-
-        let mut m1: Polynomial<Vec<ValueT>> = Polynomial::random(poly_length, mod_t, &mut rng);
+            .wrapping_decompose_small_polynomial_inplace(&m0, &mut msg0, poly_length, t);
 
         let mut msg1: CrtPolynomial<Vec<ValueT>> = CrtPolynomial::zero(crt_poly_length);
         glwe_params
             .base_q()
-            .decompose_small_polynomial_inplace(&m1, &mut msg1, poly_length);
+            .wrapping_decompose_small_polynomial_inplace(&m1, &mut msg1, poly_length, t);
 
-        let m2: Polynomial<Vec<ValueT>> = Polynomial::random_binary(poly_length, &mut rng);
         let mut msg2: CrtPolynomial<Vec<ValueT>> = CrtPolynomial::zero(crt_poly_length);
         glwe_params
             .base_q()
-            .decompose_small_polynomial_inplace(&m2, &mut msg2, poly_length);
+            .wrapping_decompose_small_polynomial_inplace(&m2, &mut msg2, poly_length, t);
 
         let mut c0: DcrtGlwe<Vec<ValueT>> = DcrtGlweCiphertext::zero(crt_glwe_len);
         let mut c1: DcrtGlwe<Vec<ValueT>> = DcrtGlweCiphertext::zero(crt_glwe_len);
@@ -93,13 +92,15 @@ fn test_rns_glwe() {
         dcrt_sk.encrypt_inplace(&msg1, &mut c1, &glwe_params, &table, &mut rng);
 
         c1.add_element_wise_assign(&c0, poly_length, crt_poly_length, &qi);
+        m1.add_assign(&m0, mod_t);
 
         dcrt_sk.decrypt_inplace(&c1, &mut m_dec, &glwe_params, &table, &mut decrypt_context);
 
-        assert_eq!(m0.clone().add(&m1, mod_t), m_dec);
+        assert_eq!(m1, m_dec);
 
         // Ciphertext Subtraction
         c1.sub_element_wise_assign(&c0, poly_length, crt_poly_length, &qi);
+        m1.sub_assign(&m0, mod_t);
 
         dcrt_sk.decrypt_inplace(&c1, &mut m_dec, &glwe_params, &table, &mut decrypt_context);
 
@@ -107,13 +108,12 @@ fn test_rns_glwe() {
 
         // Ciphertext-to-Plaintext Multiplication
         let msg2 = table.transform_inplace(msg2);
+        let mut m1_mul_m2: Polynomial<Vec<ValueT>> = Polynomial::zero(poly_length);
 
         c1.mul_dcrt_polynomial_inplace(&msg2, &mut c2, poly_length, &qi);
+        m1.naive_mul_inplace(&m2, &mut m1_mul_m2, mod_t);
 
         dcrt_sk.decrypt_inplace(&c2, &mut m_dec, &glwe_params, &table, &mut decrypt_context);
-
-        let mut m1_mul_m2: Polynomial<Vec<ValueT>> = Polynomial::zero(poly_length);
-        m1.naive_mul_inplace(&m2, &mut m1_mul_m2, mod_t);
 
         assert_eq!(m1_mul_m2, m_dec);
 

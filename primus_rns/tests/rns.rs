@@ -34,6 +34,40 @@ fn test_rns2() {
 }
 
 #[test]
+fn test_rns3() {
+    let moduli_value: [ValueT; 2] = [1099511592961, 1099511590913];
+    let moduli = moduli_value.map(<BarrettModulus<ValueT>>::new);
+    let base_q = RNSBase::new(&moduli).unwrap();
+    let q = base_q.moduli_product().to_vec();
+
+    let t = 257;
+    for r in 0..t {
+        let input: [ValueT; 2] = [r, 0];
+
+        println!("{:?}", base_q.decompose(&input));
+
+        let mut input: [ValueT; 2] = [0; 2];
+        if r * 2 > t {
+            let _ = q.slice_sub_value_inplace(t - r, &mut input);
+        } else {
+            input[0] = r;
+        }
+
+        let d = base_q.decompose(&input);
+
+        if r * 2 > t {
+            assert_eq!(d[0], moduli_value[0] - (t - r));
+            assert_eq!(d[1], moduli_value[1] - (t - r));
+        } else {
+            assert_eq!(d[0], r);
+            assert_eq!(d[1], r);
+        }
+
+        println!("{:?}", d);
+    }
+}
+
+#[test]
 fn test_bfv_dec() {
     let moduli_value: [ValueT; 2] = [1099511592961, 1099511590913];
     let moduli_count = moduli_value.len();
@@ -70,7 +104,7 @@ fn test_bfv_dec() {
         let r: ValueT = r as ValueT;
         let mut input: [ValueT; 2] = [0; 2];
         if r * 2 > t {
-            let _ = q.slice_sub_value_inplace(mod_t.reduce_neg(r), &mut input);
+            let _ = q.slice_sub_value_inplace(t - r, &mut input);
         } else {
             input[0] = r;
         }
@@ -174,13 +208,13 @@ fn test_bfv_dec_array() {
             .zip(input.iter())
             .for_each(|(a, &b)| {
                 if b * 2 > t {
-                    let _ = q.slice_sub_value_inplace(mod_t.reduce_neg(b), a);
+                    let _ = q.slice_sub_value_inplace(t - b, a);
                 } else {
                     a[0] = b;
                 }
             });
 
-        base_q.decompose_multiple_values_inplace(&big_uint_values, msg_q.as_mut(), poly_length);
+        base_q.decompose_big_uint_values_inplace(&big_uint_values, msg_q.as_mut(), poly_length);
 
         // delta * m
         msg_q.mul_scalar_assign(&delta_mod_q, poly_length, &moduli);

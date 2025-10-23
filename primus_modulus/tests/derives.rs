@@ -40,11 +40,15 @@ macro_rules! test_modulus {
                 ((a as WideT * b as WideT + c as WideT) % modulus_value as WideT) as ValueT
             );
 
-            let d = Modulus.reduce_inv(a);
-            assert_eq!(1, Modulus.reduce_mul(a, d));
+            if a != 0 {
+                let d = Modulus.reduce_inv(a);
+                assert_eq!(1, Modulus.reduce_mul(a, d));
+            }
 
-            let d = Modulus.reduce_div(a, b);
-            assert_eq!(a, Modulus.reduce_mul(b, d));
+            if b != 0 {
+                let d = Modulus.reduce_div(a, b);
+                assert_eq!(a, Modulus.reduce_mul(b, d));
+            }
         }
     };
 }

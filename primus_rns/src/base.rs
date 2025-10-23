@@ -146,7 +146,7 @@ where
         }
     }
 
-    pub fn decompose_multiple_values_inplace(
+    pub fn decompose_big_uint_values_inplace(
         &self,
         big_uint_values: &[T],
         multi_residues: &mut [T],
@@ -158,7 +158,7 @@ where
             self.big_uint_value_len() * value_count
         );
 
-        let value_len = self.moduli_product.len();
+        let value_len = self.big_uint_value_len();
         for (residues, &modulus) in multi_residues
             .chunks_exact_mut(value_count)
             .zip(self.moduli())
@@ -172,11 +172,12 @@ where
         }
     }
 
-    pub fn decompose_small_polynomial_inplace<A, B>(
+    pub fn wrapping_decompose_small_polynomial_inplace<A, B>(
         &self,
-        poly: &Polynomial<A>,
+        small_poly: &Polynomial<A>,
         crt_poly: &mut CrtPolynomial<B>,
         poly_length: usize,
+        small_poly_modulus: T,
     ) where
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + DataMut,
@@ -185,14 +186,24 @@ where
             crt_poly.crt_poly_length(),
             self.moduli_count() * poly_length
         );
-        debug_assert_eq!(poly.poly_length(), poly_length);
+        debug_assert_eq!(small_poly.poly_length(), poly_length);
+        debug_assert!(
+            self.moduli
+                .iter()
+                .all(|m| m.value_unchecked() > small_poly_modulus)
+        );
 
-        for (crt_poly_residue, &modulus) in crt_poly
+        for (crt_poly_residue, modulus) in crt_poly
             .iter_each_modulus_mut(poly_length)
-            .zip(self.moduli())
+            .zip(self.moduli().iter().map(|m| m.value_unchecked()))
         {
-            for (residue, &value) in crt_poly_residue.iter_mut().zip(poly.iter()) {
-                *residue = value.modulo(modulus);
+            let temp = modulus - small_poly_modulus;
+            for (residue, &value) in crt_poly_residue.iter_mut().zip(small_poly.iter()) {
+                *residue = if value * T::TWO > small_poly_modulus {
+                    temp + value
+                } else {
+                    value
+                };
             }
         }
     }

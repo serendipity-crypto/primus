@@ -183,7 +183,7 @@ mod tests {
                 );
 
                 let mut temp: Vec<ValueT> = vec![0; N * moduli_count];
-                rns_base.decompose_multiple_values_inplace(
+                rns_base.decompose_big_uint_values_inplace(
                     &decomposed_big_uint_values,
                     &mut temp,
                     N,

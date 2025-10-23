@@ -62,19 +62,17 @@ fn test_rns_glwe_auto() {
     let crt_glwe_len = dcrt_sk.crt_glwe_len();
 
     let input1: Polynomial<Vec<ValueT>> = Polynomial::random(poly_length, mod_t, &mut rng);
-    let mut msg1_crt_poly: CrtPolynomial<Vec<ValueT>> = CrtPolynomial::zero(crt_poly_length);
+    let mut msg1: CrtPolynomial<Vec<ValueT>> = CrtPolynomial::zero(crt_poly_length);
     let mut c1: DcrtGlwe<Vec<ValueT>> = DcrtGlweCiphertext::zero(crt_glwe_len);
     let mut c2: CrtGlwe<Vec<ValueT>> = CrtGlwe::zero(crt_glwe_len);
     let mut auto_context = CrtGlweAutoContext::new(poly_length, crt_poly_length, big_uint_poly_len);
     let mut decrypt_context = DcrtGlweDecryptContext::new(moduli_count, poly_length);
 
-    glwe_params.base_q().decompose_small_polynomial_inplace(
-        &input1,
-        &mut msg1_crt_poly,
-        poly_length,
-    );
+    glwe_params
+        .base_q()
+        .wrapping_decompose_small_polynomial_inplace(&input1, &mut msg1, poly_length, t);
 
-    dcrt_sk.encrypt_inplace(&msg1_crt_poly, &mut c1, &glwe_params, table, &mut rng);
+    dcrt_sk.encrypt_inplace(&msg1, &mut c1, &glwe_params, table, &mut rng);
 
     let c1 = c1.into_coeff_form(table);
 
