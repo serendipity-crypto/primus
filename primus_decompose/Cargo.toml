@@ -16,3 +16,4 @@ primus_modulus = { path = "../primus_modulus" }
 
 rand = { workspace = true }
 itertools = { workspace = true }
+rayon = { workspace = true }

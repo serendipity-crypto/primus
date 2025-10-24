@@ -6,9 +6,12 @@ mod tests {
     use primus_modulus::BarrettModulus;
     use primus_reduce::ops::*;
     use primus_rns::RNSBase;
+    use rand::distr::Distribution;
     use rand::{Rng, distr::Uniform};
+    use rayon::prelude::*;
 
     type ValueT = u32;
+    type WideT = u64;
     type SignedT = i64;
 
     #[test]
@@ -134,6 +137,7 @@ mod tests {
         let modulus: Vec<ValueT> = multiply_many_values(&moduli_value);
         let big_uint_value_len = modulus.len();
         let basis = BigUintApproxSignedBasis::new(&modulus, 5, None, &rns_base);
+        let basis_value = basis.basis_value();
 
         let difference_bound = basis
             .init_carry_mask()
@@ -184,11 +188,13 @@ mod tests {
                     big_uint_value_len,
                 );
 
+                assert!(decomposed_unsigned_values.iter().all(|&v| v < basis_value));
+
                 rns_base.wrapping_decompose_small_values_inplace(
                     &decomposed_unsigned_values,
                     &mut temp,
                     N,
-                    basis.basis_value(),
+                    basis_value,
                 );
 
                 izip!(
@@ -233,5 +239,136 @@ mod tests {
                 .step_by(big_uint_value_len)
                 .all(|&v| v <= difference_bound)
         )
+    }
+
+    #[test]
+    fn compare_signed_and_unsigned_decompse() {
+        let mut rng = rand::rng();
+
+        let moduli_value: [ValueT; 2] = [134215681, 134176769];
+        let moduli = moduli_value.map(BarrettModulus::new);
+        let moduli_count = moduli.len();
+
+        let rns_base = RNSBase::new(&moduli).unwrap();
+        let big_uint_value_len = rns_base.big_uint_value_len();
+        let composed_modulus: Vec<ValueT> = multiply_many_values(&moduli_value);
+        let basis = BigUintApproxSignedBasis::new(&composed_modulus, 5, None, &rns_base);
+
+        assert_eq!(moduli_count, 2);
+        assert_eq!(big_uint_value_len, 2);
+
+        let basis_value = basis.basis_value();
+
+        let modulus: WideT = 134215681 * 134176769;
+
+        let random_values: Vec<WideT> = Uniform::new(0, modulus)
+            .unwrap()
+            .sample_iter(&mut rng)
+            .take(1_0000)
+            .collect();
+
+        random_values.par_iter().for_each(|i| {
+            let input_big_uint_value: [ValueT; 2] = [*i as ValueT, (i >> 32) as ValueT];
+            let mut adjust_big_uint_values: [ValueT; 2] = [0, 0];
+
+            let mut carries: [bool; 1] = [false; 1];
+            let mut decomposed_big_uint_values: [ValueT; 2] = [0, 0];
+
+            let mut decomposed_unsigned_values: [ValueT; 1] = [0];
+            let mut residues1: [ValueT; 2] = [0, 0];
+            let mut residues2: [ValueT; 2] = [0, 0];
+
+            basis.init_value_carry_slice(
+                &input_big_uint_value,
+                &mut adjust_big_uint_values,
+                &mut carries,
+                big_uint_value_len,
+            );
+
+            basis.decomposer_iter().for_each(|once_decomposer| {
+                let mut temp = carries.clone();
+                once_decomposer.unsigned_decompose_slice_inplace(
+                    &adjust_big_uint_values,
+                    &mut decomposed_unsigned_values,
+                    &mut temp,
+                    big_uint_value_len,
+                );
+
+                rns_base.wrapping_decompose_small_values_inplace(
+                    &decomposed_unsigned_values,
+                    &mut residues1,
+                    1,
+                    basis_value,
+                );
+
+                once_decomposer.decompose_slice_inplace(
+                    &adjust_big_uint_values,
+                    &mut decomposed_big_uint_values,
+                    &mut carries,
+                    big_uint_value_len,
+                );
+
+                rns_base.decompose_big_uint_values_inplace(
+                    &decomposed_big_uint_values,
+                    &mut residues2,
+                    1,
+                );
+
+                assert_eq!(residues1, residues2, "{}", decomposed_unsigned_values[0]);
+                assert_eq!(temp, carries);
+            });
+        });
+    }
+
+    #[test]
+    fn test_split() {
+        let rng = rand::rng();
+        let moduli_value: [ValueT; 2] = [134215681, 134176769];
+        let moduli = moduli_value.map(BarrettModulus::new);
+
+        let rns_base = RNSBase::new(&moduli).unwrap();
+        let big_uint_value_len = rns_base.big_uint_value_len();
+        let composed_modulus = rns_base.moduli_product();
+        let basis = BigUintApproxSignedBasis::new(composed_modulus, 5, None, &rns_base);
+
+        let modulus: WideT = 134215681 * 134176769;
+
+        if basis.split_value().is_some() {
+            let random_values: Vec<WideT> = Uniform::new(0, modulus)
+                .unwrap()
+                .sample_iter(rng)
+                .take(1_0000)
+                .collect();
+
+            random_values.par_iter().for_each(|i: &WideT| {
+                let input_big_uint_value: [ValueT; 2] = [*i as ValueT, (i >> 32) as ValueT];
+
+                let mut adjust_big_uint_values: [ValueT; 2] = [0, 0];
+                let mut carries: [bool; 1] = [false; 1];
+                let mut decomposed_unsigned_values: [ValueT; 1] = [0];
+
+                basis.init_value_carry_slice(
+                    &input_big_uint_value,
+                    &mut adjust_big_uint_values,
+                    &mut carries,
+                    big_uint_value_len,
+                );
+
+                basis.decomposer_iter().for_each(|once_decomposer| {
+                    once_decomposer.unsigned_decompose_slice_inplace(
+                        &input_big_uint_value,
+                        &mut decomposed_unsigned_values,
+                        &mut carries,
+                        big_uint_value_len,
+                    );
+                });
+
+                if input_big_uint_value.slice_cmp(composed_modulus).is_ge() {
+                    assert!(carries[0]);
+                }
+            });
+        } else {
+            println!("No Split Value!")
+        }
     }
 }

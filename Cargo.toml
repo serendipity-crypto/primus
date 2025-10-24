@@ -31,7 +31,7 @@ paste = "1.0"
 bigdecimal = "0.4"
 
 pretty_assertions = "1.4"
-indicatif = "0.18"
+indicatif = { version = "0.18", features = ["rayon"] }
 criterion = "0.7"
 
 [profile.dev]

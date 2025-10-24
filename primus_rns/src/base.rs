@@ -160,15 +160,20 @@ where
                 .iter()
                 .all(|m| m.value_unchecked() > small_values_modulus)
         );
-
-        let half = small_values_modulus / T::TWO;
-        for (residues, modulus) in multi_residues
-            .chunks_exact_mut(value_count)
-            .zip(self.moduli().iter().map(|m| m.value_unchecked()))
-        {
-            let temp = modulus - small_values_modulus;
-            for (residue, &value) in residues.iter_mut().zip(small_values) {
-                *residue = if value <= half { value } else { temp + value };
+        if small_values_modulus != T::TWO {
+            let half = (small_values_modulus + T::ONE) / T::TWO;
+            for (residues, modulus) in multi_residues
+                .chunks_exact_mut(value_count)
+                .zip(self.moduli().iter().map(|m| m.value_unchecked()))
+            {
+                let temp = modulus - small_values_modulus;
+                for (residue, &value) in residues.iter_mut().zip(small_values) {
+                    *residue = if value < half { value } else { temp + value };
+                }
+            }
+        } else {
+            for residues in multi_residues.chunks_exact_mut(value_count) {
+                residues.copy_from_slice(small_values);
             }
         }
     }
@@ -199,6 +204,7 @@ where
         }
     }
 
+    #[inline]
     pub fn wrapping_decompose_small_polynomial_inplace<A, B>(
         &self,
         small_poly: &Polynomial<A>,
@@ -209,29 +215,15 @@ where
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + DataMut,
     {
-        debug_assert_eq!(
-            crt_poly.crt_poly_length(),
-            self.moduli_count() * poly_length
+        self.wrapping_decompose_small_values_inplace(
+            small_poly.as_ref(),
+            crt_poly.as_mut(),
+            poly_length,
+            small_poly_modulus,
         );
-        debug_assert_eq!(small_poly.poly_length(), poly_length);
-        debug_assert!(
-            self.moduli
-                .iter()
-                .all(|m| m.value_unchecked() > small_poly_modulus)
-        );
-
-        let half = small_poly_modulus / T::TWO;
-        for (crt_poly_residue, modulus) in crt_poly
-            .iter_each_modulus_mut(poly_length)
-            .zip(self.moduli().iter().map(|m| m.value_unchecked()))
-        {
-            let temp = modulus - small_poly_modulus;
-            for (residue, &value) in crt_poly_residue.iter_mut().zip(small_poly.iter()) {
-                *residue = if value <= half { value } else { temp + value };
-            }
-        }
     }
 
+    #[inline]
     pub fn decompose_polynomial_inplace<A, B>(
         &self,
         big_uint_poly: &BigUintPolynomial<A>,
@@ -241,21 +233,11 @@ where
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + DataMut,
     {
-        debug_assert_eq!(
-            crt_poly.crt_poly_length(),
-            self.moduli_count() * poly_length
+        self.decompose_big_uint_values_inplace(
+            big_uint_poly.as_slice(),
+            crt_poly.as_mut(),
+            poly_length,
         );
-        debug_assert_eq!(big_uint_poly.len(), self.big_uint_value_len() * poly_length);
-
-        let value_len = self.moduli_product.len();
-        for (poly, &modulus) in crt_poly
-            .iter_each_modulus_mut(poly_length)
-            .zip(self.moduli())
-        {
-            for (residue, value) in poly.iter_mut().zip(big_uint_poly.iter(value_len)) {
-                *residue = value.modulo(modulus);
-            }
-        }
     }
 
     /// Composes a value from its RNS representation.
@@ -320,8 +302,8 @@ where
             self.big_uint_value_len() * value_count
         );
 
-        let value_len = self.moduli_product.len();
-        let mut residues = vec![T::ZERO; self.moduli.len()];
+        let value_len = self.big_uint_value_len();
+        let mut residues = vec![T::ZERO; self.moduli_count()];
 
         let mut iters: Vec<Iter<'_, T>> = multi_residues
             .chunks_exact(value_count)
@@ -336,6 +318,7 @@ where
         }
     }
 
+    #[inline]
     pub fn compose_polynomial_inplace<A, B>(
         &self,
         crt_poly: &CrtPolynomial<A>,
@@ -345,24 +328,10 @@ where
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + DataMut,
     {
-        debug_assert_eq!(
-            crt_poly.crt_poly_length(),
-            self.moduli_count() * poly_length
+        self.compose_multiple_values_inplace(
+            crt_poly.as_ref(),
+            big_uint_poly.as_mut_slice(),
+            poly_length,
         );
-        debug_assert_eq!(big_uint_poly.len(), self.big_uint_value_len() * poly_length);
-
-        let value_len = self.moduli_product.len();
-
-        let mut residues = vec![T::ZERO; self.moduli.len()];
-        let mut iters: Vec<Iter<'_, T>> = crt_poly
-            .iter_each_modulus(poly_length)
-            .map(|s| s.iter())
-            .collect();
-        for value in big_uint_poly.iter_mut(value_len) {
-            for (iter, res) in iters.iter_mut().zip(residues.iter_mut()) {
-                *res = *iter.next().unwrap();
-            }
-            self.compose_inplace(&residues, value);
-        }
     }
 }
