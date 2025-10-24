@@ -134,6 +134,20 @@ impl<'a, T: UnsignedInteger> OnceBigUintSignedDecomposer<'a, T> {
         }
     }
 
+    /// Execute once decomposition, store carry for next decomposition back to `carry`.
+    #[inline]
+    pub fn unsigned_decompose_inplace(
+        &self,
+        value: &[T],
+        decomposed_unsigned_value: &mut T,
+        carry: &mut bool,
+    ) {
+        let temp = self.value_mask.get_value(value) + T::as_from(*carry);
+        *carry = !(temp & self.carry_mask).is_zero();
+
+        *decomposed_unsigned_value = temp & self.basis_minus_one;
+    }
+
     /// Execute once decomposition for slice, store carries for next decomposition back to `carries`.
     #[inline]
     pub fn decompose_slice_inplace(
@@ -143,12 +157,34 @@ impl<'a, T: UnsignedInteger> OnceBigUintSignedDecomposer<'a, T> {
         carries: &mut [bool],
         big_uint_value_len: usize,
     ) {
+        debug_assert_eq!(decomposed_big_uint_values.len(), big_uint_values.len());
+        debug_assert_eq!(big_uint_values.len(), carries.len() * big_uint_value_len);
         for (value, decomposed_value, carry) in izip!(
             big_uint_values.chunks_exact(big_uint_value_len),
             decomposed_big_uint_values.chunks_exact_mut(big_uint_value_len),
             carries
         ) {
             self.decompose_inplace(value, decomposed_value, carry);
+        }
+    }
+
+    /// Execute once decomposition for slice, store carries for next decomposition back to `carries`.
+    #[inline]
+    pub fn unsigned_decompose_slice_inplace(
+        &self,
+        big_uint_values: &[T],
+        decomposed_unsigned_values: &mut [T],
+        carries: &mut [bool],
+        big_uint_value_len: usize,
+    ) {
+        debug_assert_eq!(carries.len(), decomposed_unsigned_values.len());
+        debug_assert_eq!(big_uint_values.len(), carries.len() * big_uint_value_len);
+        for (value, decomposed_unsigned_value, carry) in izip!(
+            big_uint_values.chunks_exact(big_uint_value_len),
+            decomposed_unsigned_values.iter_mut(),
+            carries
+        ) {
+            self.unsigned_decompose_inplace(value, decomposed_unsigned_value, carry);
         }
     }
 }

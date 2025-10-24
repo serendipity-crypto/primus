@@ -146,6 +146,33 @@ where
         }
     }
 
+    pub fn wrapping_decompose_small_values_inplace(
+        &self,
+        small_values: &[T],
+        multi_residues: &mut [T],
+        value_count: usize,
+        small_values_modulus: T,
+    ) {
+        debug_assert_eq!(multi_residues.len(), self.moduli_count() * value_count);
+        debug_assert_eq!(small_values.len(), value_count);
+        debug_assert!(
+            self.moduli
+                .iter()
+                .all(|m| m.value_unchecked() > small_values_modulus)
+        );
+
+        let half = small_values_modulus / T::TWO;
+        for (residues, modulus) in multi_residues
+            .chunks_exact_mut(value_count)
+            .zip(self.moduli().iter().map(|m| m.value_unchecked()))
+        {
+            let temp = modulus - small_values_modulus;
+            for (residue, &value) in residues.iter_mut().zip(small_values) {
+                *residue = if value <= half { value } else { temp + value };
+            }
+        }
+    }
+
     pub fn decompose_big_uint_values_inplace(
         &self,
         big_uint_values: &[T],
@@ -193,17 +220,14 @@ where
                 .all(|m| m.value_unchecked() > small_poly_modulus)
         );
 
+        let half = small_poly_modulus / T::TWO;
         for (crt_poly_residue, modulus) in crt_poly
             .iter_each_modulus_mut(poly_length)
             .zip(self.moduli().iter().map(|m| m.value_unchecked()))
         {
             let temp = modulus - small_poly_modulus;
             for (residue, &value) in crt_poly_residue.iter_mut().zip(small_poly.iter()) {
-                *residue = if value * T::TWO > small_poly_modulus {
-                    temp + value
-                } else {
-                    value
-                };
+                *residue = if value <= half { value } else { temp + value };
             }
         }
     }

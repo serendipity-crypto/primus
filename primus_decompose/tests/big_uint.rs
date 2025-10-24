@@ -170,23 +170,25 @@ mod tests {
         );
 
         let mut residues: Vec<ValueT> = vec![0; N * moduli_count];
+        let mut decomposed_unsigned_values = vec![0; N];
+        let mut temp: Vec<ValueT> = vec![0; N * moduli_count];
+
         basis
             .decomposer_iter()
             .zip(basis.iter_scalar_residues())
             .for_each(|(once_decomposer, scalar)| {
-                let mut decomposed_big_uint_values = vec![0; N * big_uint_value_len];
-                once_decomposer.decompose_slice_inplace(
+                once_decomposer.unsigned_decompose_slice_inplace(
                     &adjust_big_uint_values,
-                    &mut decomposed_big_uint_values,
+                    &mut decomposed_unsigned_values,
                     &mut carries,
                     big_uint_value_len,
                 );
 
-                let mut temp: Vec<ValueT> = vec![0; N * moduli_count];
-                rns_base.decompose_big_uint_values_inplace(
-                    &decomposed_big_uint_values,
+                rns_base.wrapping_decompose_small_values_inplace(
+                    &decomposed_unsigned_values,
                     &mut temp,
                     N,
+                    basis.basis_value(),
                 );
 
                 izip!(
@@ -197,7 +199,7 @@ mod tests {
                 )
                 .for_each(|(a, b, &scalar, m)| {
                     a.iter_mut()
-                        .zip(b.iter())
+                        .zip(b)
                         .for_each(|(x, &y)| *x = m.reduce_mul_add(y, scalar, *x));
                 });
             });
