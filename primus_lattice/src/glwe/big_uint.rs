@@ -42,8 +42,8 @@ where
         A: RawData<Elem = T> + Data,
         M: FieldContext<T>,
     {
-        let single_value_len = rns_base.big_uint_value_len();
-        let big_uint_poly_length = poly_length * single_value_len;
+        let big_uint_value_len = rns_base.big_uint_value_len();
+        let big_uint_poly_length = poly_length * big_uint_value_len;
 
         izip!(
             self.iter_big_uint_poly_mut(big_uint_poly_length),
@@ -72,8 +72,8 @@ where
         A: RawData<Elem = T> + DataMut,
         M: FieldContext<T>,
     {
-        let single_value_len = rns_base.big_uint_value_len();
-        let big_uint_poly_length = poly_length * single_value_len;
+        let big_uint_value_len = rns_base.big_uint_value_len();
+        let big_uint_poly_length = poly_length * big_uint_value_len;
 
         izip!(
             self.iter_big_uint_poly(big_uint_poly_length),

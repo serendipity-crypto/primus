@@ -13,7 +13,7 @@ use primus_poly::{Polynomial, crt::CrtPolynomial};
 fn test_rns_glwe_ksk() {
     type ValueT = u64;
 
-    let dimension = 1;
+    let dimension = 2;
     let poly_length: usize = 512;
     let log_n = poly_length.trailing_zeros();
 
@@ -57,7 +57,7 @@ fn test_rns_glwe_ksk() {
     assert_eq!(crt_glwe_len, (dimension + 1) * crt_poly_length);
 
     let basis =
-        BigUintApproxSignedBasis::new(glwe_params.cipher_modulus(), 2, None, glwe_params.base_q());
+        BigUintApproxSignedBasis::new(glwe_params.cipher_modulus(), 20, None, glwe_params.base_q());
     let glev_params = CrtGlevParameters::with_glwe_params(&glwe_params, basis);
 
     let key_switching_key = CrtGlweKeySwitchingKey::new(
@@ -70,8 +70,8 @@ fn test_rns_glwe_ksk() {
         &mut rng,
     );
 
-    let input: Polynomial<Vec<ValueT>> = Polynomial::random_binary(poly_length, &mut rng);
-    // let input: Polynomial<Vec<ValueT>> = Polynomial::random(poly_length, mod_t, &mut rng);
+    // let input: Polynomial<Vec<ValueT>> = Polynomial::random_binary(poly_length, &mut rng);
+    let input: Polynomial<Vec<ValueT>> = Polynomial::random(poly_length, mod_t, &mut rng);
     let mut msg: CrtPolynomial<Vec<ValueT>> = CrtPolynomial::zero(crt_poly_length);
     let mut c1: DcrtGlwe<Vec<ValueT>> = DcrtGlweCiphertext::zero(crt_glwe_len);
     let mut c2: DcrtGlwe<Vec<ValueT>> = DcrtGlweCiphertext::zero(crt_glwe_len);
@@ -90,7 +90,7 @@ fn test_rns_glwe_ksk() {
 
     let c1 = c1.into_coeff_form(&table);
 
-    key_switching_key.key_swithching(
+    key_switching_key.key_swithching_inplace(
         &c1,
         &mut c2,
         glev_params.basis(),
@@ -98,10 +98,6 @@ fn test_rns_glwe_ksk() {
         glwe_params.base_q(),
         &mut ksk_context,
     );
-
-    // for p in c2.iter_dcrt_poly(crt_poly_length) {
-    //     println!("{:?}", p);
-    // }
 
     let output = dcrt_sk_2.decrypt(&c2, &glwe_params, &table, &mut decrypt_context);
 

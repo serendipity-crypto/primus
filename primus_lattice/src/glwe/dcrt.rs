@@ -112,6 +112,10 @@ where
         debug_assert_eq!(decomposed_unsigned_values.len(), poly_length);
         debug_assert_eq!(carries.len(), poly_length);
         debug_assert_eq!(multi_residues.len(), poly_length * moduli.len());
+        debug_assert_eq!(
+            dcrt_glev.as_ref().len(),
+            dcrt_glwe_len * basis.decompose_length()
+        );
 
         basis.init_value_carry_slice(
             big_uint_poly.as_slice(),

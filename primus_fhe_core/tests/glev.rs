@@ -12,7 +12,7 @@ use primus_poly::{BigUintPolynomial, Polynomial, crt::CrtPolynomial};
 fn test_rns_glev() {
     type ValueT = u64;
 
-    let dimension = 2;
+    let dimension = 3;
     let poly_length: usize = 512;
     let log_n = poly_length.trailing_zeros();
 
@@ -100,6 +100,15 @@ fn test_rns_glev() {
         glwe_params.base_q(),
         &mut glev_context,
     );
+
+    // c1.add_dcrt_glev_mul_big_uint_poly_assign(
+    //     &dcrt_glev,
+    //     &msg2_big_uint_poly,
+    //     glev_params.basis(),
+    //     &table,
+    //     glwe_params.base_q(),
+    //     &mut glev_context,
+    // );
 
     let m_dec = dcrt_sk.decrypt(&c1, &glwe_params, &table, &mut decrypt_context);
 

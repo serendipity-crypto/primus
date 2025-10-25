@@ -78,7 +78,7 @@ impl<T: UnsignedInteger> CrtGlweKeySwitchingKey<T> {
         }
     }
 
-    pub fn key_swithching<M, Table, A, B>(
+    pub fn key_swithching_inplace<M, Table, A, B>(
         &self,
         c_in: &CrtGlweCiphertext<A>,
         c_out: &mut DcrtGlweCiphertext<B>,
@@ -123,7 +123,7 @@ impl<T: UnsignedInteger> CrtGlweKeySwitchingKey<T> {
 
         let (_, b_out) = c_out.a_b_mut_slices(self.output_crt_glwe_mid);
         DcrtPolynomial(ArrayBase(b_out)).add_assign(
-            &DcrtPolynomial(ArrayBase(b_in)),
+            &DcrtPolynomial(ArrayBase(crt_poly.as_ref())),
             self.poly_length,
             rns_base.moduli(),
         );

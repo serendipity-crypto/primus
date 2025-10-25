@@ -15,7 +15,7 @@ use primus_poly::{Polynomial, crt::CrtPolynomial};
 fn test_rns_glwe_auto() {
     type ValueT = u64;
 
-    let dimension = 2;
+    let dimension = 1;
     let poly_length: usize = 512;
     let log_n = poly_length.trailing_zeros();
 
@@ -55,7 +55,7 @@ fn test_rns_glwe_auto() {
     assert_eq!(crt_glwe_len, (dimension + 1) * crt_poly_length);
 
     let basis =
-        BigUintApproxSignedBasis::new(glwe_params.cipher_modulus(), 10, None, glwe_params.base_q());
+        BigUintApproxSignedBasis::new(glwe_params.cipher_modulus(), 20, None, glwe_params.base_q());
     let glev_params = CrtGlevParameters::with_glwe_params(&glwe_params, basis);
 
     let auto_degree = poly_length + 1;
@@ -74,7 +74,7 @@ fn test_rns_glwe_auto() {
     let input1: Polynomial<Vec<ValueT>> = Polynomial::random(poly_length, mod_t, &mut rng);
     let mut msg1: CrtPolynomial<Vec<ValueT>> = CrtPolynomial::zero(crt_poly_length);
     let mut c1: DcrtGlwe<Vec<ValueT>> = DcrtGlweCiphertext::zero(crt_glwe_len);
-    let mut c2: CrtGlwe<Vec<ValueT>> = CrtGlwe::zero(crt_glwe_len);
+    let mut auto_c1: CrtGlwe<Vec<ValueT>> = CrtGlwe::zero(crt_glwe_len);
     let mut c3: CrtGlwe<Vec<ValueT>> = CrtGlwe::zero(crt_glwe_len);
     let mut auto_context = CrtGlweAutoContext::new(poly_length, crt_poly_length, big_uint_poly_len);
     let mut decrypt_context = DcrtGlweDecryptContext::new(moduli_count, poly_length);
@@ -91,7 +91,7 @@ fn test_rns_glwe_auto() {
     let c1 = c1.into_coeff_form(table);
 
     c1.iter_crt_poly(crt_poly_length)
-        .zip(c2.iter_crt_poly_mut(crt_poly_length))
+        .zip(auto_c1.iter_crt_poly_mut(crt_poly_length))
         .for_each(|(in_crt_poly, auto_crt_poly)| {
             crt_poly_auto_inplace(
                 in_crt_poly,
@@ -103,8 +103,7 @@ fn test_rns_glwe_auto() {
         });
 
     let mut auto_sk = sk.clone();
-    sk.key()
-        .chunks_exact(crt_poly_length)
+    sk.iter_crt_poly()
         .zip(auto_sk.key_mut().chunks_exact_mut(crt_poly_length))
         .for_each(|(in_crt_poly, auto_crt_poly)| {
             crt_poly_auto_inplace(
@@ -117,8 +116,8 @@ fn test_rns_glwe_auto() {
         });
     let dcrt_auto_sk = DcrtGlweSecretKey::from_coeff_secret_key(&auto_sk, table);
 
-    let c2 = c2.into_ntt_form(table);
-    let auto_msg_1 = dcrt_auto_sk.decrypt(&c2, &glwe_params, table, &mut decrypt_context);
+    let auto_c1 = auto_c1.into_ntt_form(table);
+    let auto_msg_1 = dcrt_auto_sk.decrypt(&auto_c1, &glwe_params, table, &mut decrypt_context);
 
     auto_key.automorphism_inplace(
         &c1,
@@ -132,6 +131,5 @@ fn test_rns_glwe_auto() {
 
     let auto_msg_2 = dcrt_sk.decrypt(&c3, &glwe_params, table, &mut decrypt_context);
 
-    println!("{:?}", input1.as_ref());
     assert_eq!(auto_msg_1.as_ref(), auto_msg_2.as_ref());
 }

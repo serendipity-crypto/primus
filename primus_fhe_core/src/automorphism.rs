@@ -237,20 +237,26 @@ where
             moduli,
         );
 
-        let (a_out, b_out) = result.a_b_mut_slices(dcrt_glwe_mid);
-
-        a_out
-            .chunks_exact_mut(crt_poly_length)
-            .for_each(|crt_poly| {
-                let mut temp = DcrtPolynomial(ArrayBase(crt_poly));
-                temp.neg_assign(poly_length, moduli);
-                self.table.inverse_transform_slice(temp.as_mut());
+        temp.iter_dcrt_poly_mut(crt_poly_length)
+            .for_each(|rns_poly| {
+                self.table.inverse_transform_slice(rns_poly);
+                CrtPolynomial(ArrayBase(rns_poly)).neg_assign(poly_length, moduli);
             });
 
-        let mut b = self
-            .table
-            .inverse_transform_inplace(DcrtPolynomial(ArrayBase(b_out)));
-        auto_crt_poly.sub_to_right(&mut b, poly_length, moduli);
+        let (_a_out, b_out) = result.a_b_mut_slices(dcrt_glwe_mid);
+
+        // a_out
+        //     .chunks_exact_mut(crt_poly_length)
+        //     .for_each(|crt_poly| {
+        //         let mut temp = DcrtPolynomial(ArrayBase(crt_poly));
+        //         temp.neg_assign(poly_length, moduli);
+        //         self.table.inverse_transform_slice(temp.as_mut());
+        //     });
+
+        // let mut b = self
+        //     .table
+        //     .inverse_transform_inplace(DcrtPolynomial(ArrayBase(b_out)));
+        auto_crt_poly.sub_to_right(&mut CrtPolynomial(ArrayBase(b_out)), poly_length, moduli);
         // temp.sub_assign(auto_crt_poly, poly_length, moduli);
     }
 }
