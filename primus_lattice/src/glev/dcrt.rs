@@ -65,7 +65,7 @@ where
         let moduli = rns_base.moduli();
         let dcrt_glwe_len = result.data.len();
 
-        let (adjust_big_uint_values, decomposed_big_uint_values, carries, multi_residues) =
+        let (adjust_big_uint_values, decomposed_unsigned_values, carries, multi_residues) =
             context.as_mut();
 
         basis.init_value_carry_slice(
@@ -75,19 +75,22 @@ where
             big_uint_value_len,
         );
 
+        let basis_value = basis.basis_value();
+
         izip!(self.iter_dcrt_glwe(dcrt_glwe_len), basis.decomposer_iter()).for_each(
             |(dcrt_glwe, once_decomposer)| {
-                once_decomposer.decompose_slice_inplace(
+                once_decomposer.unsigned_decompose_slice_inplace(
                     adjust_big_uint_values.as_ref(),
-                    decomposed_big_uint_values.as_mut(),
+                    decomposed_unsigned_values.as_mut(),
                     carries.as_mut(),
                     big_uint_value_len,
                 );
 
-                rns_base.decompose_big_uint_values_inplace(
-                    decomposed_big_uint_values.as_ref(),
+                rns_base.wrapping_decompose_small_values_inplace(
+                    decomposed_unsigned_values.as_ref(),
                     multi_residues.as_mut(),
                     poly_length,
+                    basis_value,
                 );
 
                 table.transform_slice(multi_residues.as_mut());

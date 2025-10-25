@@ -5,7 +5,9 @@ use primus_lattice::context::DcrtGlevContext;
 use primus_lattice::glev::DcrtGlev;
 use primus_modulus::PowOf2Modulus;
 use primus_ntt::{Dcrt, DcrtTable};
-use primus_poly::{ArrayBase, BigUintPolynomial, Data, DataMut, RawData, crt::CrtPolynomial};
+use primus_poly::{
+    ArrayBase, BigUintPolynomial, Data, DataMut, RawData, crt::CrtPolynomial, dcrt::DcrtPolynomial,
+};
 use primus_reduce::FieldContext;
 use primus_reduce::ops::ReduceMul;
 use primus_rns::RNSBase;
@@ -163,6 +165,10 @@ where
         self.degree
     }
 
+    pub fn auto_helper(&self) -> &AutoHelper {
+        &self.auto_helper
+    }
+
     pub fn table(&self) -> &Table {
         &self.table
     }
@@ -188,6 +194,8 @@ where
         let dcrt_glwe_mid = self.dcrt_glwe_mid;
         let moduli = params.cipher_moduli();
         let auto_helper = &self.auto_helper;
+
+        debug_assert_eq!(ciphertext.as_ref().len(), dcrt_glwe_mid + crt_poly_length);
 
         let (big_uint_poly, auto_crt_poly, glev_context) = context.as_mut();
 
@@ -234,14 +242,16 @@ where
         a_out
             .chunks_exact_mut(crt_poly_length)
             .for_each(|crt_poly| {
-                let mut temp = CrtPolynomial(ArrayBase(crt_poly));
+                let mut temp = DcrtPolynomial(ArrayBase(crt_poly));
                 temp.neg_assign(poly_length, moduli);
-                self.table.transform_inplace(temp);
+                self.table.inverse_transform_slice(temp.as_mut());
             });
 
-        let mut temp = CrtPolynomial(ArrayBase(b_out));
-        temp.sub_assign(auto_crt_poly, poly_length, moduli);
-        self.table.transform_inplace(temp);
+        let mut b = self
+            .table
+            .inverse_transform_inplace(DcrtPolynomial(ArrayBase(b_out)));
+        auto_crt_poly.sub_to_right(&mut b, poly_length, moduli);
+        // temp.sub_assign(auto_crt_poly, poly_length, moduli);
     }
 }
 
@@ -275,7 +285,7 @@ fn generate_permutate_ops(degree: usize, poly_length: usize) -> Vec<FromOp> {
     result
 }
 
-fn crt_poly_auto_inplace<T, M>(
+pub fn crt_poly_auto_inplace<T, M>(
     crt_poly: &[T],
     auto_crt_poly: &mut [T],
     auto_helper: &AutoHelper,

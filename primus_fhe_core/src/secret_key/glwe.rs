@@ -190,6 +190,7 @@ impl<T: UnsignedInteger> NttGlweSecretKey<T> {
     }
 }
 
+#[derive(Clone)]
 pub struct CrtGlweSecretKey<T: UnsignedInteger> {
     key: Vec<T>,
     moduli_count: usize,
@@ -310,6 +311,14 @@ impl<T: UnsignedInteger> CrtGlweSecretKey<T> {
             crt_poly_length,
             distr,
         }
+    }
+
+    pub fn key_mut(&mut self) -> &mut Vec<T> {
+        &mut self.key
+    }
+
+    pub fn key(&self) -> &[T] {
+        &self.key
     }
 }
 
