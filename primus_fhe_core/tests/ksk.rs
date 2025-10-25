@@ -10,7 +10,7 @@ use primus_ntt::{DcrtTable, UintCrtNttTable};
 use primus_poly::{Polynomial, crt::CrtPolynomial};
 
 #[test]
-fn test_rns_glwe_auto() {
+fn test_rns_glwe_ksk() {
     type ValueT = u64;
 
     let dimension = 1;
@@ -61,7 +61,7 @@ fn test_rns_glwe_auto() {
     let glev_params = CrtGlevParameters::with_glwe_params(&glwe_params, basis);
 
     let key_switching_key = CrtGlweKeySwitchingKey::new(
-        &dcrt_sk_1,
+        &sk_1,
         &glwe_params,
         &dcrt_sk_2,
         &glwe_params,
@@ -70,7 +70,8 @@ fn test_rns_glwe_auto() {
         &mut rng,
     );
 
-    let input: Polynomial<Vec<ValueT>> = Polynomial::random(poly_length, mod_t, &mut rng);
+    let input: Polynomial<Vec<ValueT>> = Polynomial::random_binary(poly_length, &mut rng);
+    // let input: Polynomial<Vec<ValueT>> = Polynomial::random(poly_length, mod_t, &mut rng);
     let mut msg: CrtPolynomial<Vec<ValueT>> = CrtPolynomial::zero(crt_poly_length);
     let mut c1: DcrtGlwe<Vec<ValueT>> = DcrtGlweCiphertext::zero(crt_glwe_len);
     let mut c2: DcrtGlwe<Vec<ValueT>> = DcrtGlweCiphertext::zero(crt_glwe_len);

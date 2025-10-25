@@ -9,7 +9,8 @@ use primus_reduce::FieldContext;
 use primus_rns::RNSBase;
 
 use crate::{
-    CrtGlevParameters, CrtGlweCiphertext, CrtGlweParameters, DcrtGlweCiphertext, DcrtGlweSecretKey,
+    CrtGlevParameters, CrtGlweCiphertext, CrtGlweParameters, CrtGlweSecretKey, DcrtGlweCiphertext,
+    DcrtGlweSecretKey,
 };
 
 pub struct CrtGlweKeySwitchingKey<T: UnsignedInteger> {
@@ -24,7 +25,7 @@ pub struct CrtGlweKeySwitchingKey<T: UnsignedInteger> {
 
 impl<T: UnsignedInteger> CrtGlweKeySwitchingKey<T> {
     pub fn new<R, M, Table>(
-        input_sk: &DcrtGlweSecretKey<T>,
+        input_sk: &CrtGlweSecretKey<T>,
         input_params: &CrtGlweParameters<T, M>,
         output_sk: &DcrtGlweSecretKey<T>,
         output_params: &CrtGlweParameters<T, M>,
@@ -49,7 +50,7 @@ impl<T: UnsignedInteger> CrtGlweKeySwitchingKey<T> {
 
         izip!(
             key.chunks_exact_mut(dcrt_glev_length),
-            input_sk.iter_dcrt_poly(),
+            input_sk.iter_crt_poly(),
         )
         .for_each(|(dcrt_glev, si)| {
             output_sk.encrypt_dcrt_glev_inplace(
@@ -95,6 +96,7 @@ impl<T: UnsignedInteger> CrtGlweKeySwitchingKey<T> {
 
         let (big_uint_poly, crt_poly, glev_context) = context.as_mut();
 
+        c_out.set_zero();
         izip!(
             a_in.chunks_exact(self.crt_poly_length),
             self.key.chunks_exact(self.dcrt_glev_length)

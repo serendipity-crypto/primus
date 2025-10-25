@@ -450,7 +450,7 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
     fn encrypt_custom_delta_dcrt_glwe_inplace<R, M, Table, A, B>(
         &self,
         msg: &CrtPolynomial<A>,
-        delta: &[T],
+        delta_residues: &[T],
         result: &mut DcrtGlwe<B>,
         params: &CrtGlevParameters<T, M>,
         table: &Table,
@@ -477,7 +477,7 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
         );
 
         let mut b_crt_poly = CrtPolynomial(ArrayBase(b));
-        b_crt_poly.add_mul_scalar_assign(&msg, delta, poly_length, moduli);
+        b_crt_poly.add_mul_scalar_assign(&msg, delta_residues, poly_length, moduli);
         let mut b_dcrt_poly = table.transform_inplace(b_crt_poly);
 
         a.chunks_exact_mut(crt_poly_length)

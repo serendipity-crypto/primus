@@ -36,7 +36,7 @@ where
     pub fn add_mul_scalar_assign<M, A>(
         &mut self,
         rhs: &CrtPolynomial<A, T>,
-        scalar: &[T],
+        scalar_residues: &[T],
         poly_length: usize,
         moduli: &[M],
     ) where
@@ -46,7 +46,7 @@ where
         izip!(
             self.iter_each_modulus_mut(poly_length),
             rhs.iter_each_modulus(poly_length),
-            scalar,
+            scalar_residues,
             moduli
         )
         .for_each(|(xs, ys, &scalar, &modulus)| {
