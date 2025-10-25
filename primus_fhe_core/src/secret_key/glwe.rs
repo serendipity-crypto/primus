@@ -627,6 +627,10 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
             *res = inv_gamma_mod_t.factor_mul_modulo(temp, t);
         });
     }
+
+    pub fn key(&self) -> &[T] {
+        &self.key
+    }
 }
 
 pub struct DcrtGlweDecryptContext<T: UnsignedInteger> {

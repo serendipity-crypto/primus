@@ -1,0 +1,108 @@
+use primus_decompose::big_integer::BigUintApproxSignedBasis;
+use primus_fhe_core::{
+    CrtGlevParameters, CrtGlweKeySwitchingContext, CrtGlweKeySwitchingKey, CrtGlweParameters,
+    CrtGlweSecretKey, DcrtGlweCiphertext, DcrtGlweDecryptContext, DcrtGlweSecretKey,
+    RingSecretKeyType,
+};
+use primus_lattice::glwe::DcrtGlwe;
+use primus_modulus::BarrettModulus;
+use primus_ntt::{DcrtTable, UintCrtNttTable};
+use primus_poly::{Polynomial, crt::CrtPolynomial};
+
+#[test]
+fn test_rns_glwe_auto() {
+    type ValueT = u64;
+
+    let dimension = 1;
+    let poly_length: usize = 512;
+    let log_n = poly_length.trailing_zeros();
+
+    // let t: ValueT = 1 << 15;
+    let t: ValueT = 12289;
+    let mod_t = <BarrettModulus<ValueT>>::new(t);
+
+    // let gamma: ValueT = 2199023190017;
+    let gamma: ValueT = 2305843009213554689;
+    let mod_gamma = <BarrettModulus<ValueT>>::new(gamma);
+
+    let qi_values: [ValueT; _] = [1125899906826241, 1125899906629633];
+    let qi = qi_values.map(<BarrettModulus<ValueT>>::new);
+    let table = UintCrtNttTable::new(log_n, &qi).unwrap();
+
+    let mut rng = rand::rng();
+
+    let glwe_params = CrtGlweParameters::new(
+        dimension,
+        poly_length,
+        mod_t,
+        mod_gamma,
+        &qi,
+        RingSecretKeyType::Ternary,
+        3.20,
+    );
+
+    let moduli_count = qi_values.len();
+    let big_uint_value_len = glwe_params.big_uint_value_len();
+    let crt_poly_length = moduli_count * poly_length;
+    let big_uint_poly_len = big_uint_value_len * poly_length;
+
+    let sk_1 = CrtGlweSecretKey::generate(&glwe_params, &mut rng);
+    let dcrt_sk_1 = DcrtGlweSecretKey::from_coeff_secret_key(&sk_1, &table);
+
+    let sk_2 = CrtGlweSecretKey::generate(&glwe_params, &mut rng);
+    let dcrt_sk_2 = DcrtGlweSecretKey::from_coeff_secret_key(&sk_2, &table);
+
+    let crt_glwe_len = dcrt_sk_1.crt_glwe_len();
+
+    assert_eq!(crt_glwe_len, (dimension + 1) * crt_poly_length);
+
+    let basis =
+        BigUintApproxSignedBasis::new(glwe_params.cipher_modulus(), 2, None, glwe_params.base_q());
+    let glev_params = CrtGlevParameters::with_glwe_params(&glwe_params, basis);
+
+    let key_switching_key = CrtGlweKeySwitchingKey::new(
+        &dcrt_sk_1,
+        &glwe_params,
+        &dcrt_sk_2,
+        &glwe_params,
+        &glev_params,
+        &table,
+        &mut rng,
+    );
+
+    let input: Polynomial<Vec<ValueT>> = Polynomial::random(poly_length, mod_t, &mut rng);
+    let mut msg: CrtPolynomial<Vec<ValueT>> = CrtPolynomial::zero(crt_poly_length);
+    let mut c1: DcrtGlwe<Vec<ValueT>> = DcrtGlweCiphertext::zero(crt_glwe_len);
+    let mut c2: DcrtGlwe<Vec<ValueT>> = DcrtGlweCiphertext::zero(crt_glwe_len);
+    let mut ksk_context =
+        CrtGlweKeySwitchingContext::new(poly_length, crt_poly_length, big_uint_poly_len);
+    let mut decrypt_context = DcrtGlweDecryptContext::new(moduli_count, poly_length);
+
+    glwe_params
+        .base_q()
+        .wrapping_decompose_small_polynomial_inplace(&input, &mut msg, poly_length, t);
+
+    dcrt_sk_1.encrypt_inplace(&msg, &mut c1, &glwe_params, &table, &mut rng);
+
+    let m_dec = dcrt_sk_1.decrypt(&c1, &glwe_params, &table, &mut decrypt_context);
+    assert_eq!(m_dec, input);
+
+    let c1 = c1.into_coeff_form(&table);
+
+    key_switching_key.key_swithching(
+        &c1,
+        &mut c2,
+        glev_params.basis(),
+        &table,
+        glwe_params.base_q(),
+        &mut ksk_context,
+    );
+
+    // for p in c2.iter_dcrt_poly(crt_poly_length) {
+    //     println!("{:?}", p);
+    // }
+
+    let output = dcrt_sk_2.decrypt(&c2, &glwe_params, &table, &mut decrypt_context);
+
+    assert_eq!(input.as_ref(), output.as_ref());
+}

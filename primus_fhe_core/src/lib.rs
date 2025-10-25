@@ -23,3 +23,4 @@ pub use ciphertext::*;
 pub use plaintext::*;
 
 pub use automorphism::*;
+pub use key_switch::*;

@@ -55,7 +55,7 @@ fn test_rns_glwe_auto() {
     assert_eq!(crt_glwe_len, (dimension + 1) * crt_poly_length);
 
     let basis =
-        BigUintApproxSignedBasis::new(glwe_params.cipher_modulus(), 20, None, glwe_params.base_q());
+        BigUintApproxSignedBasis::new(glwe_params.cipher_modulus(), 10, None, glwe_params.base_q());
     let glev_params = CrtGlevParameters::with_glwe_params(&glwe_params, basis);
 
     let auto_degree = poly_length + 1;
