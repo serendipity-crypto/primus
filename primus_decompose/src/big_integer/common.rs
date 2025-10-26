@@ -51,12 +51,12 @@ impl<T: UnsignedInteger> ValueMask<T> {
 
     #[inline]
     fn get_value(&self, value: &[T]) -> T {
-        let temp = (unsafe { *value.get_unchecked(self.index) } & self.mask[0]) >> self.shr_bits;
+        let temp = (value[self.index] & self.mask[0]) >> self.shr_bits;
 
         if self.mask[1].is_zero() {
             temp
         } else {
-            temp | (unsafe { *value.get_unchecked(self.index + 1) } & self.mask[1]) << self.shl_bits
+            temp | (value[self.index + 1] & self.mask[1]) << self.shl_bits
         }
     }
 }
@@ -112,6 +112,15 @@ impl<'a, T: UnsignedInteger> OnceBigUintSignedDecomposer<'a, T> {
         }
 
         (result, next_carry)
+    }
+
+    #[inline]
+    pub fn unsigned_decompose(&self, value: &[T], carry: bool) -> (T, bool) {
+        let temp = self.value_mask.get_value(value) + T::as_from(carry);
+
+        let next_carry = !(temp & self.carry_mask).is_zero();
+
+        (temp & self.basis_minus_one, next_carry)
     }
 
     /// Execute once decomposition, store carry for next decomposition back to `carry`.

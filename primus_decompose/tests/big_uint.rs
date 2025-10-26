@@ -26,18 +26,30 @@ mod tests {
         let rns_base = RNSBase::new(&moduli).unwrap();
         let composed_modulus: Vec<ValueT> = multiply_many_values(&moduli_value);
         let unused_bits = composed_modulus.last().unwrap().leading_zeros();
-        let basis = BigUintApproxSignedBasis::new(&composed_modulus, 5, None, &rns_base);
+        let basis = BigUintApproxSignedBasis::new(&composed_modulus, 7, None, &rns_base);
 
-        println!("decompose_length:{}", basis.decompose_length());
+        println!("decompose_length: {}", basis.decompose_length());
 
         // make test simple
         assert!(basis.drop_bits() < ValueT::BITS);
 
+        let difference_bound = basis
+            .init_carry_mask()
+            .map(|(a, b)| {
+                assert_eq!(a, 0);
+                b
+            })
+            .unwrap_or(0);
+
+        println!("difference bound: {}", difference_bound);
+
         let basis_value = basis.basis_value();
         let log_basis = basis.log_basis() as usize;
-        let mut decv = Vec::with_capacity(basis.decompose_length());
+        let mut decomposed_unsigned_value = Vec::with_capacity(basis.decompose_length());
+        let mut difference = vec![0; composed_modulus.len()];
 
-        let value = multiply_many_values(&distrs.map(|d| rng.sample(d)));
+        let mut value = multiply_many_values(&distrs.map(|distr| rng.sample(distr)));
+        value.resize(composed_modulus.len(), 0);
 
         let show = |value: &[ValueT]| {
             let mut value_str = String::new();
@@ -66,44 +78,44 @@ mod tests {
         println!("value");
         show(&value);
 
-        let (value_d, mut carry) = basis.init_value_carry(&value);
+        let (adjust_value, mut carry) = basis.init_value_carry(&value);
 
-        println!("value_d");
-        show(&value_d);
+        println!("adjust_value");
+        show(&adjust_value);
 
-        for b in basis.decomposer_iter() {
-            let (di, ci) = b.decompose(&value_d, carry);
-            decv.push(di);
+        for decomposer in basis.decomposer_iter() {
+            let (di, ci) = decomposer.unsigned_decompose(&adjust_value, carry);
+            decomposed_unsigned_value.push(di);
             carry = ci;
         }
 
-        let result =
-            basis
-                .scalar_iter()
-                .zip(decv.iter())
-                .fold(vec![0, 0], |mut acc, (scalar, dec)| {
-                    let scalr_residue = rns_base.decompose(&scalar);
-                    let dec_residue = rns_base.decompose(dec);
-                    for (ac, s, d, m) in izip!(acc.iter_mut(), scalr_residue, dec_residue, moduli) {
-                        *ac = m.reduce_mul_add(s, d, *ac);
-                    }
-                    acc
-                });
+        let result = basis
+            .iter_scalar_residues()
+            .zip(decomposed_unsigned_value.iter())
+            .fold(vec![0, 0], |mut acc, (scalar_residue, &unsigned_value)| {
+                let value_chunk_residues = rns_base.wrapping_decompose(unsigned_value, basis_value);
+                for (ac, value_chunk, &scalar, modulus) in
+                    izip!(acc.iter_mut(), value_chunk_residues, scalar_residue, moduli)
+                {
+                    *ac = modulus.reduce_mul_add(scalar, value_chunk, *ac);
+                }
+                acc
+            });
         let result = rns_base.compose(&result);
 
-        let mut cmp_value = vec![0; composed_modulus.len()];
-        cmp_value[0] = basis_value / 2;
-        for d in decv.iter().rev() {
+        for &unsigned_value in decomposed_unsigned_value.iter().rev() {
             if basis_value > 2 {
-                if d.slice_cmp(&cmp_value).is_ge() {
-                    let mut signed = composed_modulus.clone();
-                    let _ = signed.slice_sub_assign(d);
-                    print!("{:1$}|", -(signed[0] as SignedT), log_basis);
+                if unsigned_value >= basis_value / 2 {
+                    print!(
+                        "{:1$}|",
+                        -((basis_value - unsigned_value) as SignedT),
+                        log_basis
+                    );
                 } else {
-                    print!("{:1$}|", d[0], log_basis);
+                    print!("{:1$}|", unsigned_value, log_basis);
                 }
             } else {
-                print!("{:1$}|", d[0], log_basis);
+                print!("{:1$}|", unsigned_value, log_basis);
             }
         }
         println!();
@@ -111,14 +123,90 @@ mod tests {
         println!("value ={:?}", value);
         println!("result={:?}", result);
 
-        let mut sub1 = result.clone();
-        sub1.slice_sub_modulo_assign(&value, &composed_modulus);
-        let mut sub2 = value.clone();
-        sub2.slice_sub_modulo_assign(&result, &composed_modulus);
-        if sub1.slice_cmp(&sub2).is_le() {
-            println!("differ={:?}", sub1);
+        if result.slice_cmp(&value).is_le() {
+            let _ = value.slice_sub_inplace(&result, &mut difference);
         } else {
-            println!("differ={:?}", sub2);
+            let _ = result.slice_sub_inplace(&value, &mut difference);
+        }
+
+        assert!(
+            difference.slice_cmp(&[difference_bound, 0]).is_le(),
+            "value: {:?}\ndifference: {:?}",
+            value,
+            difference
+        );
+
+        println!("difference: {}", difference[0]);
+    }
+
+    #[test]
+    fn batch_test_big_uint_value_single_decompose() {
+        let mut rng = rand::rng();
+
+        let moduli_value: [ValueT; 2] = [134215681, 134176769];
+        let moduli = moduli_value.map(BarrettModulus::new);
+
+        let distrs = moduli_value.map(|m| Uniform::new(0, m).unwrap());
+
+        let rns_base = RNSBase::new(&moduli).unwrap();
+        let composed_modulus: Vec<ValueT> = multiply_many_values(&moduli_value);
+        let basis = BigUintApproxSignedBasis::new(&composed_modulus, 7, None, &rns_base);
+
+        // make test simple
+        assert!(basis.drop_bits() < ValueT::BITS);
+
+        let difference_bound = basis
+            .init_carry_mask()
+            .map(|(a, b)| {
+                assert_eq!(a, 0);
+                b
+            })
+            .unwrap_or(0);
+
+        let basis_value = basis.basis_value();
+        let mut decomposed_unsigned_value = vec![0; basis.decompose_length()];
+        let mut difference = vec![0; composed_modulus.len()];
+
+        for _ in 0..1_0000 {
+            let mut value = multiply_many_values(&distrs.map(|distr| rng.sample(distr)));
+            value.resize(composed_modulus.len(), 0);
+
+            let (adjust_value, mut carry) = basis.init_value_carry(&value);
+
+            for (decomposer, unsigned_value) in basis
+                .decomposer_iter()
+                .zip(decomposed_unsigned_value.iter_mut())
+            {
+                (*unsigned_value, carry) = decomposer.unsigned_decompose(&adjust_value, carry);
+            }
+
+            let result = basis
+                .iter_scalar_residues()
+                .zip(decomposed_unsigned_value.iter())
+                .fold(vec![0, 0], |mut acc, (scalar_residue, &unsigned_value)| {
+                    let value_chunk_residues =
+                        rns_base.wrapping_decompose(unsigned_value, basis_value);
+                    for (ac, value_chunk, &scalar, modulus) in
+                        izip!(acc.iter_mut(), value_chunk_residues, scalar_residue, moduli)
+                    {
+                        *ac = modulus.reduce_mul_add(scalar, value_chunk, *ac);
+                    }
+                    acc
+                });
+            let result = rns_base.compose(&result);
+
+            if result.slice_cmp(&value).is_le() {
+                let _ = value.slice_sub_inplace(&result, &mut difference);
+            } else {
+                let _ = result.slice_sub_inplace(&value, &mut difference);
+            }
+
+            assert!(
+                difference.slice_cmp(&[difference_bound, 0]).is_le(),
+                "value: {:?}\ndifference: {:?}",
+                value,
+                difference
+            );
         }
     }
 

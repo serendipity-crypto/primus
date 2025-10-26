@@ -47,20 +47,20 @@ fn test_rns3() {
         println!("{:?}", base_q.decompose(&input));
 
         let mut input: [ValueT; 2] = [0; 2];
-        if r * 2 > t {
-            let _ = q.slice_sub_value_inplace(t - r, &mut input);
-        } else {
+        if r < (t + 1) / 2 {
             input[0] = r;
+        } else {
+            let _ = q.slice_sub_value_inplace(t - r, &mut input);
         }
 
         let d = base_q.decompose(&input);
 
-        if r * 2 > t {
-            assert_eq!(d[0], moduli_value[0] - (t - r));
-            assert_eq!(d[1], moduli_value[1] - (t - r));
-        } else {
+        if r < (t + 1) / 2 {
             assert_eq!(d[0], r);
             assert_eq!(d[1], r);
+        } else {
+            assert_eq!(d[0], moduli_value[0] - (t - r));
+            assert_eq!(d[1], moduli_value[1] - (t - r));
         }
 
         println!("{:?}", d);

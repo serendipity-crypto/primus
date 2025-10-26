@@ -136,6 +136,25 @@ where
             .collect()
     }
 
+    pub fn wrapping_decompose(&self, value: T, small_value_modulus: T) -> Vec<T> {
+        if small_value_modulus != T::TWO {
+            let half = (small_value_modulus + T::ONE) / T::TWO;
+            self.moduli
+                .iter()
+                .map(|m| m.value_unchecked())
+                .map(|modulus| {
+                    if value < half {
+                        value
+                    } else {
+                        modulus - small_value_modulus + value
+                    }
+                })
+                .collect()
+        } else {
+            vec![value; self.moduli_count()]
+        }
+    }
+
     /// Decomposes a value into its RNS representation, writing the result into the provided slice.
     #[inline]
     pub fn decompose_inplace(&self, value: &[T], residues: &mut [T]) {
@@ -143,6 +162,28 @@ where
 
         for (residue, &modulus) in residues.iter_mut().zip(self.moduli.iter()) {
             *residue = value.modulo(modulus);
+        }
+    }
+
+    pub fn wrapping_decompose_inplace(&self, value: T, residues: &mut [T], small_value_modulus: T) {
+        debug_assert_eq!(self.moduli_count(), residues.len());
+
+        if small_value_modulus != T::TWO {
+            let half = (small_value_modulus + T::ONE) / T::TWO;
+            self.moduli
+                .iter()
+                .map(|m| m.value_unchecked())
+                .zip(residues)
+                .map(|(modulus, residue)| {
+                    *residue = if value < half {
+                        value
+                    } else {
+                        modulus - small_value_modulus + value
+                    };
+                })
+                .collect()
+        } else {
+            residues.fill(value);
         }
     }
 
