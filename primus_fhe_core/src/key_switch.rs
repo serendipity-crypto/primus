@@ -16,10 +16,10 @@ use crate::{
 pub struct CrtGlweKeySwitchingKey<T: UnsignedInteger> {
     key: Vec<T>,
     poly_length: usize,
-    crt_poly_length: usize,
-    input_crt_glwe_mid: usize,
-    dcrt_glev_length: usize,
-    output_crt_glwe_mid: usize,
+    rns_poly_len: usize,
+    rns_glev_len: usize,
+    input_rns_glwe_mid: usize,
+    output_rns_glwe_mid: usize,
 }
 
 impl<T: UnsignedInteger> CrtGlweKeySwitchingKey<T> {
@@ -27,7 +27,6 @@ impl<T: UnsignedInteger> CrtGlweKeySwitchingKey<T> {
         input_sk: &CrtGlweSecretKey<T>,
         input_params: &CrtGlweParameters<T, M>,
         output_sk: &DcrtGlweSecretKey<T>,
-        output_params: &CrtGlweParameters<T, M>,
         ksk_params: &CrtGlevParameters<T, M>,
         table: &Table,
         rng: &mut R,
@@ -37,41 +36,35 @@ impl<T: UnsignedInteger> CrtGlweKeySwitchingKey<T> {
         M: FieldContext<T>,
         Table: DcrtTable<ValueT = T> + Dcrt,
     {
-        debug_assert_eq!(input_params.poly_length(), output_params.poly_length());
-        debug_assert_eq!(
-            input_params.cipher_modulus(),
-            output_params.cipher_modulus()
+        debug_assert_eq!(input_params.poly_length(), ksk_params.poly_length());
+        debug_assert_eq!(input_params.cipher_modulus(), ksk_params.cipher_modulus());
+
+        let rns_glev_len = ksk_params.rns_glev_len();
+        let mut key: Vec<T> = vec![T::ZERO; input_params.dimension() * rns_glev_len];
+
+        izip!(key.chunks_exact_mut(rns_glev_len), input_sk.iter_crt_poly(),).for_each(
+            |(dcrt_glev, si)| {
+                output_sk.encrypt_dcrt_glev_inplace(
+                    &CrtPolynomial(ArrayBase(si)),
+                    &mut DcrtGlev::new(ArrayBase(dcrt_glev)),
+                    &ksk_params,
+                    table,
+                    rng,
+                );
+            },
         );
 
-        let decompose_length = ksk_params.decompose_length();
-        let dcrt_glev_length = decompose_length * output_params.rns_glwe_len();
-        let mut key: Vec<T> = vec![T::ZERO; input_params.dimension() * dcrt_glev_length];
-
-        izip!(
-            key.chunks_exact_mut(dcrt_glev_length),
-            input_sk.iter_crt_poly(),
-        )
-        .for_each(|(dcrt_glev, si)| {
-            output_sk.encrypt_dcrt_glev_inplace(
-                &CrtPolynomial(ArrayBase(si)),
-                &mut DcrtGlev::new(ArrayBase(dcrt_glev)),
-                &ksk_params,
-                table,
-                rng,
-            );
-        });
-
         let poly_length = input_params.poly_length();
-        let crt_poly_length = poly_length * input_params.cipher_moduli_count();
-        let input_crt_glwe_mid = crt_poly_length * input_params.dimension();
-        let output_crt_glwe_mid = crt_poly_length * output_params.dimension();
+        let rns_poly_len = input_params.rns_poly_len();
+        let input_rns_glwe_mid = input_params.rns_glwe_mid();
+        let output_rns_glwe_mid = ksk_params.rns_glwe_mid();
         Self {
             key,
             poly_length,
-            crt_poly_length,
-            input_crt_glwe_mid,
-            dcrt_glev_length,
-            output_crt_glwe_mid,
+            rns_poly_len,
+            rns_glev_len,
+            input_rns_glwe_mid,
+            output_rns_glwe_mid,
         }
     }
 
@@ -89,14 +82,14 @@ impl<T: UnsignedInteger> CrtGlweKeySwitchingKey<T> {
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + DataMut,
     {
-        let (a_in, b_in) = c_in.a_b_slices(self.input_crt_glwe_mid);
+        let (a_in, b_in) = c_in.a_b_slices(self.input_rns_glwe_mid);
 
         let (big_uint_poly, crt_poly, glev_context) = context.as_mut();
 
         c_out.set_zero();
         izip!(
-            a_in.chunks_exact(self.crt_poly_length),
-            self.key.chunks_exact(self.dcrt_glev_length)
+            a_in.chunks_exact(self.rns_poly_len),
+            self.key.chunks_exact(self.rns_glev_len)
         )
         .for_each(|(ai, ki)| {
             let ai = CrtPolynomial(ArrayBase(ai));
@@ -116,9 +109,9 @@ impl<T: UnsignedInteger> CrtGlweKeySwitchingKey<T> {
 
         crt_poly.as_mut().copy_from_slice(b_in);
         table.transform_slice(crt_poly.as_mut());
-        c_out.neg_assign(self.crt_poly_length, self.poly_length, rns_base.moduli());
+        c_out.neg_assign(self.rns_poly_len, self.poly_length, rns_base.moduli());
 
-        let (_, b_out) = c_out.a_b_mut_slices(self.output_crt_glwe_mid);
+        let (_, b_out) = c_out.a_b_mut_slices(self.output_rns_glwe_mid);
         DcrtPolynomial(ArrayBase(b_out)).add_assign(
             &DcrtPolynomial(ArrayBase(crt_poly.as_ref())),
             self.poly_length,

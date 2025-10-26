@@ -343,7 +343,7 @@ where
             self.big_uint_value_len() * value_count
         );
 
-        let value_len = self.big_uint_value_len();
+        let big_uint_value_len = self.big_uint_value_len();
         let mut residues = vec![T::ZERO; self.moduli_count()];
 
         let mut iters: Vec<Iter<'_, T>> = multi_residues
@@ -351,7 +351,7 @@ where
             .map(|s| s.iter())
             .collect();
 
-        for value in big_uint_values.chunks_exact_mut(value_len) {
+        for value in big_uint_values.chunks_exact_mut(big_uint_value_len) {
             for (iter, residue) in iters.iter_mut().zip(residues.iter_mut()) {
                 *residue = *iter.next().unwrap();
             }

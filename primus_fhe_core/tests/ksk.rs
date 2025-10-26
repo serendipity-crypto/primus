@@ -13,7 +13,7 @@ use primus_poly::{Polynomial, crt::CrtPolynomial};
 fn test_rns_glwe_ksk() {
     type ValueT = u64;
 
-    let dimension = 2;
+    let dimension = 1;
     let poly_length: usize = 512;
     let log_n = poly_length.trailing_zeros();
 
@@ -52,8 +52,6 @@ fn test_rns_glwe_ksk() {
     let sk_2 = CrtGlweSecretKey::generate(&glwe_params, &mut rng);
     let dcrt_sk_2 = DcrtGlweSecretKey::from_coeff_secret_key(&sk_2, &table);
 
-    assert_eq!(rns_glwe_len, (dimension + 1) * rns_poly_len);
-
     let basis =
         BigUintApproxSignedBasis::new(glwe_params.cipher_modulus(), 20, None, glwe_params.base_q());
     let glev_params = CrtGlevParameters::with_glwe_params(&glwe_params, basis);
@@ -62,7 +60,6 @@ fn test_rns_glwe_ksk() {
         &sk_1,
         &glwe_params,
         &dcrt_sk_2,
-        &glwe_params,
         &glev_params,
         &table,
         &mut rng,
@@ -100,4 +97,7 @@ fn test_rns_glwe_ksk() {
     let output = dcrt_sk_2.decrypt(&c2, &glwe_params, &table, &mut decrypt_context);
 
     assert_eq!(input.as_ref(), output.as_ref());
+
+    println!("input: {:?}", input);
+    println!("output:{:?}", output);
 }

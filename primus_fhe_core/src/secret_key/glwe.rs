@@ -233,8 +233,6 @@ impl<T: UnsignedInteger> CrtGlweSecretKey<T> {
     {
         let poly_length = params.poly_length();
         let rns_poly_len = params.rns_poly_len();
-        let moduli_value = params.cipher_moduli_value();
-        let moduli_minus_one = params.cipher_moduli_minus_one();
 
         let secret_key_type = params.secret_key_type();
 
@@ -247,6 +245,7 @@ impl<T: UnsignedInteger> CrtGlweSecretKey<T> {
                 });
             }
             RingSecretKeyType::Ternary => {
+                let moduli_minus_one = params.cipher_moduli_minus_one();
                 key.chunks_exact_mut(rns_poly_len).for_each(|crt_poly| {
                     primus_distr::sample_crt_ternary_values_inplace(
                         crt_poly,
@@ -258,15 +257,16 @@ impl<T: UnsignedInteger> CrtGlweSecretKey<T> {
             }
             RingSecretKeyType::Gaussian => {
                 // FIXME
-                key.chunks_exact_mut(rns_poly_len).for_each(|crt_poly| {
-                    primus_distr::sample_crt_gaussian_values_inplace(
-                        crt_poly,
-                        poly_length,
-                        moduli_value,
-                        params.noise_distribution(),
-                        rng,
-                    );
-                });
+                // key.chunks_exact_mut(rns_poly_len).for_each(|crt_poly| {
+                //     primus_distr::sample_crt_gaussian_values_inplace(
+                //         crt_poly,
+                //         poly_length,
+                //         moduli_value,
+                //         params.noise_distribution(),
+                //         rng,
+                //     );
+                // });
+                unimplemented!()
             }
         };
 

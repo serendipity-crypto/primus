@@ -78,6 +78,8 @@ impl<T: UnsignedInteger> Dcrt for UintCrtNttTable<T> {
     ) -> DcrtPolynomial<S, T> {
         let poly_length = self.poly_length();
 
+        debug_assert_eq!(poly_length * self.moduli_count, crt_poly.crt_poly_length());
+
         self.iter()
             .zip(crt_poly.iter_each_modulus_mut(poly_length))
             .for_each(|(t, p)| t.transform_slice(p));
@@ -92,6 +94,8 @@ impl<T: UnsignedInteger> Dcrt for UintCrtNttTable<T> {
     ) -> CrtPolynomial<S, T> {
         let poly_length = self.poly_length();
 
+        debug_assert_eq!(poly_length * self.moduli_count, dcrt_poly.dcrt_poly_length());
+
         self.iter()
             .zip(dcrt_poly.iter_each_modulus_mut(poly_length))
             .for_each(|(t, p)| t.inverse_transform_slice(p));
@@ -102,6 +106,7 @@ impl<T: UnsignedInteger> Dcrt for UintCrtNttTable<T> {
     #[inline]
     fn lazy_transform_slice(&self, poly: &mut [Self::ValueT]) {
         let poly_length = self.poly_length();
+        debug_assert_eq!(poly_length * self.moduli_count, poly.len());
         self.iter()
             .zip(poly.chunks_exact_mut(poly_length))
             .for_each(|(ntt_table, poly)| ntt_table.lazy_transform_slice(poly))
@@ -110,6 +115,7 @@ impl<T: UnsignedInteger> Dcrt for UintCrtNttTable<T> {
     #[inline]
     fn transform_slice(&self, poly: &mut [Self::ValueT]) {
         let poly_length = self.poly_length();
+        debug_assert_eq!(poly_length * self.moduli_count, poly.len());
         self.iter()
             .zip(poly.chunks_exact_mut(poly_length))
             .for_each(|(ntt_table, poly)| ntt_table.transform_slice(poly))
@@ -118,6 +124,7 @@ impl<T: UnsignedInteger> Dcrt for UintCrtNttTable<T> {
     #[inline]
     fn lazy_inverse_transform_slice(&self, poly: &mut [Self::ValueT]) {
         let poly_length = self.poly_length();
+        debug_assert_eq!(poly_length * self.moduli_count, poly.len());
         self.iter()
             .zip(poly.chunks_exact_mut(poly_length))
             .for_each(|(ntt_table, values)| ntt_table.lazy_inverse_transform_slice(values))
@@ -126,6 +133,7 @@ impl<T: UnsignedInteger> Dcrt for UintCrtNttTable<T> {
     #[inline]
     fn inverse_transform_slice(&self, poly: &mut [Self::ValueT]) {
         let poly_length = self.poly_length();
+        debug_assert_eq!(poly_length * self.moduli_count, poly.len());
         self.iter()
             .zip(poly.chunks_exact_mut(poly_length))
             .for_each(|(ntt_table, values)| ntt_table.inverse_transform_slice(values))
