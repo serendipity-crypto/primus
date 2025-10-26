@@ -29,7 +29,8 @@ impl<T: UnsignedInteger> BigInteger for [T] {
 /// A trait providing various operations on big integers represented as slices of unsigned integers.
 pub trait BigIntegerOps: BigInteger {
     /// Left shifts the big integer slice.
-    fn slice_left_shift_assign(&mut self, bits: u32);
+    #[must_use]
+    fn slice_left_shift_assign(&mut self, bits: u32) -> Self::ValueT;
 
     /// Left shifts the big integer slice.
     fn slice_right_shift_assign(&mut self, bits: u32);
@@ -101,7 +102,7 @@ pub trait BigIntegerOps: BigInteger {
 
 impl<T: UnsignedInteger> BigIntegerOps for [T] {
     #[inline]
-    fn slice_left_shift_assign(&mut self, bits: u32) {
+    fn slice_left_shift_assign(&mut self, bits: u32) -> Self::ValueT {
         if bits != 0 {
             let mut pre = T::ZERO;
             let mut temp = T::ZERO;
@@ -111,6 +112,9 @@ impl<T: UnsignedInteger> BigIntegerOps for [T] {
                 *value = *value << bits | pre >> right_shift_bits;
                 pre = temp;
             });
+            pre >> right_shift_bits
+        } else {
+            T::ZERO
         }
     }
 
@@ -510,7 +514,8 @@ mod tests {
         a >>= 3;
         assert_eq!(a, compose(&a_vec));
 
-        a_vec.slice_left_shift_assign(3);
+        let carry = a_vec.slice_left_shift_assign(3);
+        assert_eq!(carry, 0);
         a <<= 3;
         assert_eq!(a, compose(&a_vec));
 
@@ -529,12 +534,29 @@ mod tests {
         a *= v as u128;
         assert_eq!(a, compose(&a_vecp));
 
+        let mut result = vec![0; a_vec.len()];
+        a = compose(&a_vec);
+        let _carry = a_vec.slice_add_value_inplace(v, &mut result);
+        assert_eq!(a + v as u128, compose(&result));
+
+        let _borrow = a_vec.slice_sub_value_inplace(v, &mut result);
+        assert_eq!(a - v as u128, compose(&result));
+
+        let r = a_vec.slice_mul_value_inplace(v, &mut result);
+        result.push(r);
+        assert_eq!(a * v as u128, compose(&result));
+
         let a_residues = distrs.map(|distr| distr.sample(&mut rng));
         let b_residues = distrs.map(|distr| distr.sample(&mut rng));
         let mut a_vec = multiply_many_values(&a_residues);
         let b_vec = multiply_many_values(&b_residues);
         let a = compose(&a_vec);
         let b = compose(&b_vec);
+
+        let mut result = b_vec.clone();
+        let carry = a_vec.slice_mul_value_add_inplace(v, &mut result);
+        result.push(carry);
+        assert_eq!(a * v as u128 + b, compose(&result));
 
         let _r = a_vec.slice_add_assign(&b_vec);
         assert_eq!(a + b, compose(&a_vec));

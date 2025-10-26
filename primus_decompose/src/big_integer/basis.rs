@@ -84,12 +84,15 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
             } else {
                 let mut value = vec![T::ZERO; modulus_value_len];
                 for _ in 0..decompose_length {
-                    value.slice_left_shift_assign(1);
+                    let carry = value.slice_left_shift_assign(1);
+                    assert_eq!(carry, T::ZERO);
                     value[0] |= T::ONE;
                 }
-                value.slice_left_shift_assign(1);
+                let carry = value.slice_left_shift_assign(1);
+                assert_eq!(carry, T::ZERO);
                 value[0] |= T::ONE;
-                value.slice_left_shift_assign(drop_bits - 1);
+                let carry = value.slice_left_shift_assign(drop_bits - 1);
+                assert_eq!(carry, T::ZERO);
                 if value.slice_cmp(modulus).is_ge() {
                     None
                 } else {
@@ -99,13 +102,16 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
         } else {
             let mut value = vec![T::ZERO; modulus_value_len];
             for _ in 0..decompose_length {
-                value.slice_left_shift_assign(log_basis);
+                let carry = value.slice_left_shift_assign(log_basis);
+                assert_eq!(carry, T::ZERO);
                 value[0] |= basis_minus_one >> 1u32;
             }
             if drop_bits > 0 {
-                value.slice_left_shift_assign(1);
+                let carry = value.slice_left_shift_assign(1);
+                assert_eq!(carry, T::ZERO);
                 value[0] |= T::ONE;
-                value.slice_left_shift_assign(drop_bits - 1);
+                let carry = value.slice_left_shift_assign(drop_bits - 1);
+                assert_eq!(carry, T::ZERO);
             } else {
                 let carry = value.slice_add_value_assign(T::ONE);
                 assert!(!carry);
@@ -140,11 +146,13 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
             .chunks_exact_mut(modulus_value_len)
             .for_each(|scalar| {
                 if let Some(pre) = prev.as_mut() {
-                    pre.slice_left_shift_assign(log_basis);
+                    let carry = pre.slice_left_shift_assign(log_basis);
+                    assert_eq!(carry, T::ZERO);
                     scalar.copy_from_slice(&pre);
                 } else {
                     scalar[0] = T::ONE;
-                    scalar.slice_left_shift_assign(drop_bits);
+                    let carry = scalar.slice_left_shift_assign(drop_bits);
+                    assert_eq!(carry, T::ZERO);
                     prev = Some(scalar.to_vec());
                 }
             });

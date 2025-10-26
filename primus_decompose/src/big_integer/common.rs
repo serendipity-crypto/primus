@@ -18,7 +18,8 @@ impl<T: UnsignedInteger> ValueMask<T> {
         let index = (drop_bits / T::BITS) as usize;
         let drop_bits = drop_bits % T::BITS;
         let mut mask = [basis_minus_one, T::ZERO];
-        mask.slice_left_shift_assign(drop_bits);
+        let carry = mask.slice_left_shift_assign(drop_bits);
+        assert_eq!(carry, T::ZERO);
         let shr_bits = drop_bits;
         let shl_bits = T::BITS - drop_bits;
 
@@ -40,7 +41,8 @@ impl<T: UnsignedInteger> ValueMask<T> {
         }
 
         let mut mask = [basis_minus_one, T::ZERO];
-        mask.slice_left_shift_assign(new_shr_bits);
+        let carry = mask.slice_left_shift_assign(new_shr_bits);
+        assert_eq!(carry, T::ZERO);
 
         self.mask = mask;
         self.shr_bits = new_shr_bits;
