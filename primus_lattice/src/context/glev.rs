@@ -31,4 +31,11 @@ impl<T: UnsignedInteger> DcrtGlevContext<T> {
             self.multi_residues.as_mut(),
         )
     }
+
+    pub fn clear(&mut self) {
+        self.adjust_big_uint_values.fill(T::ZERO);
+        self.decomposed_unsigned_values.fill(T::ZERO);
+        self.carries.fill(false);
+        self.multi_residues.fill(T::ZERO);
+    }
 }

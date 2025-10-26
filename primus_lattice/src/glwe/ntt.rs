@@ -56,7 +56,7 @@ where
     /// Extracts slice of `a` and `b` of this [`NttGlwe<S>`].
     #[inline]
     pub fn a_b_slices(&self, mid: usize) -> (&[T], &[T]) {
-        unsafe { self.data.split_at_unchecked(mid) }
+        self.data.split_at(mid)
     }
 
     /// Performs a modular multiplication on the `self` [`NttGlwe<S>`] with another `polynomial` [`NttPolynomial`],

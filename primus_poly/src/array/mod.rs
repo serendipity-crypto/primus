@@ -162,6 +162,8 @@ pub trait Data: RawData + AsRef<[<Self as RawData>::Elem]> {
         chunk_size: usize,
     ) -> std::slice::ChunksExact<'a, <Self as RawData>::Elem>;
 
+    fn split_at(&self, mid: usize) -> (&[Self::Elem], &[Self::Elem]);
+
     /// Divides one slice into two at an index, without doing bounds checking.
     ///
     /// The first will contain all indices from `[0, mid)` (excluding the index `mid` itself)
@@ -191,6 +193,11 @@ impl<T: UnsignedInteger> Data for &[T] {
         chunk_size: usize,
     ) -> std::slice::ChunksExact<'a, <Self as RawData>::Elem> {
         <[T]>::chunks_exact(self, chunk_size)
+    }
+
+    #[inline]
+    fn split_at(&self, mid: usize) -> (&[Self::Elem], &[Self::Elem]) {
+        <[T]>::split_at(self, mid)
     }
 
     #[inline]
@@ -224,6 +231,11 @@ impl<T: UnsignedInteger> Data for &mut [T] {
     }
 
     #[inline]
+    fn split_at(&self, mid: usize) -> (&[Self::Elem], &[Self::Elem]) {
+        <[T]>::split_at(self, mid)
+    }
+
+    #[inline]
     unsafe fn split_at_unchecked(&self, mid: usize) -> (&[Self::Elem], &[Self::Elem]) {
         unsafe { <[T]>::split_at_unchecked(self, mid) }
     }
@@ -254,6 +266,11 @@ impl<T: UnsignedInteger> Data for Vec<T> {
     }
 
     #[inline]
+    fn split_at(&self, mid: usize) -> (&[Self::Elem], &[Self::Elem]) {
+        <[T]>::split_at(self, mid)
+    }
+
+    #[inline]
     unsafe fn split_at_unchecked(&self, mid: usize) -> (&[Self::Elem], &[Self::Elem]) {
         unsafe { <[T]>::split_at_unchecked(self, mid) }
     }
@@ -277,6 +294,8 @@ pub trait DataMut: Data + AsMut<[<Self as RawData>::Elem]> {
     ///
     /// The length of `src` must be the same as `self`.
     fn copy_from_slice(&mut self, src: &[Self::Elem]);
+
+    fn split_at_mut(&mut self, mid: usize) -> (&mut [Self::Elem], &mut [Self::Elem]);
 
     /// Divides one mutable slice into two at an index, without doing bounds checking.
     ///
@@ -312,6 +331,11 @@ impl<T: UnsignedInteger> DataMut for &mut [T] {
         <[T]>::chunks_exact_mut(self, chunk_size)
     }
 
+    #[inline]
+    fn split_at_mut(&mut self, mid: usize) -> (&mut [Self::Elem], &mut [Self::Elem]) {
+        <[T]>::split_at_mut(self, mid)
+    }
+
     #[inline(always)]
     unsafe fn split_at_mut_unchecked(
         &mut self,
@@ -343,6 +367,11 @@ impl<T: UnsignedInteger> DataMut for Vec<T> {
         chunk_size: usize,
     ) -> std::slice::ChunksExactMut<'a, <Self as RawData>::Elem> {
         <[T]>::chunks_exact_mut(self, chunk_size)
+    }
+
+    #[inline]
+    fn split_at_mut(&mut self, mid: usize) -> (&mut [Self::Elem], &mut [Self::Elem]) {
+        <[T]>::split_at_mut(self, mid)
     }
 
     #[inline(always)]

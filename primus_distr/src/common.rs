@@ -1,5 +1,6 @@
 use std::slice::IterMut;
 
+use itertools::Itertools;
 use num_traits::ConstZero;
 use primus_integer::{AsInto, Integer, UnsignedInteger};
 use rand::{
@@ -283,7 +284,7 @@ pub fn sample_crt_uniform_values_inplace<T, R>(
 {
     result
         .chunks_exact_mut(length)
-        .zip(uniform_distrs)
+        .zip_eq(uniform_distrs)
         .for_each(|(s, u)| {
             s.iter_mut()
                 .zip(u.sample_iter(&mut *rng))

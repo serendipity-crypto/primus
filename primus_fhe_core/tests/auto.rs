@@ -15,7 +15,7 @@ use primus_poly::{Polynomial, crt::CrtPolynomial};
 fn test_rns_glwe_auto() {
     type ValueT = u64;
 
-    let dimension = 1;
+    let dimension = 2;
     let poly_length: usize = 512;
     let log_n = poly_length.trailing_zeros();
 
@@ -50,8 +50,6 @@ fn test_rns_glwe_auto() {
 
     let sk = CrtGlweSecretKey::generate(&glwe_params, &mut rng);
     let dcrt_sk = DcrtGlweSecretKey::from_coeff_secret_key(&sk, &table);
-
-    assert_eq!(rns_glwe_len, (dimension + 1) * crt_poly_length);
 
     let basis =
         BigUintApproxSignedBasis::new(glwe_params.cipher_modulus(), 20, None, glwe_params.base_q());
@@ -128,5 +126,6 @@ fn test_rns_glwe_auto() {
 
     let auto_msg_2 = dcrt_sk.decrypt(&c3, &glwe_params, table, &mut decrypt_context);
 
+    println!("c1:{:?}\n", input1.as_ref());
     assert_eq!(auto_msg_1.as_ref(), auto_msg_2.as_ref());
 }

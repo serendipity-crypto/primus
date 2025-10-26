@@ -1,5 +1,6 @@
+use itertools::{Itertools, izip};
 use primus_decompose::big_integer::BigUintApproxSignedBasis;
-use primus_integer::{UnsignedInteger, izip};
+use primus_integer::UnsignedInteger;
 use primus_lattice::{context::DcrtGlevContext, glev::DcrtGlev};
 use primus_ntt::{Dcrt, DcrtTable};
 use primus_poly::{
@@ -42,8 +43,9 @@ impl<T: UnsignedInteger> CrtGlweKeySwitchingKey<T> {
         let rns_glev_len = ksk_params.rns_glev_len();
         let mut key: Vec<T> = vec![T::ZERO; input_params.dimension() * rns_glev_len];
 
-        izip!(key.chunks_exact_mut(rns_glev_len), input_sk.iter_crt_poly(),).for_each(
-            |(dcrt_glev, si)| {
+        key.chunks_exact_mut(rns_glev_len)
+            .zip_eq(input_sk.iter_crt_poly())
+            .for_each(|(dcrt_glev, si)| {
                 output_sk.encrypt_dcrt_glev_inplace(
                     &CrtPolynomial(ArrayBase(si)),
                     &mut DcrtGlev::new(ArrayBase(dcrt_glev)),
@@ -51,8 +53,7 @@ impl<T: UnsignedInteger> CrtGlweKeySwitchingKey<T> {
                     table,
                     rng,
                 );
-            },
-        );
+            });
 
         let poly_length = input_params.poly_length();
         let rns_poly_len = input_params.rns_poly_len();
@@ -66,6 +67,10 @@ impl<T: UnsignedInteger> CrtGlweKeySwitchingKey<T> {
             input_rns_glwe_mid,
             output_rns_glwe_mid,
         }
+    }
+
+    pub fn iter_dcrt_glev(&self) -> std::slice::ChunksExact<'_, T> {
+        self.key.chunks_exact(self.rns_glev_len)
     }
 
     pub fn key_swithching_inplace<M, Table, A, B>(
@@ -82,20 +87,20 @@ impl<T: UnsignedInteger> CrtGlweKeySwitchingKey<T> {
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + DataMut,
     {
+        let poly_length = self.poly_length;
+
         let (a_in, b_in) = c_in.a_b_slices(self.input_rns_glwe_mid);
+
+        debug_assert_eq!(b_in.len(), table.crt_poly_length());
 
         let (big_uint_poly, crt_poly, glev_context) = context.as_mut();
 
         c_out.set_zero();
-        izip!(
-            a_in.chunks_exact(self.rns_poly_len),
-            self.key.chunks_exact(self.rns_glev_len)
-        )
-        .for_each(|(ai, ki)| {
+        izip!(a_in.chunks_exact(self.rns_poly_len), self.iter_dcrt_glev()).for_each(|(ai, ki)| {
             let ai = CrtPolynomial(ArrayBase(ai));
             let ki = DcrtGlev::new(ArrayBase(ki));
 
-            rns_base.compose_polynomial_inplace(&ai, big_uint_poly, self.poly_length);
+            rns_base.compose_polynomial_inplace(&ai, big_uint_poly, poly_length);
 
             c_out.add_dcrt_glev_mul_big_uint_poly_assign(
                 &ki,
@@ -109,12 +114,12 @@ impl<T: UnsignedInteger> CrtGlweKeySwitchingKey<T> {
 
         crt_poly.as_mut().copy_from_slice(b_in);
         table.transform_slice(crt_poly.as_mut());
-        c_out.neg_assign(self.rns_poly_len, self.poly_length, rns_base.moduli());
+        c_out.neg_assign(self.rns_poly_len, poly_length, rns_base.moduli());
 
         let (_, b_out) = c_out.a_b_mut_slices(self.output_rns_glwe_mid);
         DcrtPolynomial(ArrayBase(b_out)).add_assign(
             &DcrtPolynomial(ArrayBase(crt_poly.as_ref())),
-            self.poly_length,
+            poly_length,
             rns_base.moduli(),
         );
     }

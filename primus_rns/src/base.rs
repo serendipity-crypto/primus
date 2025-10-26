@@ -314,6 +314,8 @@ where
 
         let value_len = self.moduli_product.len();
 
+        value.fill(T::ZERO);
+
         izip!(
             residues,
             &self.inv_punctured_product_mod_modulus,

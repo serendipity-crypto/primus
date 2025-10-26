@@ -13,7 +13,7 @@ use primus_poly::{Polynomial, crt::CrtPolynomial};
 fn test_rns_glwe_ksk() {
     type ValueT = u64;
 
-    let dimension = 1;
+    let dimension = 3;
     let poly_length: usize = 512;
     let log_n = poly_length.trailing_zeros();
 
@@ -97,7 +97,4 @@ fn test_rns_glwe_ksk() {
     let output = dcrt_sk_2.decrypt(&c2, &glwe_params, &table, &mut decrypt_context);
 
     assert_eq!(input.as_ref(), output.as_ref());
-
-    println!("input: {:?}", input);
-    println!("output:{:?}", output);
 }

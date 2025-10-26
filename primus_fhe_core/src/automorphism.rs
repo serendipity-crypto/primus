@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use itertools::Itertools;
 use primus_integer::{UnsignedInteger, izip};
 use primus_lattice::context::DcrtGlevContext;
 use primus_lattice::glev::DcrtGlev;
@@ -100,7 +101,6 @@ where
         R: rand::Rng + rand::CryptoRng,
         M: FieldContext<T>,
     {
-        let dimension = params.dimension();
         let poly_length = params.poly_length();
         let rns_poly_len = params.rns_poly_len();
         let rns_glev_len = params.rns_glev_len();
@@ -114,11 +114,11 @@ where
             AutoHelper::Permutation(generate_permutate_ops(degree, poly_length))
         };
 
-        let mut key = vec![T::ZERO; dimension * rns_glev_len];
+        let mut key = vec![T::ZERO; params.dimension() * rns_glev_len];
         let mut auto_si = vec![T::ZERO; rns_poly_len];
 
         key.chunks_exact_mut(rns_glev_len)
-            .zip(sk.iter_crt_poly())
+            .zip_eq(sk.iter_crt_poly())
             .for_each(|(dcrt_glev, si)| {
                 crt_poly_auto_inplace(si, &mut auto_si, &auto_helper, poly_length, moduli);
 
@@ -169,22 +169,24 @@ where
         B: RawData<Elem = T> + DataMut,
     {
         let poly_length = params.poly_length();
-        let crt_poly_length = params.rns_poly_len();
-        let dcrt_glwe_mid = params.rns_glwe_mid();
+        let rns_poly_len = params.rns_poly_len();
+        let rns_glwe_mid = params.rns_glwe_mid();
         let moduli = params.cipher_moduli();
+
         let auto_helper = &self.auto_helper;
 
-        debug_assert_eq!(ciphertext.as_ref().len(), dcrt_glwe_mid + crt_poly_length);
+        debug_assert_eq!(ciphertext.as_ref().len(), params.rns_glwe_len());
 
         let (big_uint_poly, auto_crt_poly, glev_context) = context.as_mut();
 
         result.set_zero();
         let mut temp = DcrtGlweCiphertext::new(ArrayBase(result.as_mut()));
 
-        let (a_in, b_in) = ciphertext.a_b_slices(dcrt_glwe_mid);
+        let (a_in, b_in) = ciphertext.a_b_slices(rns_glwe_mid);
 
-        izip!(a_in.chunks_exact(crt_poly_length), self.iter_dcrt_glev()).for_each(
-            |(in_crt_poly, auto_key_i)| {
+        a_in.chunks_exact(rns_poly_len)
+            .zip_eq(self.iter_dcrt_glev())
+            .for_each(|(in_crt_poly, auto_key_i)| {
                 crt_poly_auto_inplace(
                     in_crt_poly,
                     auto_crt_poly.as_mut(),
@@ -205,8 +207,7 @@ where
                     rns_base,
                     glev_context,
                 );
-            },
-        );
+            });
 
         crt_poly_auto_inplace(
             b_in,
@@ -216,27 +217,12 @@ where
             moduli,
         );
 
-        temp.iter_dcrt_poly_mut(crt_poly_length)
-            .for_each(|rns_poly| {
-                self.table.inverse_transform_slice(rns_poly);
-                CrtPolynomial(ArrayBase(rns_poly)).neg_assign(poly_length, moduli);
-            });
+        temp.neg_assign(rns_poly_len, poly_length, moduli);
+        let _ = temp.into_coeff_form(self.table());
 
-        let (_a_out, b_out) = result.a_b_mut_slices(dcrt_glwe_mid);
+        let (_a_out, b_out) = result.a_b_mut_slices(rns_glwe_mid);
 
-        // a_out
-        //     .chunks_exact_mut(crt_poly_length)
-        //     .for_each(|crt_poly| {
-        //         let mut temp = DcrtPolynomial(ArrayBase(crt_poly));
-        //         temp.neg_assign(poly_length, moduli);
-        //         self.table.inverse_transform_slice(temp.as_mut());
-        //     });
-
-        // let mut b = self
-        //     .table
-        //     .inverse_transform_inplace(DcrtPolynomial(ArrayBase(b_out)));
         auto_crt_poly.sub_to_right(&mut CrtPolynomial(ArrayBase(b_out)), poly_length, moduli);
-        // temp.sub_assign(auto_crt_poly, poly_length, moduli);
     }
 }
 

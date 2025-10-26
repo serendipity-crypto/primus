@@ -19,8 +19,8 @@ primus_lattice = { path = "../primus_lattice" }
 
 thiserror = { workspace = true }
 rand = { workspace = true }
+itertools = { workspace = true }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }
 indicatif = { workspace = true }
-itertools = { workspace = true }

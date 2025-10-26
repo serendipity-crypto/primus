@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use primus_factor::FactorMul;
 use primus_integer::{UnsignedInteger, izip};
 use primus_lattice::glev::DcrtGlev;
@@ -344,7 +345,7 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
         let mut b_dcrt_poly = table.transform_inplace(b_crt_poly);
 
         a.chunks_exact_mut(rns_poly_len)
-            .zip(self.iter_dcrt_poly())
+            .zip_eq(self.iter_dcrt_poly())
             .for_each(|(ai, si)| {
                 primus_distr::sample_crt_uniform_values_inplace(
                     ai,

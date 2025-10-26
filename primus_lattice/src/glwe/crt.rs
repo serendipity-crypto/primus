@@ -36,7 +36,7 @@ where
     /// Extracts mutable slice of `a` and `b` of this [`CrtGlwe<S>`].
     #[inline]
     pub fn a_b_mut_slices(&mut self, mid: usize) -> (&mut [T], &mut [T]) {
-        unsafe { self.data.0.split_at_mut_unchecked(mid) }
+        self.data.0.split_at_mut(mid)
     }
 }
 
@@ -48,7 +48,7 @@ where
     /// Extracts slice of `a` and `b` of this [`CrtGlwe<S>`].
     #[inline]
     pub fn a_b_slices(&self, mid: usize) -> (&[T], &[T]) {
-        unsafe { self.data.split_at_unchecked(mid) }
+        self.data.split_at(mid)
     }
 
     /// Performs a multiplication on the `self` [`CrtGlwe<S>`] with another `dcrt_polynomial` [`DcrtPolynomial<A>`],
