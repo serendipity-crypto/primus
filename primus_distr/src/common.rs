@@ -126,6 +126,7 @@ pub fn sample_crt_ternary_values_inplace<T, R>(
     T: Integer,
     R: Rng + CryptoRng,
 {
+    debug_assert_eq!(result.len(), moduli_minus_one.len() * length);
     let mut iters: Vec<IterMut<'_, T>> = result
         .chunks_exact_mut(length)
         .map(|s| s.iter_mut())

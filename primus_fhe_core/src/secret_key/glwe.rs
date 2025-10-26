@@ -256,16 +256,6 @@ impl<T: UnsignedInteger> CrtGlweSecretKey<T> {
                 });
             }
             RingSecretKeyType::Gaussian => {
-                // FIXME
-                // key.chunks_exact_mut(rns_poly_len).for_each(|crt_poly| {
-                //     primus_distr::sample_crt_gaussian_values_inplace(
-                //         crt_poly,
-                //         poly_length,
-                //         moduli_value,
-                //         params.noise_distribution(),
-                //         rng,
-                //     );
-                // });
                 unimplemented!()
             }
         };
