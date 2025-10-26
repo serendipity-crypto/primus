@@ -56,7 +56,11 @@ fn test_rns_glwe_auto() {
         BigUintApproxSignedBasis::new(glwe_params.cipher_modulus(), 20, None, glwe_params.base_q());
     let glev_params = CrtGlevParameters::with_glwe_params(&glwe_params, basis);
 
-    let auto_degree = rng.random_range(0..poly_length * 2);
+    let mut auto_degree = rng.random_range(0..poly_length * 2);
+    if auto_degree & 1 == 0 {
+        auto_degree |= 1;
+    }
+    println!("degree: {auto_degree}");
     let auto_key = CrtGlweAutoKey::new(
         &glev_params,
         auto_degree,

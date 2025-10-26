@@ -6,7 +6,7 @@ use primus_lattice::context::DcrtGlevContext;
 use primus_lattice::glev::DcrtGlev;
 use primus_modulus::PowOf2Modulus;
 use primus_ntt::{Dcrt, DcrtTable};
-use primus_poly::{ArrayBase, Data, DataMut, RawData, crt::CrtPolynomial};
+use primus_poly::{ArrayBase, Data, DataMut, RawData, crt::CrtPolynomial, dcrt::DcrtPolynomial};
 use primus_reduce::FieldContext;
 use primus_reduce::ops::ReduceMul;
 use primus_rns::RNSBase;
@@ -182,8 +182,6 @@ where
                     moduli,
                 );
 
-                // rns_base.compose_polynomial_inplace(&auto_crt_poly, big_uint_poly, poly_length);
-
                 let auto_key = DcrtGlev::new(ArrayBase(auto_key_i));
 
                 temp.add_dcrt_glev_mul_crt_poly_assign(
@@ -194,15 +192,6 @@ where
                     rns_base,
                     glev_context,
                 );
-
-                // temp.add_dcrt_glev_mul_big_uint_poly_assign(
-                //     &auto_key,
-                //     &big_uint_poly,
-                //     params.basis(),
-                //     self.table(),
-                //     rns_base,
-                //     glev_context,
-                // );
             });
 
         crt_poly_auto_inplace(
@@ -213,14 +202,15 @@ where
             moduli,
         );
 
-        temp.neg_assign(rns_poly_len, poly_length, moduli);
         let _ = temp.into_coeff_form(self.table());
 
-        let (_a_out, b_out) = result.a_b_mut_slices(rns_glwe_mid);
+        let (a_out, b_out) = result.a_b_mut_slices(rns_glwe_mid);
 
-        CrtPolynomial(ArrayBase(b_out)).add_assign(auto_crt_poly, poly_length, moduli);
+        a_out
+            .chunks_exact_mut(rns_poly_len)
+            .for_each(|ai| DcrtPolynomial(ArrayBase(ai)).neg_assign(poly_length, moduli));
 
-        // auto_crt_poly.sub_to_right(&mut CrtPolynomial(ArrayBase(b_out)), poly_length, moduli);
+        auto_crt_poly.sub_to_right(&mut CrtPolynomial(ArrayBase(b_out)), poly_length, moduli);
     }
 }
 
