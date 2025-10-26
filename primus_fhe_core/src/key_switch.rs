@@ -17,7 +17,6 @@ pub struct CrtGlweKeySwitchingKey<T: UnsignedInteger> {
     key: Vec<T>,
     poly_length: usize,
     crt_poly_length: usize,
-    big_uint_poly_len: usize,
     input_crt_glwe_mid: usize,
     dcrt_glev_length: usize,
     output_crt_glwe_mid: usize,
@@ -44,9 +43,9 @@ impl<T: UnsignedInteger> CrtGlweKeySwitchingKey<T> {
             output_params.cipher_modulus()
         );
 
-        let decompose_length = ksk_params.basis().decompose_length();
-        let dcrt_glev_length = decompose_length * output_sk.crt_glwe_len();
-        let mut key: Vec<T> = vec![T::ZERO; input_sk.dimension() * dcrt_glev_length];
+        let decompose_length = ksk_params.decompose_length();
+        let dcrt_glev_length = decompose_length * output_params.rns_glwe_len();
+        let mut key: Vec<T> = vec![T::ZERO; input_params.dimension() * dcrt_glev_length];
 
         izip!(
             key.chunks_exact_mut(dcrt_glev_length),
@@ -64,14 +63,12 @@ impl<T: UnsignedInteger> CrtGlweKeySwitchingKey<T> {
 
         let poly_length = input_params.poly_length();
         let crt_poly_length = poly_length * input_params.cipher_moduli_count();
-        let big_uint_poly_len = poly_length * input_params.big_uint_value_len();
         let input_crt_glwe_mid = crt_poly_length * input_params.dimension();
         let output_crt_glwe_mid = crt_poly_length * output_params.dimension();
         Self {
             key,
             poly_length,
             crt_poly_length,
-            big_uint_poly_len,
             input_crt_glwe_mid,
             dcrt_glev_length,
             output_crt_glwe_mid,

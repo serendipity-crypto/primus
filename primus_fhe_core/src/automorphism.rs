@@ -76,15 +76,10 @@ where
     T: UnsignedInteger,
     Table: DcrtTable<ValueT = T> + Dcrt,
 {
-    degree: usize,
-    poly_length: usize,
-    dimension: usize,
-    crt_poly_length: usize,
-    dcrt_glwe_mid: usize,
-    dcrt_glwe_len: usize,
-    dcrt_glev_len: usize,
-    auto_helper: AutoHelper,
     key: Vec<T>,
+    degree: usize,
+    rns_glev_len: usize,
+    auto_helper: AutoHelper,
     table: Arc<Table>,
 }
 
@@ -105,19 +100,11 @@ where
         R: rand::Rng + rand::CryptoRng,
         M: FieldContext<T>,
     {
-        let dimension = sk.dimension();
-        let poly_length = sk.poly_length();
-        let moduli_count = sk.moduli_count();
-        let crt_poly_length = sk.crt_poly_length();
-        let dcrt_glwe_len = dcrt_sk.crt_glwe_len();
-        let basis = params.basis();
-        let decompose_length = basis.decompose_length();
-        let dcrt_glev_len = decompose_length * dcrt_glwe_len;
+        let dimension = params.dimension();
+        let poly_length = params.poly_length();
+        let rns_poly_len = params.rns_poly_len();
+        let rns_glev_len = params.rns_glev_len();
         let moduli = params.cipher_moduli();
-
-        let dcrt_glwe_mid = crt_poly_length * dimension;
-
-        debug_assert_eq!(moduli_count, params.cipher_moduli().len());
 
         let auto_helper = if degree == 1 {
             AutoHelper::One
@@ -127,11 +114,10 @@ where
             AutoHelper::Permutation(generate_permutate_ops(degree, poly_length))
         };
 
-        let mut result = vec![T::ZERO; dimension * dcrt_glev_len];
-        let mut auto_si = vec![T::ZERO; crt_poly_length];
+        let mut key = vec![T::ZERO; dimension * rns_glev_len];
+        let mut auto_si = vec![T::ZERO; rns_poly_len];
 
-        result
-            .chunks_exact_mut(dcrt_glev_len)
+        key.chunks_exact_mut(rns_glev_len)
             .zip(sk.iter_crt_poly())
             .for_each(|(dcrt_glev, si)| {
                 crt_poly_auto_inplace(si, &mut auto_si, &auto_helper, poly_length, moduli);
@@ -146,15 +132,10 @@ where
             });
 
         Self {
+            key,
             degree,
-            poly_length,
-            dimension,
-            crt_poly_length,
-            dcrt_glwe_len,
-            dcrt_glwe_mid,
-            dcrt_glev_len,
+            rns_glev_len,
             auto_helper,
-            key: result,
             table: Arc::clone(&table),
         }
     }
@@ -172,7 +153,7 @@ where
     }
 
     pub fn iter_dcrt_glev(&self) -> std::slice::ChunksExact<'_, T> {
-        self.key.chunks_exact(self.dcrt_glev_len)
+        self.key.chunks_exact(self.rns_glev_len)
     }
 
     pub fn automorphism_inplace<M, A, B>(
@@ -187,9 +168,9 @@ where
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + DataMut,
     {
-        let poly_length = self.poly_length;
-        let crt_poly_length = self.crt_poly_length;
-        let dcrt_glwe_mid = self.dcrt_glwe_mid;
+        let poly_length = params.poly_length();
+        let crt_poly_length = params.rns_poly_len();
+        let dcrt_glwe_mid = params.rns_glwe_mid();
         let moduli = params.cipher_moduli();
         let auto_helper = &self.auto_helper;
 

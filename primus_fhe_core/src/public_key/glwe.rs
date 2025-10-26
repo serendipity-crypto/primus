@@ -9,11 +9,6 @@ use crate::{CrtGgswParameters, CrtGlevParameters, CrtGlweParameters, DcrtGlweSec
 #[derive(Clone)]
 pub struct DcrtGlwePublicKey<T: UnsignedInteger> {
     key: DcrtGlwe<Vec<T>>,
-    moduli_count: usize,
-    poly_length: usize,
-    dimension: usize,
-    crt_poly_length: usize, // moduli_count * poly_length
-    crt_glwe_len: usize,    // moduli_count * poly_length * (dimension + 1)
 }
 
 impl<T: UnsignedInteger> DcrtGlwePublicKey<T> {
@@ -35,18 +30,6 @@ impl<T: UnsignedInteger> DcrtGlwePublicKey<T> {
         self.key.bytes_count()
     }
 
-    pub fn moduli_count(&self) -> usize {
-        self.moduli_count
-    }
-
-    pub fn poly_length(&self) -> usize {
-        self.poly_length
-    }
-
-    pub fn dimension(&self) -> usize {
-        self.dimension
-    }
-
     pub fn new<Table, R, M>(
         secret_key: &DcrtGlweSecretKey<T>,
         params: &CrtGlweParameters<T, M>,
@@ -58,10 +41,9 @@ impl<T: UnsignedInteger> DcrtGlwePublicKey<T> {
         R: rand::Rng + rand::CryptoRng,
         M: FieldContext<T>,
     {
-        let poly_length = secret_key.poly_length();
-        let dimension = secret_key.dimension();
-        let crt_poly_length = secret_key.crt_poly_length();
-        let crt_glwe_len = secret_key.crt_glwe_len();
+        let poly_length = params.poly_length();
+        let crt_poly_length = params.rns_poly_len();
+        let crt_glwe_len = params.rns_glwe_len();
 
         let moduli = params.cipher_moduli();
         let moduli_value = params.cipher_moduli_value();
@@ -69,11 +51,8 @@ impl<T: UnsignedInteger> DcrtGlwePublicKey<T> {
 
         let mut data: DcrtGlwe<Vec<T>> = DcrtGlwe::zero(crt_glwe_len);
 
-        let (a, b) = data.a_b_mut_slices(crt_glwe_len - crt_poly_length);
+        let (a, b) = data.a_b_mut_slices(params.rns_glwe_mid());
 
-        a.chunks_exact_mut(crt_poly_length).for_each(|ai| {
-            primus_distr::sample_crt_uniform_values_inplace(ai, poly_length, uniform_distrs, rng);
-        });
         primus_distr::sample_crt_gaussian_values_inplace(
             b,
             poly_length,
@@ -83,13 +62,18 @@ impl<T: UnsignedInteger> DcrtGlwePublicKey<T> {
         );
 
         table.transform_slice(b);
-
-        let mut b_poly = DcrtPolynomial(ArrayBase(b));
+        let mut b_dcrt_poly = DcrtPolynomial(ArrayBase(b));
 
         a.chunks_exact_mut(crt_poly_length)
             .zip(secret_key.iter_dcrt_poly())
             .for_each(|(ai, si)| {
-                b_poly.add_mul_assign(
+                primus_distr::sample_crt_uniform_values_inplace(
+                    ai,
+                    poly_length,
+                    uniform_distrs,
+                    rng,
+                );
+                b_dcrt_poly.add_mul_assign(
                     &DcrtPolynomial(ArrayBase(ai)),
                     &DcrtPolynomial(ArrayBase(si)),
                     poly_length,
@@ -97,14 +81,7 @@ impl<T: UnsignedInteger> DcrtGlwePublicKey<T> {
                 );
             });
 
-        Self {
-            key: data,
-            moduli_count: secret_key.moduli_count(),
-            poly_length,
-            dimension,
-            crt_poly_length,
-            crt_glwe_len,
-        }
+        Self { key: data }
     }
 
     pub fn encrypt<R, M, Table, A>(
@@ -120,12 +97,15 @@ impl<T: UnsignedInteger> DcrtGlwePublicKey<T> {
         Table: DcrtTable<ValueT = T> + Dcrt,
         A: RawData<Elem = T> + Data,
     {
-        let poly_length = self.poly_length;
-        let crt_glwe_len = self.crt_glwe_len;
+        let dimension = params.dimension();
+        let poly_length = params.poly_length();
+        let rns_poly_len = params.rns_poly_len();
+        let rns_glwe_len = params.rns_glwe_len();
+
         let moduli = params.cipher_moduli();
 
-        let mut result = DcrtGlwe::new(ArrayBase(vec![T::ZERO; crt_glwe_len]));
-        let mut v = vec![T::ZERO; self.crt_poly_length];
+        let mut result = DcrtGlwe::new(ArrayBase(vec![T::ZERO; rns_glwe_len]));
+        let mut v = vec![T::ZERO; rns_poly_len];
 
         primus_distr::sample_crt_ternary_values_inplace(
             &mut v,
@@ -134,11 +114,11 @@ impl<T: UnsignedInteger> DcrtGlwePublicKey<T> {
             rng,
         );
         table.transform_slice(&mut v);
-        let v_poly = DcrtPolynomial(ArrayBase(v.as_ref()));
+        let v_dcrt_poly = DcrtPolynomial(ArrayBase(v.as_ref()));
 
         result
-            .iter_dcrt_poly_mut(self.crt_poly_length)
-            .zip(self.key.iter_dcrt_poly(self.crt_poly_length))
+            .iter_dcrt_poly_mut(rns_poly_len)
+            .zip(self.key.iter_dcrt_poly(rns_poly_len))
             .enumerate()
             .for_each(|(i, (ai, pk_ai))| {
                 primus_distr::sample_crt_gaussian_values_inplace(
@@ -149,12 +129,12 @@ impl<T: UnsignedInteger> DcrtGlwePublicKey<T> {
                     rng,
                 );
 
-                if i == self.dimension {
+                if i == dimension {
                     CrtPolynomial(ArrayBase(&mut *ai)).add_assign(message, poly_length, moduli);
                 }
                 table.transform_slice(ai);
                 DcrtPolynomial(ArrayBase(ai)).add_mul_assign(
-                    &v_poly,
+                    &v_dcrt_poly,
                     &DcrtPolynomial(ArrayBase(pk_ai)),
                     poly_length,
                     moduli,
@@ -179,13 +159,14 @@ impl<T: UnsignedInteger> DcrtGlwePublicKey<T> {
         Table: DcrtTable<ValueT = T> + Dcrt,
         M: FieldContext<T>,
     {
-        let poly_length = self.poly_length;
-        let crt_poly_length = self.crt_poly_length;
-        let crt_glwe_len = self.crt_glwe_len;
+        let poly_length = params.poly_length();
+        let rns_poly_len = params.rns_poly_len();
+        let rns_glwe_len = params.rns_glwe_len();
+
         let moduli = params.cipher_moduli();
 
         izip!(
-            dcrt_glev.chunks_exact_mut(crt_glwe_len),
+            dcrt_glev.chunks_exact_mut(rns_glwe_len),
             params.basis().iter_scalar_residues()
         )
         .for_each(|(dcrt_glwe, scalar_residues)| {
@@ -199,8 +180,8 @@ impl<T: UnsignedInteger> DcrtGlwePublicKey<T> {
             let v_poly = DcrtPolynomial(ArrayBase(v.as_ref()));
 
             dcrt_glwe
-                .chunks_exact_mut(crt_poly_length)
-                .zip(self.key.iter_dcrt_poly(crt_poly_length))
+                .chunks_exact_mut(rns_poly_len)
+                .zip(self.key.iter_dcrt_poly(rns_poly_len))
                 .enumerate()
                 .for_each(|(i, (ai, pk_ai))| {
                     primus_distr::sample_crt_gaussian_values_inplace(
@@ -255,16 +236,16 @@ impl<T: UnsignedInteger> DcrtGlwePublicKey<T> {
         Table: DcrtTable<ValueT = T> + Dcrt,
         M: FieldContext<T>,
     {
-        let dcrt_glwe_len = self.crt_glwe_len;
-        let dcrt_glev_len = params.basis().decompose_length() * dcrt_glwe_len;
-        let dcrt_ggsw_len = (self.dimension + 1) * dcrt_glev_len;
+        let rns_poly_len = params.rns_poly_len();
+        let rns_glev_len = params.rns_glev_len();
+        let rns_ggsw_len = params.rns_ggsw_len();
 
-        let mut dcrt_ggsw: DcrtGgsw<Vec<T>> = DcrtGgsw::zero(dcrt_ggsw_len);
+        let mut dcrt_ggsw: DcrtGgsw<Vec<T>> = DcrtGgsw::zero(rns_ggsw_len);
 
-        let mut v = vec![T::ZERO; self.crt_poly_length];
+        let mut v = vec![T::ZERO; rns_poly_len];
 
         dcrt_ggsw
-            .iter_dcrt_glev_mut(dcrt_glev_len)
+            .iter_dcrt_glev_mut(rns_glev_len)
             .enumerate()
             .for_each(|(i, dcrt_glev)| {
                 self.encrypt_monomial_in_dcrt_glev_inplace(

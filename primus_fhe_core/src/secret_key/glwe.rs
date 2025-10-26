@@ -1,6 +1,6 @@
 use primus_factor::FactorMul;
 use primus_integer::{UnsignedInteger, izip};
-use primus_lattice::{glev::DcrtGlev, glwe::DcrtGlwe};
+use primus_lattice::glev::DcrtGlev;
 use primus_ntt::{Dcrt, DcrtTable, Ntt, NttTable};
 use primus_poly::{
     ArrayBase, Data, DataMut, NttPolynomial, Polynomial, PolynomialOwned, RawData,
@@ -18,8 +18,8 @@ use super::RingSecretKeyType;
 #[derive(Clone)]
 pub struct GlweSecretKey<T: UnsignedInteger> {
     key: Vec<T>,
-    poly_length: usize,
     dimension: usize,
+    poly_length: usize,
     distr: RingSecretKeyType,
 }
 
@@ -28,16 +28,16 @@ impl<T: UnsignedInteger> GlweSecretKey<T> {
     #[inline]
     pub fn new(
         key: Vec<T>,
-        poly_length: usize,
         dimension: usize,
+        poly_length: usize,
         distr: RingSecretKeyType,
     ) -> Self {
         debug_assert!(poly_length.is_power_of_two());
         debug_assert_eq!(key.len(), poly_length * dimension);
         Self {
             key,
-            poly_length,
             dimension,
+            poly_length,
             distr,
         }
     }
@@ -193,61 +193,31 @@ impl<T: UnsignedInteger> NttGlweSecretKey<T> {
 #[derive(Clone)]
 pub struct CrtGlweSecretKey<T: UnsignedInteger> {
     key: Vec<T>,
-    moduli_count: usize,
-    poly_length: usize,
-    dimension: usize,
-    crt_poly_length: usize,
     distr: RingSecretKeyType,
+    rns_poly_len: usize,
 }
 
 impl<T: UnsignedInteger> CrtGlweSecretKey<T> {
     /// Creates a new [`CrtGlweSecretKey<T>`].
     #[inline]
-    pub fn new(
-        key: Vec<T>,
-        moduli_count: usize,
-        poly_length: usize,
-        dimension: usize,
-        distr: RingSecretKeyType,
-    ) -> Self {
-        debug_assert!(poly_length.is_power_of_two());
-        let crt_poly_length = moduli_count * poly_length;
-        debug_assert_eq!(key.len(), crt_poly_length * dimension);
+    pub fn new(key: Vec<T>, distr: RingSecretKeyType, rns_poly_len: usize) -> Self {
         Self {
             key,
-            moduli_count,
-            poly_length,
-            dimension,
-            crt_poly_length,
             distr,
+            rns_poly_len,
         }
     }
 
-    /// Returns the moduli count of this [`CrtGlweSecretKey<T>`].
-    #[inline]
-    pub fn moduli_count(&self) -> usize {
-        self.moduli_count
+    pub fn key(&self) -> &[T] {
+        &self.key
     }
 
-    /// Returns the poly length of this [`CrtGlweSecretKey<T>`].
-    #[inline]
-    pub fn poly_length(&self) -> usize {
-        self.poly_length
-    }
-
-    /// Returns the dimension of this [`CrtGlweSecretKey<T>`].
-    #[inline]
-    pub fn dimension(&self) -> usize {
-        self.dimension
-    }
-
-    /// Returns the crt poly length of this [`CrtGlweSecretKey<T>`].
-    pub fn crt_poly_length(&self) -> usize {
-        self.crt_poly_length
+    pub fn key_mut(&mut self) -> &mut Vec<T> {
+        &mut self.key
     }
 
     pub fn iter_crt_poly(&self) -> std::slice::ChunksExact<'_, T> {
-        self.key.chunks_exact(self.crt_poly_length)
+        self.key.chunks_exact(self.rns_poly_len)
     }
 
     /// Returns the distr of this [`CrtGlweSecretKey<T>`].
@@ -262,25 +232,22 @@ impl<T: UnsignedInteger> CrtGlweSecretKey<T> {
         M: FieldContext<T>,
     {
         let poly_length = params.poly_length();
-        let dimension = params.dimension();
+        let rns_poly_len = params.rns_poly_len();
         let moduli_value = params.cipher_moduli_value();
         let moduli_minus_one = params.cipher_moduli_minus_one();
-        let moduli_count = params.cipher_moduli_count();
 
-        let crt_poly_length = moduli_count * poly_length;
+        let secret_key_type = params.secret_key_type();
 
-        let distr = params.secret_key_type();
+        let mut key = vec![T::ZERO; params.secret_key_len()];
 
-        let mut key = vec![T::ZERO; crt_poly_length * dimension];
-
-        match distr {
+        match secret_key_type {
             RingSecretKeyType::Binary => {
-                key.chunks_exact_mut(crt_poly_length).for_each(|crt_poly| {
+                key.chunks_exact_mut(rns_poly_len).for_each(|crt_poly| {
                     primus_distr::sample_crt_binary_values_inplace(crt_poly, poly_length, rng);
                 });
             }
             RingSecretKeyType::Ternary => {
-                key.chunks_exact_mut(crt_poly_length).for_each(|crt_poly| {
+                key.chunks_exact_mut(rns_poly_len).for_each(|crt_poly| {
                     primus_distr::sample_crt_ternary_values_inplace(
                         crt_poly,
                         poly_length,
@@ -291,7 +258,7 @@ impl<T: UnsignedInteger> CrtGlweSecretKey<T> {
             }
             RingSecretKeyType::Gaussian => {
                 // FIXME
-                key.chunks_exact_mut(crt_poly_length).for_each(|crt_poly| {
+                key.chunks_exact_mut(rns_poly_len).for_each(|crt_poly| {
                     primus_distr::sample_crt_gaussian_values_inplace(
                         crt_poly,
                         poly_length,
@@ -305,57 +272,21 @@ impl<T: UnsignedInteger> CrtGlweSecretKey<T> {
 
         Self {
             key,
-            moduli_count,
-            poly_length,
-            dimension,
-            crt_poly_length,
-            distr,
+            distr: secret_key_type,
+            rns_poly_len,
         }
-    }
-
-    pub fn key_mut(&mut self) -> &mut Vec<T> {
-        &mut self.key
-    }
-
-    pub fn key(&self) -> &[T] {
-        &self.key
     }
 }
 
 pub struct DcrtGlweSecretKey<T: UnsignedInteger> {
     key: Vec<T>,
-    moduli_count: usize,
-    poly_length: usize,
-    dimension: usize,
-    crt_poly_length: usize,
-    crt_glwe_len: usize,
     distr: RingSecretKeyType,
+    rns_poly_len: usize,
 }
 
 impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
-    /// Returns the moduli count of this [`DcrtGlweSecretKey<T>`].
-    pub fn moduli_count(&self) -> usize {
-        self.moduli_count
-    }
-
-    /// Returns the poly length of this [`DcrtGlweSecretKey<T>`].
-    pub fn poly_length(&self) -> usize {
-        self.poly_length
-    }
-
-    /// Returns the dimension of this [`DcrtGlweSecretKey<T>`].
-    pub fn dimension(&self) -> usize {
-        self.dimension
-    }
-
-    /// Returns the crt poly length of this [`DcrtGlweSecretKey<T>`].
-    pub fn crt_poly_length(&self) -> usize {
-        self.crt_poly_length
-    }
-
-    /// Returns the crt glwe len of this [`DcrtGlweSecretKey<T>`].
-    pub fn crt_glwe_len(&self) -> usize {
-        self.crt_glwe_len
+    pub fn key(&self) -> &[T] {
+        &self.key
     }
 
     /// Returns the distr of this [`DcrtGlweSecretKey<T>`].
@@ -364,7 +295,7 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
     }
 
     pub fn iter_dcrt_poly(&self) -> std::slice::ChunksExact<'_, T> {
-        self.key.chunks_exact(self.crt_poly_length)
+        self.key.chunks_exact(self.rns_poly_len)
     }
 
     /// Creates a new [`NttGlweSecretKey`] from [`GlweSecretKey`].
@@ -373,25 +304,18 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
     where
         Table: DcrtTable<ValueT = T> + Dcrt,
     {
-        let moduli_count = secret_key.moduli_count;
-        let poly_length = secret_key.poly_length;
-        let dimension = secret_key.dimension;
-        let crt_poly_length = secret_key.crt_poly_length;
+        let rns_poly_len = secret_key.rns_poly_len;
 
         let mut key = secret_key.key.clone();
 
-        key.chunks_exact_mut(crt_poly_length).for_each(|crt_poly| {
+        key.chunks_exact_mut(rns_poly_len).for_each(|crt_poly| {
             table.transform_slice(crt_poly);
         });
 
         Self {
             key,
-            moduli_count,
-            poly_length,
-            dimension,
-            crt_poly_length,
-            crt_glwe_len: crt_poly_length * (dimension + 1),
             distr: secret_key.distr,
+            rns_poly_len,
         }
     }
 
@@ -409,12 +333,13 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + DataMut,
     {
-        let poly_length = self.poly_length;
-        let crt_poly_length = self.crt_poly_length;
-        let q = params.cipher_moduli();
+        let poly_length = params.poly_length();
+        let rns_poly_len = params.rns_poly_len();
+        let rns_glwe_mid = params.rns_glwe_mid();
+        let moduli = params.cipher_moduli();
         let uniform_distrs = params.cipher_moduli_uniform_distr();
 
-        let (a, b) = result.a_b_mut_slices(self.crt_glwe_len - crt_poly_length);
+        let (a, b) = result.a_b_mut_slices(rns_glwe_mid);
 
         primus_distr::sample_crt_gaussian_values_inplace(
             b,
@@ -425,10 +350,10 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
         );
 
         let mut b_crt_poly = CrtPolynomial(ArrayBase(b));
-        b_crt_poly.add_mul_scalar_assign(msg, params.delta_mod_q(), poly_length, q);
+        b_crt_poly.add_mul_scalar_assign(msg, params.delta_mod_q(), poly_length, moduli);
         let mut b_dcrt_poly = table.transform_inplace(b_crt_poly);
 
-        a.chunks_exact_mut(crt_poly_length)
+        a.chunks_exact_mut(rns_poly_len)
             .zip(self.iter_dcrt_poly())
             .for_each(|(ai, si)| {
                 primus_distr::sample_crt_uniform_values_inplace(
@@ -442,7 +367,7 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
                     &DcrtPolynomial(ArrayBase(ai)),
                     &DcrtPolynomial(ArrayBase(si)),
                     poly_length,
-                    q,
+                    moduli,
                 );
             });
     }
@@ -451,7 +376,7 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
         &self,
         msg: &CrtPolynomial<A>,
         delta_residues: &[T],
-        result: &mut DcrtGlwe<B>,
+        result: &mut DcrtGlweCiphertext<B>,
         params: &CrtGlevParameters<T, M>,
         table: &Table,
         rng: &mut R,
@@ -462,12 +387,13 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + DataMut,
     {
-        let poly_length = self.poly_length();
-        let crt_poly_length = self.crt_poly_length();
+        let poly_length = params.poly_length();
+        let rns_poly_len = params.rns_poly_len();
         let moduli = params.cipher_moduli();
         let uniform_distrs = params.cipher_moduli_uniform_distr();
 
-        let (a, b) = result.a_b_mut_slices(self.crt_glwe_len() - crt_poly_length);
+        let (a, b) = result.a_b_mut_slices(params.rns_glwe_mid());
+
         primus_distr::sample_crt_gaussian_values_inplace(
             b,
             poly_length,
@@ -480,7 +406,7 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
         b_crt_poly.add_mul_scalar_assign(&msg, delta_residues, poly_length, moduli);
         let mut b_dcrt_poly = table.transform_inplace(b_crt_poly);
 
-        a.chunks_exact_mut(crt_poly_length)
+        a.chunks_exact_mut(rns_poly_len)
             .zip(self.iter_dcrt_poly())
             .for_each(|(ai, si)| {
                 primus_distr::sample_crt_uniform_values_inplace(
@@ -513,13 +439,13 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
         B: RawData<Elem = T> + DataMut,
     {
         result
-            .iter_dcrt_glwe_mut(self.crt_glwe_len())
+            .iter_dcrt_glwe_mut(params.rns_glwe_len())
             .zip(params.basis().iter_scalar_residues())
-            .for_each(|(dcrt_glwe, scalar)| {
+            .for_each(|(dcrt_glwe, scalar_residues)| {
                 self.encrypt_custom_delta_dcrt_glwe_inplace(
                     msg,
-                    scalar,
-                    &mut DcrtGlwe::new(ArrayBase(dcrt_glwe)),
+                    scalar_residues,
+                    &mut DcrtGlweCiphertext::new(ArrayBase(dcrt_glwe)),
                     params,
                     table,
                     rng,
@@ -538,15 +464,15 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + DataMut,
     {
-        let poly_length = self.poly_length;
+        let poly_length = params.poly_length();
         let moduli = params.cipher_moduli();
 
-        let (a, b) = ciphertext.a_b_slices(self.crt_glwe_len - self.crt_poly_length);
+        let (a, b) = ciphertext.a_b_slices(params.rns_glwe_mid());
 
         msg_mod_q.set_zero();
 
         // msg_mod_q = ∑a*s
-        a.chunks_exact(self.crt_poly_length)
+        a.chunks_exact(params.rns_poly_len())
             .zip(self.iter_dcrt_poly())
             .for_each(|(ai, si)| {
                 msg_mod_q.add_mul_assign(
@@ -626,10 +552,6 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
             }
             *res = inv_gamma_mod_t.factor_mul_modulo(temp, t);
         });
-    }
-
-    pub fn key(&self) -> &[T] {
-        &self.key
     }
 }
 

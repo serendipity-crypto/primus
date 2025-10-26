@@ -27,9 +27,9 @@ fn test_rns_glwe_auto() {
     let gamma: ValueT = 2305843009213554689;
     let mod_gamma = <BarrettModulus<ValueT>>::new(gamma);
 
-    let qi_values: [ValueT; 2] = [1125899906826241, 1125899906629633];
-    let qi = qi_values.map(<BarrettModulus<ValueT>>::new);
-    let table = UintCrtNttTable::new(log_n, &qi).unwrap();
+    let moduli_values: [ValueT; 2] = [1125899906826241, 1125899906629633];
+    let moduli = moduli_values.map(<BarrettModulus<ValueT>>::new);
+    let table = UintCrtNttTable::new(log_n, &moduli).unwrap();
 
     let mut rng = rand::rng();
 
@@ -38,21 +38,20 @@ fn test_rns_glwe_auto() {
         poly_length,
         mod_t,
         mod_gamma,
-        &qi,
+        &moduli,
         RingSecretKeyType::Ternary,
         3.20,
     );
 
-    let moduli_count = qi.len();
-    let big_uint_value_len = glwe_params.big_uint_value_len();
-    let crt_poly_length = moduli_count * poly_length;
-    let big_uint_poly_len = big_uint_value_len * poly_length;
+    let moduli_count = glwe_params.cipher_moduli_count();
+    let crt_poly_length = glwe_params.rns_poly_len();
+    let big_uint_poly_len = glwe_params.big_uint_poly_len();
+    let rns_glwe_len = glwe_params.rns_glwe_len();
 
     let sk = CrtGlweSecretKey::generate(&glwe_params, &mut rng);
     let dcrt_sk = DcrtGlweSecretKey::from_coeff_secret_key(&sk, &table);
-    let crt_glwe_len = dcrt_sk.crt_glwe_len();
 
-    assert_eq!(crt_glwe_len, (dimension + 1) * crt_poly_length);
+    assert_eq!(rns_glwe_len, (dimension + 1) * crt_poly_length);
 
     let basis =
         BigUintApproxSignedBasis::new(glwe_params.cipher_modulus(), 20, None, glwe_params.base_q());
@@ -69,13 +68,11 @@ fn test_rns_glwe_auto() {
     );
     let table = auto_key.table();
 
-    let crt_glwe_len = dcrt_sk.crt_glwe_len();
-
     let input1: Polynomial<Vec<ValueT>> = Polynomial::random(poly_length, mod_t, &mut rng);
     let mut msg1: CrtPolynomial<Vec<ValueT>> = CrtPolynomial::zero(crt_poly_length);
-    let mut c1: DcrtGlwe<Vec<ValueT>> = DcrtGlweCiphertext::zero(crt_glwe_len);
-    let mut auto_c1: CrtGlwe<Vec<ValueT>> = CrtGlwe::zero(crt_glwe_len);
-    let mut c3: CrtGlwe<Vec<ValueT>> = CrtGlwe::zero(crt_glwe_len);
+    let mut c1: DcrtGlwe<Vec<ValueT>> = DcrtGlweCiphertext::zero(rns_glwe_len);
+    let mut auto_c1: CrtGlwe<Vec<ValueT>> = CrtGlwe::zero(rns_glwe_len);
+    let mut c3: CrtGlwe<Vec<ValueT>> = CrtGlwe::zero(rns_glwe_len);
     let mut auto_context = CrtGlweAutoContext::new(poly_length, crt_poly_length, big_uint_poly_len);
     let mut decrypt_context = DcrtGlweDecryptContext::new(moduli_count, poly_length);
 
@@ -98,7 +95,7 @@ fn test_rns_glwe_auto() {
                 auto_crt_poly,
                 auto_key.auto_helper(),
                 poly_length,
-                &qi,
+                &moduli,
             );
         });
 
@@ -111,7 +108,7 @@ fn test_rns_glwe_auto() {
                 auto_crt_poly,
                 auto_key.auto_helper(),
                 poly_length,
-                &qi,
+                &moduli,
             );
         });
     let dcrt_auto_sk = DcrtGlweSecretKey::from_coeff_secret_key(&auto_sk, table);

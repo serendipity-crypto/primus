@@ -116,6 +116,89 @@ where
     }
 }
 
+#[derive(Clone, Copy)]
+pub struct RNSGlweCommonSize {
+    /// The dimension, refers to **k** in the paper.
+    dimension: usize,
+    /// The polynomial length, refers to **N** in the paper.
+    poly_length: usize,
+    /// The moduli count, refers to *Q1, Q2, ...* in the paper.
+    moduli_count: usize,
+    /// The modulus size, refers to *Q* in the paper.
+    big_uint_value_len: usize,
+    rns_poly_len: usize,
+    big_uint_poly_len: usize,
+    rns_glwe_mid: usize,
+    rns_glwe_len: usize,
+}
+
+impl RNSGlweCommonSize {
+    pub fn new(
+        dimension: usize,
+        poly_length: usize,
+        moduli_count: usize,
+        big_uint_value_len: usize,
+    ) -> Self {
+        assert!(poly_length.is_power_of_two());
+
+        let big_uint_poly_len = poly_length * big_uint_value_len;
+        let rns_poly_len = poly_length * moduli_count;
+        let rns_glwe_mid = dimension * rns_poly_len;
+        let rns_glwe_len = rns_glwe_mid + rns_poly_len;
+
+        Self {
+            dimension,
+            poly_length,
+            moduli_count,
+            big_uint_value_len,
+            rns_poly_len,
+            big_uint_poly_len,
+            rns_glwe_mid,
+            rns_glwe_len,
+        }
+    }
+
+    pub fn dimension(&self) -> usize {
+        self.dimension
+    }
+
+    pub fn poly_length(&self) -> usize {
+        self.poly_length
+    }
+
+    pub fn moduli_count(&self) -> usize {
+        self.moduli_count
+    }
+
+    pub fn big_uint_value_len(&self) -> usize {
+        self.big_uint_value_len
+    }
+
+    pub fn rns_poly_len(&self) -> usize {
+        self.rns_poly_len
+    }
+
+    pub fn big_uint_poly_len(&self) -> usize {
+        self.big_uint_poly_len
+    }
+
+    pub fn rns_glwe_mid(&self) -> usize {
+        self.rns_glwe_mid
+    }
+
+    pub fn secret_key_len(&self) -> usize {
+        self.rns_glwe_mid
+    }
+
+    pub fn rns_glwe_len(&self) -> usize {
+        self.rns_glwe_len
+    }
+
+    pub fn public_key_len(&self) -> usize {
+        self.rns_glwe_len
+    }
+}
+
 /// Big Unsigned Integer Glwe Parameters.
 #[derive(Clone)]
 pub struct CrtGlweParameters<T, M>
@@ -123,10 +206,7 @@ where
     T: UnsignedInteger,
     M: FieldContext<T>,
 {
-    /// The dimension, refers to **k** in the paper.
-    dimension: usize,
-    /// The polynomial length, refers to **N** in the paper.
-    poly_length: usize,
+    common_size: RNSGlweCommonSize,
     /// The message modulus, refers to **t** in the paper.
     plain_modulus_value: T,
     /// The message modulus, refers to **t** in the paper.
@@ -141,6 +221,7 @@ where
     cipher_moduli_minus_one: Vec<T>,
     /// The uniform distribuition to sample values over `Q1`, `Q2` ...
     cipher_moduli_uniform_distr: Vec<Uniform<T>>,
+    /// Residue Number System for *Q*.
     base_q: RNSBase<T, M>,
     /// Refers to `Q/t`.
     delta: Vec<T>,
@@ -227,9 +308,15 @@ where
 
         let converter = BaseConverter::new(&base_q, &base_t_gamma);
 
-        Self {
+        let common_size = RNSGlweCommonSize::new(
             dimension,
             poly_length,
+            base_q.moduli_count(),
+            base_q.big_uint_value_len(),
+        );
+
+        Self {
+            common_size,
             plain_modulus_value: t,
             plain_modulus,
             cipher_modulus_minus_one,
@@ -255,13 +342,13 @@ where
     /// Returns the dimension of this [`CrtGlweParameters<T, M>`].
     #[inline]
     pub fn dimension(&self) -> usize {
-        self.dimension
+        self.common_size.dimension()
     }
 
     /// Returns the poly length of this [`CrtGlweParameters<T, M>`].
     #[inline]
     pub fn poly_length(&self) -> usize {
-        self.poly_length
+        self.common_size.poly_length()
     }
 
     /// Returns the plain modulus value of this [`CrtGlweParameters<T, M>`].
@@ -372,6 +459,34 @@ where
     pub fn base_q(&self) -> &RNSBase<T, M> {
         &self.base_q
     }
+
+    pub fn common_size(&self) -> RNSGlweCommonSize {
+        self.common_size
+    }
+
+    pub fn big_uint_poly_len(&self) -> usize {
+        self.common_size.big_uint_poly_len()
+    }
+
+    pub fn rns_poly_len(&self) -> usize {
+        self.common_size.rns_poly_len()
+    }
+
+    pub fn rns_glwe_mid(&self) -> usize {
+        self.common_size.rns_glwe_mid()
+    }
+
+    pub fn rns_glwe_len(&self) -> usize {
+        self.common_size.rns_glwe_len()
+    }
+
+    pub fn secret_key_len(&self) -> usize {
+        self.common_size.secret_key_len()
+    }
+
+    pub fn public_key_len(&self) -> usize {
+        self.common_size.public_key_len()
+    }
 }
 
 /// Glev Parameters.
@@ -477,6 +592,75 @@ where
 /// Ggsw Parameters.
 pub type GgswParameters<T, M> = GlevParameters<T, M>;
 
+#[derive(Clone, Copy)]
+pub struct RNSGlevCommonSize {
+    rns_glwe_common_size: RNSGlweCommonSize,
+    decompose_length: usize,
+    rns_glev_len: usize,
+    rns_ggsw_len: usize,
+}
+
+impl RNSGlevCommonSize {
+    pub fn new(rns_glwe_common_size: RNSGlweCommonSize, decompose_length: usize) -> Self {
+        let rns_glev_len = decompose_length * rns_glwe_common_size.rns_glwe_len();
+        let rns_ggsw_len = rns_glev_len * (rns_glwe_common_size.dimension() + 1);
+        Self {
+            rns_glwe_common_size,
+            decompose_length,
+            rns_glev_len,
+            rns_ggsw_len,
+        }
+    }
+
+    pub fn decompose_length(&self) -> usize {
+        self.decompose_length
+    }
+
+    pub fn rns_glev_len(&self) -> usize {
+        self.rns_glev_len
+    }
+
+    pub fn rns_ggsw_len(&self) -> usize {
+        self.rns_ggsw_len
+    }
+
+    pub fn dimension(&self) -> usize {
+        self.rns_glwe_common_size.dimension()
+    }
+
+    pub fn moduli_count(&self) -> usize {
+        self.rns_glwe_common_size.moduli_count()
+    }
+
+    pub fn poly_length(&self) -> usize {
+        self.rns_glwe_common_size.poly_length()
+    }
+
+    pub fn rns_poly_len(&self) -> usize {
+        self.rns_glwe_common_size.rns_poly_len()
+    }
+
+    pub fn rns_glwe_mid(&self) -> usize {
+        self.rns_glwe_common_size.rns_glwe_mid()
+    }
+
+    pub fn rns_glwe_len(&self) -> usize {
+        self.rns_glwe_common_size.rns_glwe_len()
+    }
+
+    pub fn secret_key_len(&self) -> usize {
+        self.rns_glwe_common_size.secret_key_len()
+    }
+
+    pub fn public_key_len(&self) -> usize {
+        self.rns_glwe_common_size.public_key_len()
+    }
+
+    pub fn big_uint_poly_len(&self) -> usize {
+        self.rns_glwe_common_size.big_uint_poly_len()
+    }
+}
+
 /// Big Unsigned Integer Ggsw Parameters.
 #[derive(Clone)]
 pub struct CrtGlevParameters<T, M>
@@ -484,10 +668,7 @@ where
     T: UnsignedInteger,
     M: FieldContext<T>,
 {
-    /// The dimension, refers to **k** in the paper.
-    dimension: usize,
-    /// The dimension, refers to **N** in the paper.
-    poly_length: usize,
+    common_size: RNSGlevCommonSize,
     /// cipher modulus minus one, refers to **Q-1**.
     cipher_modulus_minus_one: Vec<T>,
     /// The modulus, refers to **Q** in the paper.
@@ -543,9 +724,17 @@ where
         let noise_distribution =
             SignedDiscreteGaussian::new(0.0, noise_standard_deviation).unwrap();
 
-        Self {
+        let rns_glwe_common_size = RNSGlweCommonSize::new(
             dimension,
             poly_length,
+            cipher_moduli.len(),
+            cipher_modulus.len(),
+        );
+
+        let common_size = RNSGlevCommonSize::new(rns_glwe_common_size, basis.decompose_length());
+
+        Self {
+            common_size,
             cipher_modulus,
             cipher_modulus_minus_one,
             cipher_moduli: cipher_moduli.to_vec(),
@@ -562,9 +751,8 @@ where
         glwe_params: &CrtGlweParameters<T, M>,
         basis: BigUintApproxSignedBasis<T>,
     ) -> Self {
+        let decompose_length = basis.decompose_length();
         Self {
-            dimension: glwe_params.dimension,
-            poly_length: glwe_params.poly_length,
             cipher_modulus_minus_one: glwe_params.cipher_modulus_minus_one().to_vec(),
             cipher_modulus: glwe_params.cipher_modulus().to_vec(),
             cipher_moduli: glwe_params.cipher_moduli().to_vec(),
@@ -574,19 +762,20 @@ where
             secret_key_type: glwe_params.secret_key_type,
             noise_distribution: glwe_params.noise_distribution().clone(),
             basis,
+            common_size: RNSGlevCommonSize::new(glwe_params.common_size(), decompose_length),
         }
     }
 
     /// Returns the dimension of this [`CrtGlevParameters<T, M>`].
     #[inline]
     pub fn dimension(&self) -> usize {
-        self.dimension
+        self.common_size.dimension()
     }
 
     /// Returns the poly length of this [`CrtGlevParameters<T, M>`].
     #[inline]
     pub fn poly_length(&self) -> usize {
-        self.poly_length
+        self.common_size.poly_length()
     }
 
     /// Returns a reference to the cipher modulus of this [`CrtGlevParameters<T, M>`].
@@ -654,6 +843,34 @@ where
     #[inline]
     pub fn basis(&self) -> &BigUintApproxSignedBasis<T> {
         &self.basis
+    }
+
+    pub fn common_size(&self) -> RNSGlevCommonSize {
+        self.common_size
+    }
+
+    pub fn rns_glev_len(&self) -> usize {
+        self.common_size.rns_glev_len()
+    }
+
+    pub fn rns_ggsw_len(&self) -> usize {
+        self.common_size.rns_ggsw_len()
+    }
+
+    pub fn rns_poly_len(&self) -> usize {
+        self.common_size.rns_poly_len()
+    }
+
+    pub fn rns_glwe_mid(&self) -> usize {
+        self.common_size.rns_glwe_mid()
+    }
+
+    pub fn rns_glwe_len(&self) -> usize {
+        self.common_size.rns_glwe_len()
+    }
+
+    pub fn decompose_length(&self) -> usize {
+        self.basis.decompose_length()
     }
 }
 
