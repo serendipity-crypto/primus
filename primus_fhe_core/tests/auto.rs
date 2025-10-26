@@ -10,6 +10,7 @@ use primus_lattice::glwe::{CrtGlwe, DcrtGlwe};
 use primus_modulus::BarrettModulus;
 use primus_ntt::{DcrtTable, UintCrtNttTable};
 use primus_poly::{Polynomial, crt::CrtPolynomial};
+use rand::Rng;
 
 #[test]
 fn test_rns_glwe_auto() {
@@ -55,7 +56,7 @@ fn test_rns_glwe_auto() {
         BigUintApproxSignedBasis::new(glwe_params.cipher_modulus(), 20, None, glwe_params.base_q());
     let glev_params = CrtGlevParameters::with_glwe_params(&glwe_params, basis);
 
-    let auto_degree = poly_length + 1;
+    let auto_degree = rng.random_range(0..poly_length * 2);
     let auto_key = CrtGlweAutoKey::new(
         &glev_params,
         auto_degree,
@@ -126,6 +127,5 @@ fn test_rns_glwe_auto() {
 
     let auto_msg_2 = dcrt_sk.decrypt(&c3, &glwe_params, table, &mut decrypt_context);
 
-    println!("c1:{:?}\n", input1.as_ref());
     assert_eq!(auto_msg_1.as_ref(), auto_msg_2.as_ref());
 }

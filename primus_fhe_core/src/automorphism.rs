@@ -6,7 +6,7 @@ use primus_lattice::context::DcrtGlevContext;
 use primus_lattice::glev::DcrtGlev;
 use primus_modulus::PowOf2Modulus;
 use primus_ntt::{Dcrt, DcrtTable};
-use primus_poly::{ArrayBase, BigUintPolynomial, Data, DataMut, RawData, crt::CrtPolynomial};
+use primus_poly::{ArrayBase, Data, DataMut, RawData, crt::CrtPolynomial};
 use primus_reduce::FieldContext;
 use primus_reduce::ops::ReduceMul;
 use primus_rns::RNSBase;
@@ -16,35 +16,22 @@ use crate::{
 };
 
 pub struct CrtGlweAutoContext<T: UnsignedInteger> {
-    big_uint_poly: BigUintPolynomial<Vec<T>>,
     auto_crt_poly: CrtPolynomial<Vec<T>>,
     glev_context: DcrtGlevContext<T>,
 }
 
 impl<T: UnsignedInteger> CrtGlweAutoContext<T> {
     pub fn new(poly_length: usize, crt_poly_len: usize, big_uint_poly_len: usize) -> Self {
-        let big_uint_poly = BigUintPolynomial::zero(big_uint_poly_len);
         let auto_crt_poly = CrtPolynomial::zero(crt_poly_len);
         let glev_context = DcrtGlevContext::new(poly_length, crt_poly_len, big_uint_poly_len);
         Self {
-            big_uint_poly,
             auto_crt_poly,
             glev_context,
         }
     }
 
-    pub fn as_mut(
-        &mut self,
-    ) -> (
-        &mut BigUintPolynomial<Vec<T>, T>,
-        &mut CrtPolynomial<Vec<T>, T>,
-        &mut DcrtGlevContext<T>,
-    ) {
-        (
-            &mut self.big_uint_poly,
-            &mut self.auto_crt_poly,
-            &mut self.glev_context,
-        )
+    pub fn as_mut(&mut self) -> (&mut CrtPolynomial<Vec<T>, T>, &mut DcrtGlevContext<T>) {
+        (&mut self.auto_crt_poly, &mut self.glev_context)
     }
 }
 
@@ -177,7 +164,7 @@ where
 
         debug_assert_eq!(ciphertext.as_ref().len(), params.rns_glwe_len());
 
-        let (big_uint_poly, auto_crt_poly, glev_context) = context.as_mut();
+        let (auto_crt_poly, glev_context) = context.as_mut();
 
         result.set_zero();
         let mut temp = DcrtGlweCiphertext::new(ArrayBase(result.as_mut()));
@@ -195,18 +182,27 @@ where
                     moduli,
                 );
 
-                rns_base.compose_polynomial_inplace(&auto_crt_poly, big_uint_poly, poly_length);
+                // rns_base.compose_polynomial_inplace(&auto_crt_poly, big_uint_poly, poly_length);
 
                 let auto_key = DcrtGlev::new(ArrayBase(auto_key_i));
 
-                temp.add_dcrt_glev_mul_big_uint_poly_assign(
+                temp.add_dcrt_glev_mul_crt_poly_assign(
                     &auto_key,
-                    &big_uint_poly,
+                    auto_crt_poly,
                     params.basis(),
                     self.table(),
                     rns_base,
                     glev_context,
                 );
+
+                // temp.add_dcrt_glev_mul_big_uint_poly_assign(
+                //     &auto_key,
+                //     &big_uint_poly,
+                //     params.basis(),
+                //     self.table(),
+                //     rns_base,
+                //     glev_context,
+                // );
             });
 
         crt_poly_auto_inplace(
@@ -222,7 +218,9 @@ where
 
         let (_a_out, b_out) = result.a_b_mut_slices(rns_glwe_mid);
 
-        auto_crt_poly.sub_to_right(&mut CrtPolynomial(ArrayBase(b_out)), poly_length, moduli);
+        CrtPolynomial(ArrayBase(b_out)).add_assign(auto_crt_poly, poly_length, moduli);
+
+        // auto_crt_poly.sub_to_right(&mut CrtPolynomial(ArrayBase(b_out)), poly_length, moduli);
     }
 }
 

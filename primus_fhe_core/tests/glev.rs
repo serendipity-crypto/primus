@@ -183,6 +183,16 @@ fn test_key_switching() {
 
     let mut b: DcrtPolynomial<Vec<ValueT>> = DcrtPolynomial::zero(rns_poly_len);
 
+    primus_distr::sample_crt_gaussian_values_inplace(
+        b.as_mut(),
+        poly_length,
+        &moduli_values,
+        glwe_params.noise_distribution(),
+        &mut rng,
+    );
+
+    table.transform_slice(b.as_mut());
+
     cipher.iter_mut().for_each(|ai| {
         primus_distr::sample_crt_uniform_values_inplace(
             ai.as_mut(),
