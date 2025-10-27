@@ -1,7 +1,13 @@
+use primus_decompose::big_integer::BigUintApproxSignedBasis;
 use primus_integer::{UnsignedInteger, izip};
 use primus_ntt::{Dcrt, DcrtTable};
-use primus_poly::{ArrayBase, Data, DataMut, DataOwned, RawData, dcrt::DcrtPolynomial};
+use primus_poly::{
+    ArrayBase, Data, DataMut, DataOwned, RawData, crt::CrtPolynomial, dcrt::DcrtPolynomial,
+};
 use primus_reduce::FieldContext;
+use primus_rns::RNSBase;
+
+use crate::{context::DcrtGlevContext, ggsw::DcrtGgsw, glev::DcrtGlev};
 
 use super::DcrtGlwe;
 
@@ -79,6 +85,40 @@ where
                     dcrt_polynomial,
                     poly_length,
                     moduli,
+                );
+            });
+    }
+
+    pub fn mul_dcrt_ggsw_inplace<M, Table, A, B>(
+        &self,
+        dcrt_ggsw: &DcrtGgsw<A>,
+        result: &mut DcrtGlwe<B>,
+        dcrt_glev_len: usize,
+        basis: &BigUintApproxSignedBasis<T>,
+        table: &Table,
+        rns_base: &RNSBase<T, M>,
+        context: &mut DcrtGlevContext<T>,
+    ) where
+        M: FieldContext<T>,
+        Table: DcrtTable<ValueT = T> + Dcrt,
+        A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + DataMut,
+    {
+        let crt_poly_len = table.crt_poly_length();
+
+        result.set_zero();
+
+        dcrt_ggsw
+            .iter_dcrt_glev(dcrt_glev_len)
+            .zip(self.iter_crt_poly(crt_poly_len))
+            .for_each(|(dcrt_glev, crt_poly)| {
+                result.add_dcrt_glev_mul_crt_poly_assign(
+                    &DcrtGlev::new(ArrayBase(dcrt_glev)),
+                    &CrtPolynomial(ArrayBase(crt_poly)),
+                    basis,
+                    table,
+                    rns_base,
+                    context,
                 );
             });
     }

@@ -162,6 +162,15 @@ pub trait Data: RawData + AsRef<[<Self as RawData>::Elem]> {
         chunk_size: usize,
     ) -> std::slice::ChunksExact<'a, <Self as RawData>::Elem>;
 
+    /// Divides one slice into two at an index.
+    ///
+    /// The first will contain all indices from `[0, mid)` (excluding
+    /// the index `mid` itself) and the second will contain all
+    /// indices from `[mid, len)` (excluding the index `len` itself).
+    ///
+    /// # Panics
+    ///
+    /// Panics if `mid > len`.
     fn split_at(&self, mid: usize) -> (&[Self::Elem], &[Self::Elem]);
 
     /// Divides one slice into two at an index, without doing bounds checking.
