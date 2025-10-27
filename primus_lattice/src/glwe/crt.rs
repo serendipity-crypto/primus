@@ -44,6 +44,24 @@ where
     pub fn a_b_mut_slices(&mut self, mid: usize) -> (&mut [T], &mut [T]) {
         self.data.0.split_at_mut(mid)
     }
+
+    pub fn mul_scalar_assign<M>(
+        &mut self,
+        scalar_residue: &[T],
+        poly_length: usize,
+        crt_poly_len: usize,
+        moduli: &[M],
+    ) where
+        M: FieldContext<T>,
+    {
+        self.iter_crt_poly_mut(crt_poly_len).for_each(|crt_poly| {
+            CrtPolynomial(ArrayBase(crt_poly)).mul_scalar_assign(
+                scalar_residue,
+                poly_length,
+                moduli,
+            );
+        });
+    }
 }
 
 impl<S, T> CrtGlwe<S, T>

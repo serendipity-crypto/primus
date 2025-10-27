@@ -1,1 +1,105 @@
+use std::sync::Arc;
 
+use primus_integer::UnsignedInteger;
+use primus_ntt::{Dcrt, DcrtTable};
+use primus_poly::{Data, DataMut, RawData};
+use primus_reduce::FieldContext;
+use primus_rns::RNSBase;
+
+use crate::{
+    CrtGlevParameters, CrtGlweAutoContext, CrtGlweAutoKey, CrtGlweCiphertext, CrtGlweSecretKey,
+    DcrtGlweSecretKey,
+};
+
+pub struct CrtGlweTraceContext<T: UnsignedInteger> {
+    crt_glwe: CrtGlweCiphertext<Vec<T>>,
+    auto_context: CrtGlweAutoContext<T>,
+}
+
+impl<T: UnsignedInteger> CrtGlweTraceContext<T> {
+    pub fn new(
+        dimension: usize,
+        poly_length: usize,
+        crt_poly_len: usize,
+        big_uint_poly_len: usize,
+    ) -> Self {
+        let crt_glwe = CrtGlweCiphertext::zero((dimension + 1) * crt_poly_len);
+        let auto_context = CrtGlweAutoContext::new(poly_length, crt_poly_len, big_uint_poly_len);
+        Self {
+            crt_glwe,
+            auto_context,
+        }
+    }
+
+    pub fn as_mut(
+        &mut self,
+    ) -> (
+        &mut primus_lattice::glwe::CrtGlwe<Vec<T>, T>,
+        &mut CrtGlweAutoContext<T>,
+    ) {
+        (&mut self.crt_glwe, &mut self.auto_context)
+    }
+}
+
+pub struct CrtGlweTraceKey<T: UnsignedInteger, Table>
+where
+    Table: DcrtTable<ValueT = T> + Dcrt,
+{
+    auto_keys: Vec<CrtGlweAutoKey<T, Table>>,
+    table: Arc<Table>,
+}
+
+impl<T: UnsignedInteger, Table> CrtGlweTraceKey<T, Table>
+where
+    Table: DcrtTable<ValueT = T> + Dcrt,
+{
+    pub fn new<M, R>(
+        params: &CrtGlevParameters<T, M>,
+        sk: &CrtGlweSecretKey<T>,
+        dcrt_sk: &DcrtGlweSecretKey<T>,
+        table: Arc<Table>,
+        rng: &mut R,
+    ) -> Self
+    where
+        R: rand::Rng + rand::CryptoRng,
+        M: FieldContext<T>,
+    {
+        let log_n = params.poly_length().trailing_zeros();
+        let auto_keys: Vec<CrtGlweAutoKey<T, Table>> = (1..=log_n)
+            .rev()
+            .map(|x| (1usize << x) + 1)
+            .map(|degree| CrtGlweAutoKey::new(params, degree, sk, dcrt_sk, Arc::clone(&table), rng))
+            .collect();
+        Self { auto_keys, table }
+    }
+
+    pub fn trace_inplace<M, A, B>(
+        &self,
+        ciphertext: &CrtGlweCiphertext<A>,
+        result: &mut CrtGlweCiphertext<B>,
+        params: &CrtGlevParameters<T, M>,
+        rns_base: &RNSBase<T, M>,
+        context: &mut CrtGlweTraceContext<T>,
+    ) where
+        M: FieldContext<T>,
+        A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + DataMut,
+    {
+        let poly_length = params.poly_length();
+        let rns_poly_len = params.rns_poly_len();
+        let moduli = params.cipher_moduli();
+
+        let (crt_glwe, auto_context) = context.as_mut();
+
+        result.as_mut().copy_from_slice(ciphertext.as_ref());
+
+        for auto_key in self.auto_keys.iter() {
+            auto_key.automorphism_inplace(result, crt_glwe, params, rns_base, auto_context);
+            result.add_element_wise_assign(crt_glwe, poly_length, rns_poly_len, moduli);
+        }
+    }
+
+    pub fn table(&self) -> &Table {
+        &self.table
+    }
+}
