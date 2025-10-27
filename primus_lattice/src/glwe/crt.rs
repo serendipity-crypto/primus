@@ -93,7 +93,6 @@ where
         &self,
         dcrt_ggsw: &DcrtGgsw<A>,
         result: &mut DcrtGlwe<B>,
-        dcrt_glev_len: usize,
         basis: &BigUintApproxSignedBasis<T>,
         table: &Table,
         rns_base: &RNSBase<T, M>,
@@ -105,6 +104,7 @@ where
         B: RawData<Elem = T> + DataMut,
     {
         let crt_poly_len = table.crt_poly_length();
+        let dcrt_glev_len = basis.decompose_length() * self.as_ref().len();
 
         result.set_zero();
 

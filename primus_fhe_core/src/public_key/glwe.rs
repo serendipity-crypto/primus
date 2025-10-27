@@ -42,14 +42,14 @@ impl<T: UnsignedInteger> DcrtGlwePublicKey<T> {
         M: FieldContext<T>,
     {
         let poly_length = params.poly_length();
-        let crt_poly_length = params.rns_poly_len();
-        let crt_glwe_len = params.rns_glwe_len();
+        let rns_poly_len = params.rns_poly_len();
+        let rns_glwe_len = params.rns_glwe_len();
 
         let moduli = params.cipher_moduli();
         let moduli_value = params.cipher_moduli_value();
         let uniform_distrs = params.cipher_moduli_uniform_distr();
 
-        let mut data: DcrtGlwe<Vec<T>> = DcrtGlwe::zero(crt_glwe_len);
+        let mut data: DcrtGlwe<Vec<T>> = DcrtGlwe::zero(rns_glwe_len);
 
         let (a, b) = data.a_b_mut_slices(params.rns_glwe_mid());
 
@@ -64,7 +64,7 @@ impl<T: UnsignedInteger> DcrtGlwePublicKey<T> {
         table.transform_slice(b);
         let mut b_dcrt_poly = DcrtPolynomial(ArrayBase(b));
 
-        a.chunks_exact_mut(crt_poly_length)
+        a.chunks_exact_mut(rns_poly_len)
             .zip(secret_key.iter_dcrt_poly())
             .for_each(|(ai, si)| {
                 primus_distr::sample_crt_uniform_values_inplace(
