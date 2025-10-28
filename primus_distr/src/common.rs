@@ -8,7 +8,7 @@ use rand::{
     distr::{Distribution, Uniform},
 };
 
-use crate::SignedDiscreteGaussian;
+use crate::{DiscreteGaussian, SignedDiscreteGaussian};
 
 /// Sample a binary vector whose values are `T`.
 pub fn sample_binary_values<T, R>(length: usize, rng: &mut R) -> Vec<T>
@@ -76,6 +76,31 @@ where
         *elem = s[(r & 0b11) as usize];
         r >>= 2;
     }
+}
+
+pub fn sample_gaussian_values_inplace<T, R>(
+    result: &mut [T],
+    distr: &DiscreteGaussian<T>,
+    rng: &mut R,
+) where
+    T: UnsignedInteger,
+    R: Rng + CryptoRng,
+{
+    result
+        .iter_mut()
+        .zip(distr.sample_iter(rng))
+        .for_each(|(a, b)| *a = b);
+}
+
+pub fn sample_uniform_values_inplace<T, R>(result: &mut [T], distr: &Uniform<T>, rng: &mut R)
+where
+    T: UnsignedInteger,
+    R: Rng + CryptoRng,
+{
+    result
+        .iter_mut()
+        .zip(distr.sample_iter(rng))
+        .for_each(|(a, b)| *a = b);
 }
 
 pub fn sample_crt_binary_values<T, R>(length: usize, moduli_count: usize, rng: &mut R) -> Vec<T>

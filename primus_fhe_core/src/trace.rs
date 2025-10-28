@@ -42,6 +42,7 @@ impl<T: UnsignedInteger> CrtGlweTraceContext<T> {
     }
 }
 
+#[derive(Clone)]
 pub struct CrtGlweTraceKey<T: UnsignedInteger, Table>
 where
     Table: DcrtTable<ValueT = T> + Dcrt,

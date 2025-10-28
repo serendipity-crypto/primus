@@ -4,7 +4,8 @@ use primus_integer::UnsignedInteger;
 use primus_lattice::rlwe::TruncatedRlwe;
 use primus_ntt::{Ntt, NttTable};
 use primus_poly::{
-    ArrayBase, Data, NttPolynomial, NttPolynomialOwned, Polynomial, PolynomialOwned, RawData,
+    ArrayBase, Data, DataMut, NttPolynomial, NttPolynomialOwned, Polynomial, PolynomialOwned,
+    RawData,
 };
 use primus_reduce::FieldContext;
 
@@ -175,6 +176,40 @@ where
             .sub_to_right(&mut NttPolynomial(ArrayBase(result.as_mut())), modulus);
 
         ntt_table.inverse_transform_slice(result.as_mut())
+    }
+
+    pub fn encrypt_inplace<M, Table, R, A, B>(
+        &self,
+        msg: &Polynomial<A>,
+        result: &mut NttRlweCiphertext<B>,
+        params: &RlweParameters<T, M>,
+        ntt_table: &Table,
+        rng: &mut R,
+    ) where
+        M: FieldContext<T>,
+        Table: NttTable<ValueT = T> + Ntt,
+        R: rand::Rng + rand::CryptoRng,
+        A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + DataMut,
+    {
+        let (a, b) = result.a_b_mut_slices();
+
+        primus_distr::sample_gaussian_values_inplace(b, params.noise_distribution(), rng);
+
+        Polynomial(ArrayBase(&mut *b)).add_mul_scalar_assign(
+            msg,
+            params.plain_modulus_value(),
+            params.cipher_modulus(),
+        );
+        ntt_table.transform_slice(b);
+
+        primus_distr::sample_uniform_values_inplace(a, &params.cipher_modulus_uniform_distr(), rng);
+
+        NttPolynomial(ArrayBase(b)).add_mul_assign(
+            &NttPolynomial(ArrayBase(a)),
+            self,
+            params.cipher_modulus(),
+        );
     }
 
     /// Encrypts multiple zeros using the secret key.

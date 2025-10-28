@@ -132,6 +132,7 @@ pub mod prime64 {
     use crate::{Ntt, NttError, NttTable};
 
     /// Wrapping concrete NTT for 64bit primes.
+    #[derive(Clone)]
     pub struct Concrete64Table {
         plan: Plan,
         root: u64,

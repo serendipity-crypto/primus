@@ -136,6 +136,7 @@ pub mod prime64 {
     use crate::{Concrete64Table, Dcrt, DcrtTable, Ntt, NttTable};
 
     /// Wrapping crt concrete NTT for 64bit primes.
+    #[derive(Clone)]
     pub struct CrtConcrete64Table {
         ntt_tables: Vec<Concrete64Table>,
         poly_length: usize,
