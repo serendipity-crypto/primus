@@ -1,5 +1,5 @@
 use primus_integer::{UnsignedInteger, izip};
-use primus_reduce::ops::{ReduceAdd, ReduceAddAssign, ReduceMulAdd};
+use primus_reduce::ops::*;
 
 use super::{ArrayBase, Data, DataMut, RawData};
 

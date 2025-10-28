@@ -1,5 +1,6 @@
+use primus_factor::ShoupFactor;
 use primus_integer::{UnsignedInteger, izip};
-use primus_reduce::ops::{ReduceMulAdd, ReduceMulAssign};
+use primus_reduce::ops::*;
 
 use crate::{ArrayBase, Data, DataMut, RawData};
 
@@ -31,12 +32,37 @@ where
         )
     }
 
+    /// Performs `self * scalar` according to `moduli`.
+    #[inline]
+    pub fn mul_factor(
+        mut self,
+        scalar: &[ShoupFactor<T>],
+        poly_length: usize,
+        moduli: &[T],
+    ) -> Self {
+        self.mul_factor_assign(scalar, poly_length, moduli);
+        self
+    }
+
+    /// Performs `self *= scalar` according to `moduli`.
+    #[inline]
+    pub fn mul_factor_assign(
+        &mut self,
+        scalar: &[ShoupFactor<T>],
+        poly_length: usize,
+        moduli: &[T],
+    ) {
+        izip!(self.iter_each_modulus_mut(poly_length), scalar, moduli).for_each(
+            |(poly, &scalar, &modulus)| ArrayBase(poly).mul_factor_assign(scalar, modulus),
+        )
+    }
+
     /// Performs `self += scalar * rhs` according to `moduli`.
     #[inline]
     pub fn add_mul_scalar_assign<M, A>(
         &mut self,
-        rhs: &CrtPolynomial<A, T>,
-        scalar_residues: &[T],
+        rhs: &CrtPolynomial<A>,
+        scalar: &[T],
         poly_length: usize,
         moduli: &[M],
     ) where
@@ -46,11 +72,62 @@ where
         izip!(
             self.iter_each_modulus_mut(poly_length),
             rhs.iter_each_modulus(poly_length),
-            scalar_residues,
+            scalar,
             moduli
         )
         .for_each(|(xs, ys, &scalar, &modulus)| {
             ArrayBase(xs).add_mul_scalar_assign(&ArrayBase(ys), scalar, modulus);
         });
+    }
+}
+
+impl<S, T> CrtPolynomial<S, T>
+where
+    S: RawData<Elem = T> + Data,
+    T: UnsignedInteger,
+{
+    /// Performs `result = self * scalar` according to `moduli`.
+    #[inline]
+    pub fn mul_scalar_inplace<M, A>(
+        &self,
+        scalar: &[T],
+        result: &mut CrtPolynomial<A>,
+        poly_length: usize,
+        moduli: &[M],
+    ) where
+        M: Copy + ReduceMul<T, Output = T>,
+        A: RawData<Elem = T> + DataMut,
+    {
+        izip!(
+            self.iter_each_modulus(poly_length),
+            scalar,
+            result.iter_each_modulus_mut(poly_length),
+            moduli
+        )
+        .for_each(|(in_poly, &scalar, out_poly, &modulus)| {
+            ArrayBase(in_poly).mul_scalar_inplace(scalar, &mut ArrayBase(out_poly), modulus)
+        })
+    }
+
+    /// Performs `result = self * scalar` according to `moduli`.
+    #[inline]
+    pub fn mul_factor_inplace<A>(
+        &self,
+        scalar: &[ShoupFactor<T>],
+        result: &mut CrtPolynomial<A>,
+        poly_length: usize,
+        moduli: &[T],
+    ) where
+        A: RawData<Elem = T> + DataMut,
+    {
+        izip!(
+            self.iter_each_modulus(poly_length),
+            result.iter_each_modulus_mut(poly_length),
+            scalar,
+            moduli
+        )
+        .for_each(|(in_poly, out_poly, &scalar, &modulus)| {
+            ArrayBase(in_poly).mul_factor_inplace(scalar, &mut ArrayBase(out_poly), modulus)
+        })
     }
 }

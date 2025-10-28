@@ -1,3 +1,4 @@
+use primus_factor::ShoupFactor;
 use primus_integer::{UnsignedInteger, izip};
 use primus_reduce::ops::{ReduceMul, ReduceMulAdd, ReduceMulAssign};
 
@@ -52,6 +53,31 @@ where
         .for_each(|(xs, ys, &scalar, &modulus)| {
             ArrayBase(xs).add_mul_scalar_assign(&ArrayBase(ys), scalar, modulus);
         });
+    }
+
+    /// Performs `self * scalar` according to `moduli`.
+    #[inline]
+    pub fn mul_factor(
+        mut self,
+        scalar: &[ShoupFactor<T>],
+        poly_length: usize,
+        moduli: &[T],
+    ) -> Self {
+        self.mul_factor_assign(scalar, poly_length, moduli);
+        self
+    }
+
+    /// Performs `self *= scalar` according to `moduli`.
+    #[inline]
+    pub fn mul_factor_assign(
+        &mut self,
+        scalar: &[ShoupFactor<T>],
+        poly_length: usize,
+        moduli: &[T],
+    ) {
+        izip!(self.iter_each_modulus_mut(poly_length), scalar, moduli).for_each(
+            |(poly, &scalar, &modulus)| ArrayBase(poly).mul_factor_assign(scalar, modulus),
+        )
     }
 
     /// Performs `self * rhs` according to `moduli`.
@@ -109,6 +135,28 @@ where
         )
         .for_each(|(xs, ys, zs, modulus)| {
             ArrayBase(xs).mul_element_wise_inplace(&ArrayBase(ys), &mut ArrayBase(zs), *modulus);
+        })
+    }
+
+    /// Performs `result = self * scalar` according to `moduli`.
+    #[inline]
+    pub fn mul_factor_inplace<A>(
+        &self,
+        scalar: &[ShoupFactor<T>],
+        result: &mut DcrtPolynomial<A>,
+        poly_length: usize,
+        moduli: &[T],
+    ) where
+        A: RawData<Elem = T> + DataMut,
+    {
+        izip!(
+            self.iter_each_modulus(poly_length),
+            result.iter_each_modulus_mut(poly_length),
+            scalar,
+            moduli
+        )
+        .for_each(|(in_poly, out_poly, &scalar, &modulus)| {
+            ArrayBase(in_poly).mul_factor_inplace(scalar, &mut ArrayBase(out_poly), modulus)
         })
     }
 }

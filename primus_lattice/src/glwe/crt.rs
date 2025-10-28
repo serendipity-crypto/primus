@@ -1,4 +1,5 @@
 use primus_decompose::big_integer::BigUintApproxSignedBasis;
+use primus_factor::ShoupFactor;
 use primus_integer::{UnsignedInteger, izip};
 use primus_ntt::{Dcrt, DcrtTable};
 use primus_poly::{
@@ -62,6 +63,51 @@ where
             );
         });
     }
+
+    /// Perform `self = self * X^r`.
+    pub fn mul_monic_monomial_assign<M>(
+        &mut self,
+        r: usize,
+        poly_length: usize,
+        crt_poly_len: usize,
+        moduli: &[M],
+    ) where
+        M: FieldContext<T>,
+    {
+        if r < poly_length {
+            let n_sub_r = poly_length - r;
+            let rotate = |poly: &mut [T], modulus: M| {
+                poly.rotate_right(r);
+                poly[0..n_sub_r]
+                    .iter_mut()
+                    .for_each(|v| modulus.reduce_neg_assign(v));
+            };
+
+            self.iter_crt_poly_mut(crt_poly_len).for_each(|crt_poly| {
+                crt_poly
+                    .chunks_exact_mut(poly_length)
+                    .zip(moduli)
+                    .for_each(|(poly, &modulus)| rotate(poly, modulus));
+            });
+        } else {
+            let r = (poly_length << 1) - r;
+            let n_sub_r = poly_length.checked_sub(r).expect("r > 2N !");
+
+            let rotate = |poly: &mut [T], modulus: M| {
+                poly.rotate_left(r);
+                poly[n_sub_r..]
+                    .iter_mut()
+                    .for_each(|v| modulus.reduce_neg_assign(v));
+            };
+
+            self.iter_crt_poly_mut(crt_poly_len).for_each(|crt_poly| {
+                crt_poly
+                    .chunks_exact_mut(poly_length)
+                    .zip(moduli)
+                    .for_each(|(poly, &modulus)| rotate(poly, modulus));
+            });
+        }
+    }
 }
 
 impl<S, T> CrtGlwe<S, T>
@@ -73,6 +119,51 @@ where
     #[inline]
     pub fn a_b_slices(&self, mid: usize) -> (&[T], &[T]) {
         self.data.split_at(mid)
+    }
+
+    pub fn mul_scalar_inplace<M, A>(
+        &self,
+        scalar_residue: &[T],
+        result: &mut CrtGlwe<A>,
+        poly_length: usize,
+        crt_poly_len: usize,
+        moduli: &[M],
+    ) where
+        M: FieldContext<T>,
+        A: RawData<Elem = T> + DataMut,
+    {
+        self.iter_crt_poly(crt_poly_len)
+            .zip(result.iter_crt_poly_mut(crt_poly_len))
+            .for_each(|(in_crt_poly, out_crt_poly)| {
+                CrtPolynomial(ArrayBase(in_crt_poly)).mul_scalar_inplace(
+                    scalar_residue,
+                    &mut CrtPolynomial(ArrayBase(out_crt_poly)),
+                    poly_length,
+                    moduli,
+                );
+            });
+    }
+
+    pub fn mul_factor_inplace<A>(
+        &self,
+        scalar: &[ShoupFactor<T>],
+        result: &mut CrtGlwe<A>,
+        poly_length: usize,
+        crt_poly_len: usize,
+        moduli: &[T],
+    ) where
+        A: RawData<Elem = T> + DataMut,
+    {
+        self.iter_crt_poly(crt_poly_len)
+            .zip(result.iter_crt_poly_mut(crt_poly_len))
+            .for_each(|(in_crt_poly, out_crt_poly)| {
+                CrtPolynomial(ArrayBase(in_crt_poly)).mul_factor_inplace(
+                    scalar,
+                    &mut CrtPolynomial(ArrayBase(out_crt_poly)),
+                    poly_length,
+                    moduli,
+                );
+            });
     }
 
     /// Performs a multiplication on the `self` [`CrtGlwe<S>`] with another `dcrt_polynomial` [`DcrtPolynomial<A>`],
