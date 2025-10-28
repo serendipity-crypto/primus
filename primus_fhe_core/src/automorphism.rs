@@ -16,22 +16,35 @@ use crate::{
 };
 
 pub struct CrtGlweAutoContext<T: UnsignedInteger> {
+    crt_poly: CrtPolynomial<Vec<T>>,
     auto_crt_poly: CrtPolynomial<Vec<T>>,
     glev_context: DcrtGlevContext<T>,
 }
 
 impl<T: UnsignedInteger> CrtGlweAutoContext<T> {
     pub fn new(poly_length: usize, crt_poly_len: usize, big_uint_poly_len: usize) -> Self {
+        let crt_poly = CrtPolynomial::zero(crt_poly_len);
         let auto_crt_poly = CrtPolynomial::zero(crt_poly_len);
         let glev_context = DcrtGlevContext::new(poly_length, crt_poly_len, big_uint_poly_len);
         Self {
+            crt_poly,
             auto_crt_poly,
             glev_context,
         }
     }
 
-    pub fn as_mut(&mut self) -> (&mut CrtPolynomial<Vec<T>, T>, &mut DcrtGlevContext<T>) {
-        (&mut self.auto_crt_poly, &mut self.glev_context)
+    pub fn as_mut(
+        &mut self,
+    ) -> (
+        &mut CrtPolynomial<Vec<T>>,
+        &mut CrtPolynomial<Vec<T>>,
+        &mut DcrtGlevContext<T>,
+    ) {
+        (
+            &mut self.crt_poly,
+            &mut self.auto_crt_poly,
+            &mut self.glev_context,
+        )
     }
 }
 
@@ -164,7 +177,7 @@ where
 
         debug_assert_eq!(ciphertext.as_ref().len(), params.rns_glwe_len());
 
-        let (auto_crt_poly, glev_context) = context.as_mut();
+        let (_, auto_crt_poly, glev_context) = context.as_mut();
 
         result.set_zero();
         let mut temp = DcrtGlweCiphertext::new(ArrayBase(result.as_mut()));
@@ -211,6 +224,85 @@ where
             .for_each(|ai| DcrtPolynomial(ArrayBase(ai)).neg_assign(poly_length, moduli));
 
         auto_crt_poly.sub_to_right(&mut CrtPolynomial(ArrayBase(b_out)), poly_length, moduli);
+    }
+
+    pub fn automorphism_to_dcrt_glwe_inplace<M, A, B>(
+        &self,
+        ciphertext: &DcrtGlweCiphertext<A>,
+        result: &mut DcrtGlweCiphertext<B>,
+        params: &CrtGlevParameters<T, M>,
+        rns_base: &RNSBase<T, M>,
+        context: &mut CrtGlweAutoContext<T>,
+    ) where
+        M: FieldContext<T>,
+        A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + DataMut,
+    {
+        let poly_length = params.poly_length();
+        let rns_poly_len = params.rns_poly_len();
+        let rns_glwe_mid = params.rns_glwe_mid();
+        let moduli = params.cipher_moduli();
+
+        let auto_helper = &self.auto_helper;
+
+        debug_assert_eq!(ciphertext.as_ref().len(), params.rns_glwe_len());
+
+        let (crt_poly, auto_crt_poly, glev_context) = context.as_mut();
+
+        result.set_zero();
+
+        let (a_in, b_in) = ciphertext.a_b_slices(rns_glwe_mid);
+
+        a_in.chunks_exact(rns_poly_len)
+            .zip_eq(self.iter_dcrt_glev())
+            .for_each(|(in_dcrt_poly, auto_key_i)| {
+                crt_poly.as_mut().copy_from_slice(in_dcrt_poly);
+                self.table.inverse_transform_slice(crt_poly.as_mut());
+
+                crt_poly_auto_inplace(
+                    crt_poly.as_ref(),
+                    auto_crt_poly.as_mut(),
+                    auto_helper,
+                    poly_length,
+                    moduli,
+                );
+
+                let auto_key = DcrtGlev::new(ArrayBase(auto_key_i));
+
+                result.add_dcrt_glev_mul_crt_poly_assign(
+                    &auto_key,
+                    auto_crt_poly,
+                    params.basis(),
+                    self.table(),
+                    rns_base,
+                    glev_context,
+                );
+            });
+
+        crt_poly.as_mut().copy_from_slice(b_in);
+        self.table.inverse_transform_slice(crt_poly.as_mut());
+
+        crt_poly_auto_inplace(
+            crt_poly.as_ref(),
+            auto_crt_poly.as_mut(),
+            auto_helper,
+            poly_length,
+            moduli,
+        );
+
+        self.table.transform_slice(auto_crt_poly.as_mut());
+
+        let (a_out, b_out) = result.a_b_mut_slices(rns_glwe_mid);
+
+        a_out
+            .chunks_exact_mut(rns_poly_len)
+            .for_each(|ai| DcrtPolynomial(ArrayBase(ai)).neg_assign(poly_length, moduli));
+
+        DcrtPolynomial(ArrayBase(auto_crt_poly.as_ref())).sub_to_right(
+            &mut DcrtPolynomial(ArrayBase(b_out)),
+            poly_length,
+            moduli,
+        );
     }
 }
 

@@ -56,6 +56,25 @@ where
             });
     }
 
+    pub fn mul_scalar_assign<M>(
+        &mut self,
+        scalar_residue: &[T],
+        poly_length: usize,
+        dcrt_poly_len: usize,
+        moduli: &[M],
+    ) where
+        M: FieldContext<T>,
+    {
+        self.iter_dcrt_poly_mut(dcrt_poly_len)
+            .for_each(|dcrt_poly| {
+                DcrtPolynomial(ArrayBase(dcrt_poly)).mul_scalar_assign(
+                    scalar_residue,
+                    poly_length,
+                    moduli,
+                );
+            });
+    }
+
     pub fn add_dcrt_glwe_mul_dcrt_polynomial_assign<M, A, B>(
         &mut self,
         dcrt_glwe: &DcrtGlwe<A>,
