@@ -9,7 +9,6 @@ use primus_lattice::glwe::CrtGlwe;
 use primus_modulus::BarrettModulus;
 use primus_ntt::{DcrtTable, UintCrtNttTable};
 use primus_poly::{Polynomial, crt::CrtPolynomial};
-use primus_reduce::ops::*;
 
 #[test]
 fn test_rns_glwe_expand_coefficients() {
@@ -58,10 +57,10 @@ fn test_rns_glwe_expand_coefficients() {
     let trace_key = CrtGlweTraceKey::new(&glev_params, &sk, &dcrt_sk, Arc::new(table), &mut rng);
     let table = trace_key.table();
 
-    let input1: Polynomial<Vec<ValueT>> = Polynomial::random(poly_length, mod_t, &mut rng);
+    let mut input1: Polynomial<Vec<ValueT>> = Polynomial::random(poly_length, mod_t, &mut rng);
     let mut msg1: CrtPolynomial<Vec<ValueT>> = CrtPolynomial::zero(rns_poly_len);
     let mut c1: DcrtGlweCiphertext<Vec<ValueT>> = DcrtGlweCiphertext::zero(rns_glwe_len);
-    let mut c2: CrtGlwe<Vec<ValueT>> = CrtGlwe::zero(rns_glwe_len);
+    let mut c_expand: Vec<CrtGlwe<Vec<ValueT>>> = vec![CrtGlwe::zero(rns_glwe_len); poly_length];
     let mut trace_context =
         CrtGlweTraceContext::new(dimension, poly_length, rns_poly_len, big_uint_poly_len);
     let mut decrypt_context = DcrtGlweDecryptContext::new(moduli_count, poly_length);
@@ -75,49 +74,49 @@ fn test_rns_glwe_expand_coefficients() {
     let m_dec = dcrt_sk.decrypt(&c1, &glwe_params, table, &mut decrypt_context);
     assert_eq!(m_dec, input1);
 
-    let mut c1 = c1.into_coeff_form(table);
+    let c1 = c1.into_coeff_form(table);
 
-    trace_key.trace_inplace(
+    trace_key.expand_coefficients_inplace(
         &c1,
-        &mut c2,
+        &mut c_expand,
         &glev_params,
         glwe_params.base_q(),
         &mut trace_context,
     );
 
-    let c2 = c2.into_ntt_form(table);
+    for (cipher, &input) in c_expand.into_iter().zip(input1.iter()) {
+        let cipher = cipher.into_ntt_form(table);
+        let m_dec = dcrt_sk.decrypt(&cipher, &glwe_params, table, &mut decrypt_context);
+        assert_eq!(input, m_dec[0]);
+        assert!(m_dec[1..].iter().all(|&v| v == 0));
+    }
 
-    let trace_msg = dcrt_sk.decrypt(&c2, &glwe_params, table, &mut decrypt_context);
+    let mut c1 = DcrtGlweCiphertext::new(c1.data);
 
-    assert_eq!(
-        mod_t.reduce_mul(input1[0], poly_length as ValueT),
-        trace_msg[0]
-    );
+    input1[256..].fill(0);
 
-    assert!(trace_msg[1..].iter().all(|&v| v == 0));
-
-    let inv_poly_length_mod_t = mod_t.reduce_inv(poly_length as ValueT);
-
-    let scalar_residue = glwe_params
+    glwe_params
         .base_q()
-        .wrapping_decompose(inv_poly_length_mod_t, t);
+        .wrapping_decompose_small_polynomial_inplace(&input1, &mut msg1, poly_length, t);
 
-    c1.mul_scalar_assign(&scalar_residue, poly_length, rns_poly_len, &moduli);
+    dcrt_sk.encrypt_inplace(&msg1, &mut c1, &glwe_params, table, &mut rng);
 
-    let mut c2: CrtGlwe<Vec<ValueT>> = CrtGlwe::new(c2.data);
+    let c1 = c1.into_coeff_form(table);
 
-    trace_key.trace_inplace(
+    let mut c_expand: Vec<CrtGlwe<Vec<ValueT>>> = vec![CrtGlwe::zero(rns_glwe_len); 256];
+
+    trace_key.expand_partial_coefficients_inplace(
         &c1,
-        &mut c2,
+        &mut c_expand,
         &glev_params,
         glwe_params.base_q(),
         &mut trace_context,
     );
 
-    let c2 = c2.into_ntt_form(table);
-
-    let trace_msg = dcrt_sk.decrypt(&c2, &glwe_params, table, &mut decrypt_context);
-
-    assert_eq!(input1[0], trace_msg[0]);
-    assert!(trace_msg[1..].iter().all(|&v| v == 0));
+    for (cipher, &input) in c_expand.into_iter().zip(input1.iter()) {
+        let cipher = cipher.into_ntt_form(table);
+        let m_dec = dcrt_sk.decrypt(&cipher, &glwe_params, table, &mut decrypt_context);
+        assert_eq!(input, m_dec[0]);
+        assert!(m_dec[1..].iter().all(|&v| v == 0));
+    }
 }

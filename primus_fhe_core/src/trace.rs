@@ -229,7 +229,7 @@ where
 
         let log_d = count.trailing_zeros() as usize;
         let mut n = vec![T::ZERO; big_uint_value_len];
-        n[0] = log_d.as_into();
+        n[0] = count.as_into();
         let n_residue = rns_base.decompose(&n);
 
         let inv_n_residue: Vec<ShoupFactor<T>> = n_residue

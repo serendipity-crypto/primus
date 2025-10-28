@@ -19,8 +19,8 @@ fn test_rns_glwe_trace() {
     let poly_length: usize = 512;
     let log_n = poly_length.trailing_zeros();
 
-    // let t: ValueT = 1 << 15;
-    let t: ValueT = 12289;
+    let t: ValueT = 1 << 15;
+    // let t: ValueT = 12289;
     let mod_t = <BarrettModulus<ValueT>>::new(t);
 
     let gamma: ValueT = 2199023190017;
@@ -96,11 +96,16 @@ fn test_rns_glwe_trace() {
 
     assert!(trace_msg[1..].iter().all(|&v| v == 0));
 
-    let inv_poly_length_mod_t = mod_t.reduce_inv(poly_length as ValueT);
-
-    let scalar_residue = glwe_params
+    let mut scalar_residue = glwe_params
         .base_q()
-        .wrapping_decompose(inv_poly_length_mod_t, t);
+        .wrapping_decompose(poly_length as ValueT, t);
+
+    scalar_residue
+        .iter_mut()
+        .zip(moduli.iter())
+        .for_each(|(s, m)| {
+            m.reduce_inv_assign(s);
+        });
 
     c1.mul_scalar_assign(&scalar_residue, poly_length, rns_poly_len, &moduli);
 
@@ -130,8 +135,8 @@ fn test_dcrt_glwe_trace() {
     let poly_length: usize = 512;
     let log_n = poly_length.trailing_zeros();
 
-    // let t: ValueT = 1 << 15;
-    let t: ValueT = 12289;
+    let t: ValueT = 1 << 15;
+    // let t: ValueT = 12289;
     let mod_t = <BarrettModulus<ValueT>>::new(t);
 
     let gamma: ValueT = 2199023190017;
@@ -203,11 +208,16 @@ fn test_dcrt_glwe_trace() {
 
     assert!(trace_msg[1..].iter().all(|&v| v == 0));
 
-    let inv_poly_length_mod_t = mod_t.reduce_inv(poly_length as ValueT);
-
-    let scalar_residue = glwe_params
+    let mut scalar_residue = glwe_params
         .base_q()
-        .wrapping_decompose(inv_poly_length_mod_t, t);
+        .wrapping_decompose(poly_length as ValueT, t);
+
+    scalar_residue
+        .iter_mut()
+        .zip(moduli.iter())
+        .for_each(|(s, m)| {
+            m.reduce_inv_assign(s);
+        });
 
     c1.mul_scalar_assign(&scalar_residue, poly_length, rns_poly_len, &moduli);
 
