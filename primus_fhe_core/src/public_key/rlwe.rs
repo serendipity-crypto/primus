@@ -1,55 +1,38 @@
 use primus_integer::UnsignedInteger;
 use primus_lattice::rlwe::NttRlwe;
 use primus_ntt::{Ntt, NttTable};
-use primus_poly::{ArrayBase, Data, DataMut, NttPolynomial, Polynomial, RawData};
+use primus_poly::{ArrayBase, Data, DataMut, DataOwned, NttPolynomial, Polynomial, RawData};
 use primus_reduce::FieldContext;
 
 use crate::{NttRlweCiphertext, NttRlweSecretKey, RlweParameters};
 
 #[derive(Clone)]
-pub struct NttRlwePublicKey<T: UnsignedInteger> {
-    key: NttRlwe<Vec<T>>,
+pub struct NttRlwePublicKey<S, T = <S as RawData>::Elem>
+where
+    S: RawData<Elem = T>,
+    T: UnsignedInteger,
+{
+    key: NttRlwe<S>,
 }
 
-impl<T: UnsignedInteger> NttRlwePublicKey<T> {
-    /// Creates a new [`NttRlwePublicKey<T>`] from bytes `data`.
+impl<S, T> From<NttRlwe<S>> for NttRlwePublicKey<S, T>
+where
+    S: RawData<Elem = T>,
+    T: UnsignedInteger,
+{
     #[inline]
-    pub fn from_bytes(data: &[u8]) -> Self {
-        Self {
-            key: NttRlwe::from_bytes(data),
-        }
+    fn from(key: NttRlwe<S>) -> Self {
+        Self { key }
     }
+}
 
-    /// Creates a new [`NttRlwePublicKey<T>`] from bytes `data`.
-    #[inline]
-    pub fn from_bytes_assign(&mut self, data: &[u8]) {
-        self.key.from_bytes_assign(data);
-    }
-
-    /// Converts [`NttRlwePublicKey<T>`] into bytes.
-    #[inline]
-    pub fn into_bytes(&self) -> Vec<u8> {
-        self.key.to_bytes()
-    }
-
-    /// Converts [`NttRlwePublicKey<T>`] into bytes, stored in `data``.
-    #[inline]
-    pub fn into_bytes_inplace(&self, data: &mut [u8]) {
-        self.key.to_bytes_inplace(data);
-    }
-
-    /// Returns the bytes count of [`NttRlwePublicKey<T>`].
-    #[inline]
-    pub fn bytes_count(&self) -> usize {
-        self.key.bytes_count()
-    }
-
+impl<T: UnsignedInteger> NttRlwePublicKey<Vec<T>, T> {
     pub fn new<M, Table, R>(
         secret_key: &NttRlweSecretKey<T>,
         params: &RlweParameters<T, M>,
         ntt_table: &Table,
         rng: &mut R,
-    ) -> NttRlwePublicKey<T>
+    ) -> NttRlwePublicKey<Vec<T>>
     where
         M: FieldContext<T>,
         Table: NttTable<ValueT = T> + Ntt,
@@ -77,6 +60,56 @@ impl<T: UnsignedInteger> NttRlwePublicKey<T> {
             key: NttRlwe::new(ArrayBase(data)),
         }
     }
+}
+
+impl<S, T> NttRlwePublicKey<S, T>
+where
+    S: RawData<Elem = T> + DataOwned,
+    T: UnsignedInteger,
+{
+    /// Creates a new [`NttRlwePublicKey<T>`] from bytes `data`.
+    #[inline]
+    pub fn from_bytes(data: &[u8]) -> Self {
+        Self {
+            key: NttRlwe::from_bytes(data),
+        }
+    }
+}
+
+impl<S, T> NttRlwePublicKey<S, T>
+where
+    S: RawData<Elem = T> + DataMut,
+    T: UnsignedInteger,
+{
+    /// Creates a new [`NttRlwePublicKey<T>`] from bytes `data`.
+    #[inline]
+    pub fn from_bytes_assign(&mut self, data: &[u8]) {
+        self.key.from_bytes_assign(data);
+    }
+}
+
+impl<S, T> NttRlwePublicKey<S, T>
+where
+    S: RawData<Elem = T> + Data,
+    T: UnsignedInteger,
+{
+    /// Converts [`NttRlwePublicKey<T>`] into bytes.
+    #[inline]
+    pub fn into_bytes(&self) -> Vec<u8> {
+        self.key.to_bytes()
+    }
+
+    /// Converts [`NttRlwePublicKey<T>`] into bytes, stored in `data``.
+    #[inline]
+    pub fn into_bytes_inplace(&self, data: &mut [u8]) {
+        self.key.to_bytes_inplace(data);
+    }
+
+    /// Returns the bytes count of [`NttRlwePublicKey<T>`].
+    #[inline]
+    pub fn bytes_count(&self) -> usize {
+        self.key.bytes_count()
+    }
 
     pub fn encrypt_inplace<M, Table, R, A, B>(
         &self,
@@ -100,7 +133,7 @@ impl<T: UnsignedInteger> NttRlwePublicKey<T> {
 
         let mut v = vec![T::ZERO; poly_length];
         primus_distr::sample_ternary_values_inplace(&mut v, params.cipher_modulus_minus_one(), rng);
-        ntt_table.transform_slice(a_out);
+        ntt_table.transform_slice(&mut v);
 
         primus_distr::sample_gaussian_values_inplace(a_out, params.noise_distribution(), rng);
         ntt_table.transform_slice(a_out);
@@ -162,7 +195,7 @@ impl<T: UnsignedInteger> NttRlwePublicKey<T> {
 
         let mut v = vec![T::ZERO; poly_length];
         primus_distr::sample_ternary_values_inplace(&mut v, params.cipher_modulus_minus_one(), rng);
-        ntt_table.transform_slice(a_out);
+        ntt_table.transform_slice(&mut v);
 
         primus_distr::sample_gaussian_values_inplace(a_out, params.noise_distribution(), rng);
         ntt_table.transform_slice(a_out);

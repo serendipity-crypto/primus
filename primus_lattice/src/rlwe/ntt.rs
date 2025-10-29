@@ -81,6 +81,28 @@ where
             NttPolynomial(ArrayBase(p)).mul_assign(polynomial, modulus);
         });
     }
+
+    pub fn add_ntt_rlwe_mul_ntt_polynomial_assign<M, A, B>(
+        &mut self,
+        ntt_rlwe: &NttRlwe<A>,
+        polynomial: &NttPolynomial<B>,
+        modulus: M,
+    ) where
+        M: FieldContext<T>,
+        A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + Data,
+    {
+        let poly_length = polynomial.poly_length();
+        self.iter_ntt_poly_mut(poly_length)
+            .zip(ntt_rlwe.iter_ntt_poly(poly_length))
+            .for_each(|(x, y)| {
+                NttPolynomial(ArrayBase(x)).add_mul_assign(
+                    &NttPolynomial(ArrayBase(y)),
+                    polynomial,
+                    modulus,
+                );
+            });
+    }
 }
 
 impl<S, T> NttRlwe<S, T>

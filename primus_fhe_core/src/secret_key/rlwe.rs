@@ -319,7 +319,7 @@ where
         Table: NttTable<ValueT = T> + Ntt,
         A: RawData<Elem = T> + Data,
     {
-        let mut result = PolynomialOwned::zero(params.poly_length() * 2);
+        let mut result = PolynomialOwned::zero(params.poly_length());
         self.decrypt_inplace(cipher, &mut result, params, ntt_table);
         result
     }
