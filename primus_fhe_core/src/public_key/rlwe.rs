@@ -15,6 +15,17 @@ where
     key: NttRlwe<S>,
 }
 
+impl<S, T> AsRef<[T]> for NttRlwePublicKey<S, T>
+where
+    S: RawData<Elem = T> + Data,
+    T: UnsignedInteger,
+{
+    #[inline]
+    fn as_ref(&self) -> &[T] {
+        self.key.as_ref()
+    }
+}
+
 impl<S, T> From<NttRlwe<S>> for NttRlwePublicKey<S, T>
 where
     S: RawData<Elem = T>,
