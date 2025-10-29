@@ -60,6 +60,14 @@ where
         unsafe { self.data.split_at_mut_unchecked(mid) }
     }
 
+    #[inline]
+    pub fn mul_scalar_assign<M>(&mut self, scalar: T, modulus: M)
+    where
+        M: FieldContext<T>,
+    {
+        ArrayBase(self.as_mut()).mul_scalar_assign(scalar, modulus);
+    }
+
     /// Performs a modular multiplication on the `self` [`NttRlwe<S>`] with another `polynomial` [`NttPolynomial<A>`].
     #[inline]
     pub fn mul_ntt_polynomial_assign<M, A>(&mut self, polynomial: &NttPolynomial<A>, modulus: M)

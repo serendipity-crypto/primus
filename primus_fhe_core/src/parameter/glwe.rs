@@ -872,6 +872,10 @@ where
     pub fn decompose_length(&self) -> usize {
         self.basis.decompose_length()
     }
+
+    pub fn big_uint_poly_len(&self) -> usize {
+        self.common_size.big_uint_poly_len()
+    }
 }
 
 /// Big Unsigned Integer Ggsw Parameters.

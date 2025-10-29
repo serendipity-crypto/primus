@@ -1,7 +1,7 @@
 use primus_integer::{UnsignedInteger, izip};
 use primus_lattice::{ggsw::DcrtGgsw, glwe::DcrtGlwe};
 use primus_ntt::{Dcrt, DcrtTable};
-use primus_poly::{ArrayBase, Data, RawData, crt::CrtPolynomial, dcrt::DcrtPolynomial};
+use primus_poly::{ArrayBase, Data, DataMut, RawData, crt::CrtPolynomial, dcrt::DcrtPolynomial};
 use primus_reduce::FieldContext;
 
 use crate::{CrtGgswParameters, CrtGlevParameters, CrtGlweParameters, DcrtGlweSecretKey};
@@ -236,15 +236,38 @@ impl<T: UnsignedInteger> DcrtGlwePublicKey<T> {
         Table: DcrtTable<ValueT = T> + Dcrt,
         M: FieldContext<T>,
     {
-        let rns_poly_len = params.rns_poly_len();
-        let rns_glev_len = params.rns_glev_len();
         let rns_ggsw_len = params.rns_ggsw_len();
 
-        let mut dcrt_ggsw: DcrtGgsw<Vec<T>> = DcrtGgsw::zero(rns_ggsw_len);
+        let mut result: DcrtGgsw<Vec<T>> = DcrtGgsw::zero(rns_ggsw_len);
+
+        self.encrypt_monomial_ggsw_inplace(coeff_residues, degree, &mut result, params, table, rng);
+
+        result
+    }
+
+    /// Generate a [`DcrtGgsw`] ciphertext which encrypted `coeff*X^degree`.
+    pub fn encrypt_monomial_ggsw_inplace<R, Table, M, A>(
+        &self,
+        coeff_residues: &[T],
+        degree: usize,
+        result: &mut DcrtGgsw<A>,
+        params: &CrtGgswParameters<T, M>,
+        table: &Table,
+        rng: &mut R,
+    ) where
+        R: rand::Rng + rand::CryptoRng,
+        Table: DcrtTable<ValueT = T> + Dcrt,
+        M: FieldContext<T>,
+        A: RawData<Elem = T> + DataMut,
+    {
+        let rns_poly_len = params.rns_poly_len();
+        let rns_glev_len = params.rns_glev_len();
+
+        assert_eq!(result.as_ref().len(), params.rns_ggsw_len());
 
         let mut v = vec![T::ZERO; rns_poly_len];
 
-        dcrt_ggsw
+        result
             .iter_dcrt_glev_mut(rns_glev_len)
             .enumerate()
             .for_each(|(i, dcrt_glev)| {
@@ -259,7 +282,5 @@ impl<T: UnsignedInteger> DcrtGlwePublicKey<T> {
                     rng,
                 );
             });
-
-        dcrt_ggsw
     }
 }

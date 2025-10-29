@@ -6,6 +6,7 @@ use primus_reduce::FieldContext;
 
 use crate::{NttRlweCiphertext, NttRlweSecretKey, RlweParameters};
 
+#[derive(Clone)]
 pub struct NttRlwePublicKey<T: UnsignedInteger> {
     key: NttRlwe<Vec<T>>,
 }

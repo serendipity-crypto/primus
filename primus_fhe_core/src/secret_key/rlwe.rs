@@ -68,7 +68,7 @@ where
                 Polynomial::random_ternary(modulus_minus_one, poly_length, rng)
             }
             RingSecretKeyType::Gaussian => {
-                Polynomial::random_gaussian(poly_length, params.noise_distribution(), rng)
+                unimplemented!()
             }
         };
 
@@ -168,7 +168,7 @@ where
         let (a, b) = cipher.a_b_slices();
 
         NttPolynomial(ArrayBase(a)).mul_inplace(
-            &self.key,
+            self,
             &mut NttPolynomial(ArrayBase(result.as_mut())),
             modulus,
         );
@@ -212,6 +212,49 @@ where
         );
     }
 
+    pub fn encrypt_zeros<M, Table, R>(
+        &self,
+        params: &RlweParameters<T, M>,
+        ntt_table: &Table,
+        rng: &mut R,
+    ) -> NttRlweCiphertext<Vec<T>>
+    where
+        M: FieldContext<T>,
+        Table: NttTable<ValueT = T> + Ntt,
+        R: rand::Rng + rand::CryptoRng,
+    {
+        let mut result: NttRlweCiphertext<Vec<T>> =
+            NttRlweCiphertext::zero(params.poly_length() * 2);
+        self.encrypt_zeros_inplace(&mut result, params, ntt_table, rng);
+        result
+    }
+
+    pub fn encrypt_zeros_inplace<M, Table, R, A>(
+        &self,
+        result: &mut NttRlweCiphertext<A>,
+        params: &RlweParameters<T, M>,
+        ntt_table: &Table,
+        rng: &mut R,
+    ) where
+        M: FieldContext<T>,
+        Table: NttTable<ValueT = T> + Ntt,
+        R: rand::Rng + rand::CryptoRng,
+        A: RawData<Elem = T> + DataMut,
+    {
+        let (a, b) = result.a_b_mut_slices();
+
+        primus_distr::sample_gaussian_values_inplace(b, params.noise_distribution(), rng);
+        ntt_table.transform_slice(b);
+
+        primus_distr::sample_uniform_values_inplace(a, &params.cipher_modulus_uniform_distr(), rng);
+
+        NttPolynomial(ArrayBase(b)).add_mul_assign(
+            &NttPolynomial(ArrayBase(a)),
+            self,
+            params.cipher_modulus(),
+        );
+    }
+
     /// Encrypts multiple zeros using the secret key.
     pub fn encrypt_multi_zeros<R, M, Table>(
         &self,
@@ -234,6 +277,51 @@ where
             params.cipher_modulus(),
             rng,
         )
+    }
+
+    pub fn decrypt_inplace<M, Table, A, B>(
+        &self,
+        cipher: &NttRlweCiphertext<A>,
+        result: &mut Polynomial<B>,
+        params: &RlweParameters<T, M>,
+        ntt_table: &Table,
+    ) where
+        M: FieldContext<T>,
+        Table: NttTable<ValueT = T> + Ntt,
+        A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + DataMut,
+    {
+        let modulus = params.cipher_modulus();
+        let q = modulus.value();
+        let t = params.plain_modulus_value();
+
+        let (a, b) = cipher.a_b_slices();
+
+        let mut temp = NttPolynomial(ArrayBase(result.as_mut()));
+
+        NttPolynomial(ArrayBase(a)).mul_inplace(self, &mut temp, modulus);
+        NttPolynomial(ArrayBase(b)).sub_to_right(&mut temp, modulus);
+        ntt_table.inverse_transform_slice(result.as_mut());
+
+        result
+            .iter_mut()
+            .for_each(|value| *value = decode(*value, t, q));
+    }
+
+    pub fn decrypt<M, Table, A>(
+        &self,
+        cipher: &NttRlweCiphertext<A>,
+        params: &RlweParameters<T, M>,
+        ntt_table: &Table,
+    ) -> PolynomialOwned<T>
+    where
+        M: FieldContext<T>,
+        Table: NttTable<ValueT = T> + Ntt,
+        A: RawData<Elem = T> + Data,
+    {
+        let mut result = PolynomialOwned::zero(params.poly_length() * 2);
+        self.decrypt_inplace(cipher, &mut result, params, ntt_table);
+        result
     }
 
     /// Decrypts the [`TruncatedRlwe`] back to message.
