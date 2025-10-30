@@ -1,5 +1,6 @@
 use primus_decompose::primitive::ApproxSignedBasis;
 use primus_distr::DiscreteGaussian;
+use primus_factor::ShoupFactor;
 use primus_integer::UnsignedInteger;
 use primus_reduce::FieldContext;
 use rand::distr::Uniform;
@@ -22,6 +23,8 @@ where
     /// The modulus, refers to **Q** in the paper.
     cipher_modulus: M,
     cipher_modulus_uniform_distr: Uniform<T>,
+    delta: T,
+    delta_factor: ShoupFactor<T>,
     /// The distribution type of the secret key.
     secret_key_type: RingSecretKeyType,
     /// The noise's distribution.
@@ -49,12 +52,23 @@ where
 
         let cipher_modulus_uniform_distr = cipher_modulus.uniform_distribution();
 
+        let (mut delta, rem) = cipher_modulus
+            .value_unchecked()
+            .div_rem(plain_modulus_value);
+        if rem > (plain_modulus_value + T::ONE) / T::TWO {
+            delta += T::ONE;
+        }
+
+        let delta_factor = ShoupFactor::new(delta, cipher_modulus.value_unchecked());
+
         Self {
             poly_length,
             plain_modulus_value,
             cipher_modulus_minus_one,
             cipher_modulus,
             cipher_modulus_uniform_distr,
+            delta,
+            delta_factor,
             secret_key_type,
             noise_distribution,
         }
@@ -114,6 +128,14 @@ where
     /// Returns the cipher modulus uniform distr of this [`RlweParameters<T, M>`].
     pub fn cipher_modulus_uniform_distr(&self) -> Uniform<T> {
         self.cipher_modulus_uniform_distr
+    }
+
+    pub fn delta(&self) -> T {
+        self.delta
+    }
+
+    pub fn delta_factor(&self) -> ShoupFactor<T> {
+        self.delta_factor
     }
 }
 

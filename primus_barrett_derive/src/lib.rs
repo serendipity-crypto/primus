@@ -8,7 +8,7 @@ mod modulus;
 pub(crate) use ast::BarrettModulusData;
 pub(crate) use modulus::Modulus;
 
-#[proc_macro_derive(Barrett, attributes(modulus, value_type))]
+#[proc_macro_derive(Barrett, attributes(modulus))]
 pub fn derive_barrett(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 

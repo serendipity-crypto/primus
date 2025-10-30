@@ -269,6 +269,7 @@ impl<T: UnsignedInteger> CrtGlweSecretKey<T> {
     }
 }
 
+#[derive(Clone)]
 pub struct DcrtGlweSecretKey<T: UnsignedInteger> {
     key: Vec<T>,
     distr: RingSecretKeyType,

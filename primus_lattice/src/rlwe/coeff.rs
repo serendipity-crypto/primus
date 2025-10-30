@@ -1,4 +1,5 @@
 use primus_distr::DiscreteGaussian;
+use primus_factor::ShoupFactor;
 use primus_integer::UnsignedInteger;
 use primus_ntt::{Ntt, NttTable};
 use primus_poly::{ArrayBase, Data, DataMut, DataOwned, NttPolynomial, Polynomial, RawData};
@@ -142,6 +143,19 @@ where
     pub fn a_b_mut_slices(&mut self) -> (&mut [T], &mut [T]) {
         let mid = self.data.len() >> 1;
         unsafe { self.data.0.split_at_mut_unchecked(mid) }
+    }
+
+    #[inline]
+    pub fn mul_scalar_assign<M>(&mut self, scalar: T, modulus: M)
+    where
+        M: FieldContext<T>,
+    {
+        ArrayBase(self.as_mut()).mul_scalar_assign(scalar, modulus);
+    }
+
+    #[inline]
+    pub fn mul_factor_assign(&mut self, scalar: ShoupFactor<T>, modulus: T) {
+        ArrayBase(self.as_mut()).mul_factor_assign(scalar, modulus);
     }
 }
 

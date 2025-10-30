@@ -60,7 +60,14 @@ where
 
     /// Performs `self += scalar * rhs` according to `modulus`.
     #[inline]
-    pub fn add_mul_factor_assign(&mut self, rhs: &Self, scalar: ShoupFactor<T>, modulus: T) {
+    pub fn add_mul_factor_assign<A>(
+        &mut self,
+        rhs: &Polynomial<A, T>,
+        scalar: ShoupFactor<T>,
+        modulus: T,
+    ) where
+        A: RawData<Elem = T> + Data,
+    {
         self.iter_mut().zip(rhs.iter()).for_each(|(r, &v)| {
             UintModulus(modulus).reduce_add_assign(r, scalar.factor_mul_modulo(v, modulus))
         });

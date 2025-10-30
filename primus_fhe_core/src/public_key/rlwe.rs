@@ -112,7 +112,7 @@ where
 
     /// Converts [`NttRlwePublicKey<T>`] into bytes, stored in `data``.
     #[inline]
-    pub fn into_bytes_inplace(&self, data: &mut [u8]) {
+    pub fn to_bytes_inplace(&self, data: &mut [u8]) {
         self.key.to_bytes_inplace(data);
     }
 
@@ -138,6 +138,7 @@ where
     {
         let poly_length = params.poly_length();
         let modulus = params.cipher_modulus();
+        let modulus_value = params.cipher_modulus_value();
 
         let (a_in, b_in) = self.key.a_b_slices();
         let (a_out, b_out) = result.a_b_mut_slices();
@@ -155,10 +156,10 @@ where
         );
 
         primus_distr::sample_gaussian_values_inplace(b_out, params.noise_distribution(), rng);
-        Polynomial(ArrayBase(&mut *b_out)).add_mul_scalar_assign(
+        Polynomial(ArrayBase(&mut *b_out)).add_mul_factor_assign(
             msg,
-            params.plain_modulus_value(),
-            modulus,
+            params.delta_factor(),
+            modulus_value,
         );
         ntt_table.transform_slice(b_out);
         NttPolynomial(ArrayBase(b_out)).add_mul_assign(
