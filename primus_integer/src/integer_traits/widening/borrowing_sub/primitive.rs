@@ -8,9 +8,10 @@ macro_rules! impl_uint_borrowing_sub {
 
                 #[inline]
                 fn borrowing_sub(self, rhs: Self, borrow: Self::BorrowT) -> (Self, Self::BorrowT) {
-                    let (a, b) = self.overflowing_sub(rhs);
-                    let (c, d) = a.overflowing_sub(borrow as Self);
-                    (c, b || d)
+                    <$T>::borrowing_sub(self, rhs, borrow)
+                    // let (a, b) = self.overflowing_sub(rhs);
+                    // let (c, d) = a.overflowing_sub(borrow as Self);
+                    // (c, b || d)
                 }
             }
         )*

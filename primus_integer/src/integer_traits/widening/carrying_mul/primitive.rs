@@ -5,14 +5,16 @@ macro_rules! uint_carrying_mul_impl {
         impl CarryingMul for $T {
             #[inline]
             fn carrying_mul(self, rhs: Self, carry: Self) -> (Self, Self) {
-                let wide = (self as $W) * (rhs as $W) + (carry as $W);
-                (wide as Self, (wide >> Self::BITS) as Self)
+                <$T>::carrying_mul(self, rhs, carry)
+                // let wide = (self as $W) * (rhs as $W) + (carry as $W);
+                // (wide as Self, (wide >> Self::BITS) as Self)
             }
 
             #[inline]
             fn carrying_mul_add(self, rhs: Self, carry: Self, add: Self) -> (Self, Self) {
-                let wide = (self as $W) * (rhs as $W) + (carry as $W) + (add as $W);
-                (wide as Self, (wide >> Self::BITS) as Self)
+                <$T>::carrying_mul_add(self, rhs, carry, add)
+                // let wide = (self as $W) * (rhs as $W) + (carry as $W) + (add as $W);
+                // (wide as Self, (wide >> Self::BITS) as Self)
             }
 
             #[inline]
