@@ -26,6 +26,17 @@ where
     }
 }
 
+impl<S, T> AsMut<[T]> for NttRlwePublicKey<S, T>
+where
+    S: RawData<Elem = T> + DataMut,
+    T: UnsignedInteger,
+{
+    #[inline]
+    fn as_mut(&mut self) -> &mut [T] {
+        self.key.as_mut()
+    }
+}
+
 impl<S, T> From<NttRlwe<S>> for NttRlwePublicKey<S, T>
 where
     S: RawData<Elem = T>,
@@ -71,6 +82,13 @@ impl<T: UnsignedInteger> NttRlwePublicKey<Vec<T>, T> {
             key: NttRlwe::new(ArrayBase(data)),
         }
     }
+
+    #[inline]
+    pub fn zero(key_len: usize) -> Self {
+        Self {
+            key: NttRlwe::zero(key_len),
+        }
+    }
 }
 
 impl<S, T> NttRlwePublicKey<S, T>
@@ -96,6 +114,11 @@ where
     #[inline]
     pub fn from_bytes_assign(&mut self, data: &[u8]) {
         self.key.from_bytes_assign(data);
+    }
+
+    #[inline]
+    pub fn key_mut(&mut self) -> &mut NttRlwe<S, T> {
+        &mut self.key
     }
 }
 
@@ -240,5 +263,9 @@ where
         let mut result = NttRlweCiphertext::zero(params.poly_length() * 2);
         self.encrypt_zeros_inplace(&mut result, params, ntt_table, rng);
         result
+    }
+
+    pub fn key(&self) -> &NttRlwe<S, T> {
+        &self.key
     }
 }
