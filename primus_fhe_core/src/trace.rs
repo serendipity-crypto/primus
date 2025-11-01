@@ -141,7 +141,7 @@ where
 
     /// Coefficient Expansion Algorithm.
     ///
-    /// (Alg. 1)[https://eprint.iacr.org/2024/266.pdf]
+    /// (Alg. 1)<https://eprint.iacr.org/2024/266.pdf>
     pub fn expand_coefficients_inplace<M, A, B>(
         &self,
         ciphertext: &CrtGlweCiphertext<A>,
@@ -203,7 +203,7 @@ where
 
     /// Coefficient Expansion Algorithm.
     ///
-    /// (Alg. 1)[https://eprint.iacr.org/2024/266.pdf]
+    /// (Alg. 1)<https://eprint.iacr.org/2024/266.pdf>
     pub fn expand_partial_coefficients_inplace<M, A, B>(
         &self,
         ciphertext: &CrtGlweCiphertext<A>,

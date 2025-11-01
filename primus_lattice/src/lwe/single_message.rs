@@ -326,7 +326,7 @@ impl<T: UnsignedInteger> Lwe<T> {
 
 impl<T: Copy + ByteCount> Size for Lwe<T> {
     #[inline]
-    fn byte_count(&self) -> usize {
+    fn bytes_count(&self) -> usize {
         (self.a.len() + 1) * T::BYTES_COUNT
     }
 }

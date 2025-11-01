@@ -146,7 +146,7 @@ where
     T: UnsignedInteger,
 {
     #[inline]
-    fn byte_count(&self) -> usize {
-        self.0.byte_count()
+    fn bytes_count(&self) -> usize {
+        self.0.bytes_count()
     }
 }

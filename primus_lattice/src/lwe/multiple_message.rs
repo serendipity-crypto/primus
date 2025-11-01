@@ -353,7 +353,7 @@ impl<T: UnsignedInteger> MultiMsgLwe<T> {
 
 impl<T: Copy + ByteCount> Size for MultiMsgLwe<T> {
     #[inline]
-    fn byte_count(&self) -> usize {
+    fn bytes_count(&self) -> usize {
         (self.a.len() + self.b.len()) * <T as ByteCount>::BYTES_COUNT
     }
 }

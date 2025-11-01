@@ -199,7 +199,7 @@ where
     T: UnsignedInteger,
 {
     #[inline]
-    fn byte_count(&self) -> usize {
+    fn bytes_count(&self) -> usize {
         self.poly_length() * <T as ByteCount>::BYTES_COUNT
     }
 }

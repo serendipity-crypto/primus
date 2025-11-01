@@ -89,6 +89,7 @@ pub trait BigIntegerOps: BigInteger {
     /// Subs another big integer slice to this one modulo a given modulus.
     fn slice_sub_modulo_assign(&mut self, other: &Self, modulus: &Self);
 
+    /// Negates the big integer slice modulo a given modulus.
     fn slice_neg_modulo_assign(&mut self, modulus: &Self);
 
     /// Adds two big integer slices to result modulo a given modulus.
@@ -97,6 +98,7 @@ pub trait BigIntegerOps: BigInteger {
     /// Subs another big integer slice to this one modulo a given modulus.
     fn slice_sub_modulo_inplace(&self, other: &Self, result: &mut Self, modulus: &Self);
 
+    /// Negates the big integer slice modulo a given modulus.
     fn slice_neg_modulo_inplace(&self, result: &mut Self, modulus: &Self);
 }
 

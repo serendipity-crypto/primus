@@ -25,8 +25,8 @@ impl<T: UnsignedInteger> AsRef<[T]> for LweSecretKey<T> {
 
 impl<T: UnsignedInteger> Size for LweSecretKey<T> {
     #[inline]
-    fn byte_count(&self) -> usize {
-        self.data.byte_count()
+    fn bytes_count(&self) -> usize {
+        self.data.bytes_count()
     }
 }
 

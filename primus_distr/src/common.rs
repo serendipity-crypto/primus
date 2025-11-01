@@ -3,10 +3,7 @@ use std::slice::IterMut;
 use itertools::Itertools;
 use num_traits::ConstZero;
 use primus_integer::{AsInto, Integer, UnsignedInteger};
-use rand::{
-    CryptoRng, Rng,
-    distr::{Distribution, Uniform},
-};
+use rand::distr::{Distribution, Uniform};
 
 use crate::{DiscreteGaussian, SignedDiscreteGaussian};
 
@@ -14,7 +11,7 @@ use crate::{DiscreteGaussian, SignedDiscreteGaussian};
 pub fn sample_binary_values<T, R>(length: usize, rng: &mut R) -> Vec<T>
 where
     T: Integer,
-    R: Rng + CryptoRng,
+    R: rand::Rng + rand::CryptoRng,
 {
     let mut v = vec![T::ZERO; length];
     sample_binary_values_inplace(&mut v, rng);
@@ -25,7 +22,7 @@ where
 pub fn sample_binary_values_inplace<T, R>(result: &mut [T], rng: &mut R)
 where
     T: Integer,
-    R: Rng + CryptoRng,
+    R: rand::Rng + rand::CryptoRng,
 {
     let s = [T::ZERO, T::ONE];
 
@@ -48,7 +45,7 @@ where
 pub fn sample_ternary_values<T, R>(minus_one: T, length: usize, rng: &mut R) -> Vec<T>
 where
     T: Integer,
-    R: Rng + CryptoRng,
+    R: rand::Rng + rand::CryptoRng,
 {
     let mut v = vec![T::ZERO; length];
     sample_ternary_values_inplace(&mut v, minus_one, rng);
@@ -59,7 +56,7 @@ where
 pub fn sample_ternary_values_inplace<T, R>(result: &mut [T], minus_one: T, rng: &mut R)
 where
     T: Integer,
-    R: Rng + CryptoRng,
+    R: rand::Rng + rand::CryptoRng,
 {
     let s = [T::ZERO, T::ZERO, T::ONE, minus_one];
 
@@ -78,13 +75,18 @@ where
     }
 }
 
-pub fn sample_gaussian_values_inplace<T, R>(
-    result: &mut [T],
-    distr: &DiscreteGaussian<T>,
-    rng: &mut R,
-) where
-    T: UnsignedInteger,
-    R: Rng + CryptoRng,
+pub fn sample_uniform_values<T, R>(length: usize, distr: &Uniform<T>, rng: &mut R) -> Vec<T>
+where
+    T: Integer,
+    R: rand::Rng + rand::CryptoRng,
+{
+    distr.sample_iter(rng).take(length).collect()
+}
+
+pub fn sample_uniform_values_inplace<T, R>(result: &mut [T], distr: &Uniform<T>, rng: &mut R)
+where
+    T: Integer,
+    R: rand::Rng + rand::CryptoRng,
 {
     result
         .iter_mut()
@@ -92,10 +94,25 @@ pub fn sample_gaussian_values_inplace<T, R>(
         .for_each(|(a, b)| *a = b);
 }
 
-pub fn sample_uniform_values_inplace<T, R>(result: &mut [T], distr: &Uniform<T>, rng: &mut R)
+pub fn sample_gaussian_values<T, R>(
+    length: usize,
+    distr: &DiscreteGaussian<T>,
+    rng: &mut R,
+) -> Vec<T>
 where
     T: UnsignedInteger,
-    R: Rng + CryptoRng,
+    R: rand::Rng + rand::CryptoRng,
+{
+    distr.sample_iter(rng).take(length).collect()
+}
+
+pub fn sample_gaussian_values_inplace<T, R>(
+    result: &mut [T],
+    distr: &DiscreteGaussian<T>,
+    rng: &mut R,
+) where
+    T: UnsignedInteger,
+    R: rand::Rng + rand::CryptoRng,
 {
     result
         .iter_mut()
@@ -106,7 +123,7 @@ where
 pub fn sample_crt_binary_values<T, R>(length: usize, moduli_count: usize, rng: &mut R) -> Vec<T>
 where
     T: Integer,
-    R: Rng + CryptoRng,
+    R: rand::Rng + rand::CryptoRng,
 {
     let mut result = vec![T::ZERO; length * moduli_count];
 
@@ -118,7 +135,7 @@ where
 pub fn sample_crt_binary_values_inplace<T, R>(result: &mut [T], length: usize, rng: &mut R)
 where
     T: Integer,
-    R: Rng + CryptoRng,
+    R: rand::Rng + rand::CryptoRng,
 {
     let (v, w) = result.split_at_mut(length);
 
@@ -132,7 +149,7 @@ where
 pub fn sample_crt_ternary_values<T, R>(length: usize, moduli_minus_one: &[T], rng: &mut R) -> Vec<T>
 where
     T: Integer,
-    R: Rng + CryptoRng,
+    R: rand::Rng + rand::CryptoRng,
 {
     let moduli_count = moduli_minus_one.len();
     let mut result = vec![T::ZERO; length * moduli_count];
@@ -150,7 +167,7 @@ pub fn sample_crt_ternary_values_inplace<T, R>(
     rng: &mut R,
 ) where
     T: Integer,
-    R: Rng + CryptoRng,
+    R: rand::Rng + rand::CryptoRng,
 {
     debug_assert_eq!(result.len(), moduli_minus_one.len() * length);
     let mut iters: Vec<IterMut<'_, T>> = result
@@ -196,6 +213,44 @@ pub fn sample_crt_ternary_values_inplace<T, R>(
     }
 }
 
+/// Sample a uniform vector whose values are `T`.
+pub fn sample_crt_uniform_values_inplace<T, R>(
+    result: &mut [T],
+    length: usize,
+    uniform_distrs: &[Uniform<T>],
+    rng: &mut R,
+) where
+    T: Integer,
+    R: rand::Rng + rand::CryptoRng,
+{
+    result
+        .chunks_exact_mut(length)
+        .zip_eq(uniform_distrs)
+        .for_each(|(s, u)| {
+            s.iter_mut()
+                .zip(u.sample_iter(&mut *rng))
+                .for_each(|(a, b)| {
+                    *a = b;
+                });
+        });
+}
+
+/// Sample a uniform vector whose values are `T`.
+pub fn sample_crt_uniform_values_iter_mut<T, R>(
+    iters: Vec<IterMut<'_, T>>,
+    uniform_distrs: &[Uniform<T>],
+    rng: &mut R,
+) where
+    T: Integer,
+    R: rand::Rng + rand::CryptoRng,
+{
+    iters.into_iter().zip(uniform_distrs).for_each(|(s, u)| {
+        s.zip(u.sample_iter(&mut *rng)).for_each(|(a, b)| {
+            *a = b;
+        });
+    });
+}
+
 /// Sample a gaussian vector whose values are `T`.
 pub fn sample_crt_gaussian_values<T, R>(
     length: usize,
@@ -205,7 +260,7 @@ pub fn sample_crt_gaussian_values<T, R>(
 ) -> Vec<T>
 where
     T: UnsignedInteger,
-    R: Rng + CryptoRng,
+    R: rand::Rng + rand::CryptoRng,
 {
     let bound: f64 = 24.0 * gaussian.standard_deviation();
     let bound: T = bound.as_into();
@@ -255,7 +310,7 @@ pub fn sample_crt_gaussian_values_inplace<T, R>(
     rng: &mut R,
 ) where
     T: UnsignedInteger,
-    R: Rng + CryptoRng,
+    R: rand::Rng + rand::CryptoRng,
 {
     let iters: Vec<IterMut<'_, T>> = result
         .chunks_exact_mut(length)
@@ -272,7 +327,7 @@ pub fn sample_crt_gaussian_values_iter_mut<T, R>(
     rng: &mut R,
 ) where
     T: UnsignedInteger,
-    R: Rng + CryptoRng,
+    R: rand::Rng + rand::CryptoRng,
 {
     loop {
         let r = gaussian.sample(rng);
@@ -295,42 +350,4 @@ pub fn sample_crt_gaussian_values_iter_mut<T, R>(
             }
         }
     }
-}
-
-/// Sample a uniform vector whose values are `T`.
-pub fn sample_crt_uniform_values_inplace<T, R>(
-    result: &mut [T],
-    length: usize,
-    uniform_distrs: &[Uniform<T>],
-    rng: &mut R,
-) where
-    T: UnsignedInteger,
-    R: Rng + CryptoRng,
-{
-    result
-        .chunks_exact_mut(length)
-        .zip_eq(uniform_distrs)
-        .for_each(|(s, u)| {
-            s.iter_mut()
-                .zip(u.sample_iter(&mut *rng))
-                .for_each(|(a, b)| {
-                    *a = b;
-                });
-        });
-}
-
-/// Sample a uniform vector whose values are `T`.
-pub fn sample_crt_uniform_values_iter_mut<T, R>(
-    iters: Vec<IterMut<'_, T>>,
-    uniform_distrs: &[Uniform<T>],
-    rng: &mut R,
-) where
-    T: UnsignedInteger,
-    R: Rng + CryptoRng,
-{
-    iters.into_iter().zip(uniform_distrs).for_each(|(s, u)| {
-        s.zip(u.sample_iter(&mut *rng)).for_each(|(a, b)| {
-            *a = b;
-        });
-    });
 }

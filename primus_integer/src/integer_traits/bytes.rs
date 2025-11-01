@@ -8,7 +8,7 @@ macro_rules! impl_bytes {
     ($($T:ty),*) => {
         $(
             impl ByteCount for $T {
-                const BYTES_COUNT: usize = (<$T>::BITS >> 3) as usize;
+                const BYTES_COUNT: usize = (<$T>::BITS / 8) as usize;
             }
         )*
     };
