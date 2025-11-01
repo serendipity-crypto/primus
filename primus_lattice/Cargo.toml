@@ -19,3 +19,6 @@ bytemuck = { workspace = true }
 rand = { workspace = true }
 paste = { workspace = true }
 itertools = { workspace = true }
+
+[features]
+nightly = ["primus_ntt/nightly"]
