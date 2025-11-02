@@ -1,11 +1,13 @@
 use primus_integer::UnsignedInteger;
 use rand::{Rng, distr::Distribution};
 
+#[cfg(not(target_os = "linux"))]
 mod cdt;
 #[cfg(target_os = "linux")]
 mod unix_cdt;
 mod ziggurat;
 
+#[cfg(not(target_os = "linux"))]
 pub use cdt::CDTSampler;
 #[cfg(target_os = "linux")]
 pub use unix_cdt::UnixCDTSampler;
@@ -17,6 +19,7 @@ use crate::DistrErr;
 #[derive(Clone)]
 pub enum DiscreteGaussian<T: UnsignedInteger> {
     /// CDTSampler
+    #[cfg(not(target_os = "linux"))]
     Cdt(cdt::CDTSampler<T>),
     /// UnixCDTSampler
     #[cfg(target_os = "linux")]
@@ -89,6 +92,7 @@ impl<T: UnsignedInteger> DiscreteGaussian<T> {
     /// Returns the standard deviation of this [`DiscreteGaussian<T>`].
     pub fn standard_deviation(&self) -> f64 {
         match self {
+            #[cfg(not(target_os = "linux"))]
             DiscreteGaussian::Cdt(cdtsampler) => cdtsampler.std_dev(),
             #[cfg(target_os = "linux")]
             DiscreteGaussian::Unix(sampler) => sampler.std_dev(),
@@ -101,6 +105,7 @@ impl<T: UnsignedInteger> Distribution<T> for DiscreteGaussian<T> {
     #[inline]
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> T {
         match self {
+            #[cfg(not(target_os = "linux"))]
             DiscreteGaussian::Cdt(cdtsampler) => cdtsampler.sample(rng),
             #[cfg(target_os = "linux")]
             DiscreteGaussian::Unix(sampler) => sampler.sample(rng),

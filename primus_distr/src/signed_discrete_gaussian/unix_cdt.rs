@@ -10,11 +10,12 @@ pub struct UnixCDTSampler<T: Integer> {
     std_dev: f64,
     upper_bound: usize,
     cdt: Vec<rug::Integer>,
+    phantom: PhantomData<T>,
 }
 
 impl<T: Integer> UnixCDTSampler<T> {
     /// Generate UnixCDTSampler
-    pub fn new(std_dev: f64, tail_cut: f64, modulus_minus_one: T) -> Self {
+    pub fn new(std_dev: f64, tail_cut: f64) -> Self {
         let mut length = (std_dev * tail_cut).floor() as usize + 1;
 
         assert!(length <= 1024);
@@ -67,6 +68,7 @@ impl<T: Integer> UnixCDTSampler<T> {
             std_dev,
             upper_bound: length,
             cdt,
+            phantom: PhantomData,
         }
     }
 

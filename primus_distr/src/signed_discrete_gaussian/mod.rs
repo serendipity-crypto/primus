@@ -3,6 +3,7 @@ use rand::distr::Distribution;
 
 use crate::DistrErr;
 
+#[cfg(not(target_os = "linux"))]
 mod cdt;
 #[cfg(target_os = "linux")]
 mod unix_cdt;
@@ -73,6 +74,7 @@ impl<T: Integer> SignedDiscreteGaussian<T> {
     /// Returns the standard deviation of this [`SignedDiscreteGaussian<T>`].
     pub fn standard_deviation(&self) -> f64 {
         match self {
+            #[cfg(not(target_os = "linux"))]
             SignedDiscreteGaussian::Cdt(cdtsampler) => cdtsampler.std_dev(),
             #[cfg(target_os = "linux")]
             SignedDiscreteGaussian::Unix(sampler) => sampler.std_dev(),
@@ -85,6 +87,7 @@ impl<T: Integer> Distribution<T> for SignedDiscreteGaussian<T> {
     #[inline]
     fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> T {
         match self {
+            #[cfg(not(target_os = "linux"))]
             SignedDiscreteGaussian::Cdt(cdtsampler) => cdtsampler.sample(rng),
             #[cfg(target_os = "linux")]
             SignedDiscreteGaussian::Unix(sampler) => sampler.sample(rng),

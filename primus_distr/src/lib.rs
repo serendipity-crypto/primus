@@ -15,7 +15,9 @@ pub use common::*;
 pub use binary::BinaryDistr;
 pub use ternary::TernaryDistr;
 
+#[cfg(not(target_os = "linux"))]
+pub use discrete_gaussian::CDTSampler;
 #[cfg(target_os = "linux")]
 pub use discrete_gaussian::UnixCDTSampler;
-pub use discrete_gaussian::{CDTSampler, DiscreteGaussian, DiscreteZiggurat};
+pub use discrete_gaussian::{DiscreteGaussian, DiscreteZiggurat};
 pub use signed_discrete_gaussian::SignedDiscreteGaussian;

@@ -80,7 +80,7 @@ impl<T: UnsignedInteger> UnixCDTSampler<T> {
 
 impl<T: UnsignedInteger> Distribution<T> for UnixCDTSampler<T> {
     fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> T {
-        let r: [u32; 8] = Standard.sample(rng);
+        let r: [u32; 8] = StandardUniform.sample(rng);
         let r = rug::Integer::from_digits(&r, rug::integer::Order::Lsf);
 
         let mut min = 0;
