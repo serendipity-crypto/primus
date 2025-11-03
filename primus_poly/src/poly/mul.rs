@@ -72,6 +72,36 @@ where
             UintModulus(modulus).reduce_add_assign(r, scalar.factor_mul_modulo(v, modulus))
         });
     }
+
+    pub fn mul_monomial_assign<M>(&mut self, r: usize, modulus: M)
+    where
+        M: Copy + ReduceNegAssign<T>,
+    {
+        let poly_length = self.poly_length();
+
+        if r < poly_length {
+            let rotate = |poly: &mut [T], modulus: M| {
+                poly.rotate_right(r);
+                poly[0..r]
+                    .iter_mut()
+                    .for_each(|v| modulus.reduce_neg_assign(v));
+            };
+
+            rotate(self.as_mut_slice(), modulus)
+        } else {
+            debug_assert!(r < poly_length * 2);
+            let r = r - poly_length;
+
+            let rotate = |poly: &mut [T], modulus: M| {
+                poly.rotate_right(r);
+                poly[r..]
+                    .iter_mut()
+                    .for_each(|v| modulus.reduce_neg_assign(v));
+            };
+
+            rotate(self.as_mut_slice(), modulus)
+        }
+    }
 }
 
 impl<S, T> Polynomial<S, T>

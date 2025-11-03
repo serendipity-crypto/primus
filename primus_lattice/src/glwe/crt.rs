@@ -75,10 +75,10 @@ where
         M: FieldContext<T>,
     {
         if r < poly_length {
-            let n_sub_r = poly_length - r;
+            // let n_sub_r = poly_length - r;
             let rotate = |poly: &mut [T], modulus: M| {
                 poly.rotate_right(r);
-                poly[0..n_sub_r]
+                poly[0..r]
                     .iter_mut()
                     .for_each(|v| modulus.reduce_neg_assign(v));
             };
@@ -90,12 +90,13 @@ where
                     .for_each(|(poly, &modulus)| rotate(poly, modulus));
             });
         } else {
-            let r = (poly_length << 1) - r;
-            let n_sub_r = poly_length.checked_sub(r).expect("r > 2N !");
+            debug_assert!(r < poly_length * 2);
+            let r = r - poly_length;
+            // let n_sub_r = poly_length.checked_sub(r).expect("r > 2N !");
 
             let rotate = |poly: &mut [T], modulus: M| {
-                poly.rotate_left(r);
-                poly[n_sub_r..]
+                poly.rotate_right(r);
+                poly[r..]
                     .iter_mut()
                     .for_each(|v| modulus.reduce_neg_assign(v));
             };

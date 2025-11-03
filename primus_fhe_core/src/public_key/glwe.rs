@@ -264,6 +264,7 @@ impl<T: UnsignedInteger> DcrtGlwePublicKey<T> {
         let rns_glev_len = params.rns_glev_len();
 
         assert_eq!(result.as_ref().len(), params.rns_ggsw_len());
+        assert!(degree < params.poly_length());
 
         let mut v = vec![T::ZERO; rns_poly_len];
 
