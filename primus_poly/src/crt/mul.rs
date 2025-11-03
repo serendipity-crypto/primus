@@ -79,6 +79,38 @@ where
             ArrayBase(xs).add_mul_scalar_assign(&ArrayBase(ys), scalar, modulus);
         });
     }
+
+    pub fn mul_monomial_assign<M>(&mut self, r: usize, poly_length: usize, moduli: &[M])
+    where
+        M: Copy + ReduceNegAssign<T>,
+    {
+        if r < poly_length {
+            let rotate = |poly: &mut [T], modulus: M| {
+                poly.rotate_right(r);
+                poly[0..r]
+                    .iter_mut()
+                    .for_each(|v| modulus.reduce_neg_assign(v));
+            };
+
+            self.iter_each_modulus_mut(poly_length)
+                .zip(moduli)
+                .for_each(|(poly, &modulus)| rotate(poly, modulus));
+        } else {
+            debug_assert!(r < poly_length * 2);
+            let r = r - poly_length;
+
+            let rotate = |poly: &mut [T], modulus: M| {
+                poly.rotate_right(r);
+                poly[r..]
+                    .iter_mut()
+                    .for_each(|v| modulus.reduce_neg_assign(v));
+            };
+
+            self.iter_each_modulus_mut(poly_length)
+                .zip(moduli)
+                .for_each(|(poly, &modulus)| rotate(poly, modulus));
+        }
+    }
 }
 
 impl<S, T> CrtPolynomial<S, T>
