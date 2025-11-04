@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use primus_integer::{AsInto, Integer};
 use rand::distr::{Distribution, StandardUniform};
 use rug::{Float, az::Cast};

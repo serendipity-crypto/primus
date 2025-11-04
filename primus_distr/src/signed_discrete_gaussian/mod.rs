@@ -13,6 +13,7 @@ mod ziggurat;
 #[derive(Clone)]
 pub enum SignedDiscreteGaussian<T: Integer> {
     /// CDTSampler
+    #[cfg(not(target_os = "linux"))]
     Cdt(cdt::CDTSampler<T>),
     /// UnixCDTSampler
     #[cfg(target_os = "linux")]
