@@ -2,10 +2,10 @@ use num_traits::ConstOne;
 use primus_integer::UnsignedInteger;
 use serde::{Deserialize, Serialize};
 
-use super::{ScalarIter, SignedDecomposeIter};
+use super::{ScalarIter, SignedDecomposeIter, ValueMask};
 
 /// The basis for approximate signed decomposition.
-#[derive(Debug, Clone, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(bound(deserialize = "T: UnsignedInteger"))]
 pub struct ApproxSignedBasis<T: UnsignedInteger> {
     modulus: Option<T>,
@@ -15,13 +15,17 @@ pub struct ApproxSignedBasis<T: UnsignedInteger> {
     modulus_minus_basis: T,
     decompose_length: usize,
     value_bits: u32,
-    init_carry_mask: Option<T>,
-    carry_mask: T,
     log_basis: u32,
     drop_bits: u32,
+    init_carry_mask: Option<T>,
+    carry_mask: T,
     split_value: Option<T>,
     next_pow_of_2_sub_modulus: T,
+    scalars: Vec<T>,
+    value_masks: Vec<ValueMask<T>>,
 }
+
+impl<T: UnsignedInteger> Eq for ApproxSignedBasis<T> {}
 
 impl<T: UnsignedInteger> PartialEq for ApproxSignedBasis<T> {
     #[inline]
@@ -122,6 +126,27 @@ impl<T: UnsignedInteger> ApproxSignedBasis<T> {
             next_pow_of_2_sub_modulus = (T::MAX >> (T::BITS - value_bits)) - (modulus - T::ONE);
         }
 
+        let mut scalars = vec![T::ZERO; decompose_length];
+        let mut prev: Option<T> = None;
+        scalars.iter_mut().for_each(|scalar| {
+            if let Some(pre) = prev.as_mut() {
+                *pre <<= log_basis;
+                *scalar = *pre;
+            } else {
+                *scalar = T::ONE;
+                *scalar <<= drop_bits;
+                prev = Some(*scalar);
+            }
+        });
+
+        let mut value_masks = Vec::with_capacity(decompose_length);
+        let mut prev = ValueMask::new(basis_minus_one, drop_bits);
+        value_masks.push(prev);
+        for _ in 1..decompose_length {
+            prev = prev.next(log_basis);
+            value_masks.push(prev);
+        }
+
         Self {
             modulus,
             modulus_is_power_of_2,
@@ -136,6 +161,8 @@ impl<T: UnsignedInteger> ApproxSignedBasis<T> {
             drop_bits,
             split_value,
             next_pow_of_2_sub_modulus,
+            scalars,
+            value_masks,
         }
     }
 
@@ -194,12 +221,9 @@ impl<T: UnsignedInteger> ApproxSignedBasis<T> {
 
     /// Returns an iterator over the signed decomposition operators of this [`ApproxSignedBasis<T>`].
     #[inline]
-    pub fn decompose_iter(&self) -> SignedDecomposeIter<T> {
-        SignedDecomposeIter::<T> {
-            length: self.decompose_length,
-            value_chunk_mask: self.basis_minus_one << self.drop_bits,
-            mask_shl_bits: self.log_basis,
-            value_shr_bits: self.drop_bits,
+    pub fn decompose_iter<'a>(&'a self) -> SignedDecomposeIter<'a, T> {
+        SignedDecomposeIter {
+            value_masks: self.value_masks.iter(),
             carry_mask: self.carry_mask,
             basis_minus_one: self.basis_minus_one,
             modulus_minus_basis: self.modulus_minus_basis,
@@ -208,12 +232,8 @@ impl<T: UnsignedInteger> ApproxSignedBasis<T> {
 
     /// Returns an iterator over scalars of this [`ApproxSignedBasis<T>`].
     #[inline]
-    pub fn scalar_iter(&self) -> ScalarIter<T> {
-        ScalarIter::new(
-            T::ONE << self.drop_bits,
-            self.decompose_length,
-            self.log_basis,
-        )
+    pub fn scalar_iter<'a>(&'a self) -> ScalarIter<'a, T> {
+        ScalarIter::new(&self.scalars)
     }
 
     /// Init carry and adjusted value for a value.
