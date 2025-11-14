@@ -200,6 +200,6 @@ where
 {
     #[inline]
     fn bytes_count(&self) -> usize {
-        self.poly_length() * <T as ByteCount>::BYTES_COUNT
+        self.poly_length() * <T as ByteCount>::BYTES
     }
 }

@@ -110,7 +110,7 @@ where
 {
     #[inline]
     fn bytes_count(&self) -> usize {
-        self.0.len() * <T as ByteCount>::BYTES_COUNT
+        self.0.len() * <T as ByteCount>::BYTES
     }
 }
 

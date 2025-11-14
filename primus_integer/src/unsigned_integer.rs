@@ -2,7 +2,7 @@ use primus_gcd::Xgcd;
 
 use crate::{BorrowingSub, CarryingAdd, CarryingMul, DivRem, DivRemScalar, Integer, WideningMul};
 
-/// An abstract over unsigned interger type.
+/// An abstract over unsigned integer type.
 pub trait UnsignedInteger:
     Integer
     + num_traits::Unsigned

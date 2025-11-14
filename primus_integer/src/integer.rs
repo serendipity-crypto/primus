@@ -14,7 +14,7 @@ use zeroize::Zeroize;
 
 use crate::integer_traits::*;
 
-/// An abstract over interger type.
+/// An abstract over integer type.
 pub trait Integer:
     Sized
     + Pod

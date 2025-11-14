@@ -9,13 +9,13 @@ pub trait Size {
 impl<T: ByteCount> Size for Vec<T> {
     #[inline]
     fn bytes_count(&self) -> usize {
-        self.len() * T::BYTES_COUNT
+        self.len() * T::BYTES
     }
 }
 
 impl<T: ByteCount> Size for &[T] {
     #[inline]
     fn bytes_count(&self) -> usize {
-        self.len() * T::BYTES_COUNT
+        self.len() * T::BYTES
     }
 }

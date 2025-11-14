@@ -1,14 +1,14 @@
 /// Extension trait to provide access to bytes of integers.
 pub trait ByteCount {
     /// The number of bytes this type has.
-    const BYTES_COUNT: usize;
+    const BYTES: usize;
 }
 
 macro_rules! impl_bytes {
     ($($T:ty),*) => {
         $(
             impl ByteCount for $T {
-                const BYTES_COUNT: usize = (<$T>::BITS / 8) as usize;
+                const BYTES: usize = std::mem::size_of::<Self>();
             }
         )*
     };

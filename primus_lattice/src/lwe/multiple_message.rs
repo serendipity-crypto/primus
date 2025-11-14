@@ -65,7 +65,7 @@ impl<T: Copy + Pod + ByteCount> MultiMsgLwe<T> {
     /// Returns the bytes count of [`MultiMsgLwe<T>`].
     #[inline]
     pub fn bytes_count(&self) -> usize {
-        (self.a.len() + self.b.len()) * T::BYTES_COUNT
+        (self.a.len() + self.b.len()) * T::BYTES
     }
 }
 
@@ -354,6 +354,6 @@ impl<T: UnsignedInteger> MultiMsgLwe<T> {
 impl<T: Copy + ByteCount> Size for MultiMsgLwe<T> {
     #[inline]
     fn bytes_count(&self) -> usize {
-        (self.a.len() + self.b.len()) * <T as ByteCount>::BYTES_COUNT
+        (self.a.len() + self.b.len()) * <T as ByteCount>::BYTES
     }
 }

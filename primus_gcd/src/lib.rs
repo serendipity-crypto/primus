@@ -32,7 +32,7 @@ pub trait Xgcd: Sized {
     /// It suffices to show that `(s + t q) < x_n / 2` as `t < y_n / 2 < x_n / 2`,
     /// which will complete the induction step.
     ///
-    /// But at the previous step in the backsubstitution we would have had
+    /// But at the previous step in the back substitution we would have had
     /// `1 = s r - c d` with `s < r/2` and `c < r/2`.
     ///
     /// Then `s + t q < r/2 + y_n / 2 q = (r + q y_n)/2 = x_n / 2`.

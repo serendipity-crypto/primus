@@ -94,7 +94,7 @@ macro_rules! impl_bytes_conversion {
             /// Returns the bytes count.
             #[inline]
             pub fn bytes_count(&self) -> usize {
-                self.data.len() * <$t>::BYTES_COUNT
+                self.data.len() * <$t>::BYTES
             }
         }
     };
