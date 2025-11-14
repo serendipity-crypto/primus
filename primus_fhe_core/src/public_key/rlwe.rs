@@ -141,8 +141,8 @@ where
 
     /// Returns the bytes count of [`NttRlwePublicKey<T>`].
     #[inline]
-    pub fn bytes_count(&self) -> usize {
-        self.key.bytes_count()
+    pub fn byte_count(&self) -> usize {
+        self.key.byte_count()
     }
 
     pub fn encrypt_inplace<M, Table, R, A, B>(

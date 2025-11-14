@@ -139,7 +139,7 @@ where
     T: UnsignedInteger,
 {
     #[inline]
-    fn bytes_count(&self) -> usize {
+    fn byte_count(&self) -> usize {
         self.0.len() * <T as ByteCount>::BYTES
     }
 }

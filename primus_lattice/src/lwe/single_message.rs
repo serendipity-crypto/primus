@@ -69,7 +69,7 @@ impl<T: Copy + Pod + ByteCount> Lwe<T> {
 
     /// Returns the bytes count of [`Lwe<T>`].
     #[inline]
-    pub fn bytes_count(&self) -> usize {
+    pub fn byte_count(&self) -> usize {
         (self.a.len() + 1) * T::BYTES
     }
 }
@@ -326,7 +326,7 @@ impl<T: UnsignedInteger> Lwe<T> {
 
 impl<T: Copy + ByteCount> Size for Lwe<T> {
     #[inline]
-    fn bytes_count(&self) -> usize {
+    fn byte_count(&self) -> usize {
         (self.a.len() + 1) * T::BYTES
     }
 }

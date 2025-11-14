@@ -26,8 +26,8 @@ impl<T: UnsignedInteger> DcrtGlwePublicKey<T> {
 
     /// Returns the bytes count of [`DcrtGlwePublicKey<T>`].
     #[inline]
-    pub fn bytes_count(&self) -> usize {
-        self.key.bytes_count()
+    pub fn byte_count(&self) -> usize {
+        self.key.byte_count()
     }
 
     pub fn new<Table, R, M>(
