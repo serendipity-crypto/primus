@@ -2,13 +2,13 @@ use num_traits::Zero;
 use primus_integer::UnsignedInteger;
 use primus_reduce::ops::ReduceInvAssign;
 
-use crate::{DataOwned, RawData};
+use crate::{DataMut, DataOwned, RawData};
 
 use super::DcrtPolynomial;
 
 impl<S, T> DcrtPolynomial<S, T>
 where
-    S: RawData<Elem = T> + DataOwned,
+    S: RawData<Elem = T> + DataOwned + DataMut,
     T: UnsignedInteger,
 {
     /// Try to calculate the inverse of the polynomial.

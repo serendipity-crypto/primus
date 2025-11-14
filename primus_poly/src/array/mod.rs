@@ -171,13 +171,16 @@ pub trait Data: RawData + AsRef<[<Self as RawData>::Elem]> {
     /// # Panics
     ///
     /// Panics if `mid > len`.
-    fn split_at(&self, mid: usize) -> (&[Self::Elem], &[Self::Elem]);
+    fn split_at(&self, mid: usize) -> (&[<Self as RawData>::Elem], &[<Self as RawData>::Elem]);
 
     /// Divides one slice into two at an index, without doing bounds checking.
     ///
     /// The first will contain all indices from `[0, mid)` (excluding the index `mid` itself)
     /// and the second will contain all indices from `[mid, len)` (excluding the index len itself).
-    unsafe fn split_at_unchecked(&self, mid: usize) -> (&[Self::Elem], &[Self::Elem]);
+    unsafe fn split_at_unchecked(
+        &self,
+        mid: usize,
+    ) -> (&[<Self as RawData>::Elem], &[<Self as RawData>::Elem]);
 }
 
 impl<T: UnsignedInteger> Data for &[T] {
@@ -205,12 +208,15 @@ impl<T: UnsignedInteger> Data for &[T] {
     }
 
     #[inline]
-    fn split_at(&self, mid: usize) -> (&[Self::Elem], &[Self::Elem]) {
+    fn split_at(&self, mid: usize) -> (&[<Self as RawData>::Elem], &[<Self as RawData>::Elem]) {
         <[T]>::split_at(self, mid)
     }
 
     #[inline]
-    unsafe fn split_at_unchecked(&self, mid: usize) -> (&[Self::Elem], &[Self::Elem]) {
+    unsafe fn split_at_unchecked(
+        &self,
+        mid: usize,
+    ) -> (&[<Self as RawData>::Elem], &[<Self as RawData>::Elem]) {
         unsafe { <[T]>::split_at_unchecked(self, mid) }
     }
 }
@@ -240,12 +246,15 @@ impl<T: UnsignedInteger> Data for &mut [T] {
     }
 
     #[inline]
-    fn split_at(&self, mid: usize) -> (&[Self::Elem], &[Self::Elem]) {
+    fn split_at(&self, mid: usize) -> (&[<Self as RawData>::Elem], &[<Self as RawData>::Elem]) {
         <[T]>::split_at(self, mid)
     }
 
     #[inline]
-    unsafe fn split_at_unchecked(&self, mid: usize) -> (&[Self::Elem], &[Self::Elem]) {
+    unsafe fn split_at_unchecked(
+        &self,
+        mid: usize,
+    ) -> (&[<Self as RawData>::Elem], &[<Self as RawData>::Elem]) {
         unsafe { <[T]>::split_at_unchecked(self, mid) }
     }
 }
@@ -275,12 +284,15 @@ impl<T: UnsignedInteger> Data for Vec<T> {
     }
 
     #[inline]
-    fn split_at(&self, mid: usize) -> (&[Self::Elem], &[Self::Elem]) {
+    fn split_at(&self, mid: usize) -> (&[<Self as RawData>::Elem], &[<Self as RawData>::Elem]) {
         <[T]>::split_at(self, mid)
     }
 
     #[inline]
-    unsafe fn split_at_unchecked(&self, mid: usize) -> (&[Self::Elem], &[Self::Elem]) {
+    unsafe fn split_at_unchecked(
+        &self,
+        mid: usize,
+    ) -> (&[<Self as RawData>::Elem], &[<Self as RawData>::Elem]) {
         unsafe { <[T]>::split_at_unchecked(self, mid) }
     }
 }
@@ -302,9 +314,15 @@ pub trait DataMut: Data + AsMut<[<Self as RawData>::Elem]> {
     /// Copies all elements from `src` into `self`, using a memcpy.
     ///
     /// The length of `src` must be the same as `self`.
-    fn copy_from_slice(&mut self, src: &[Self::Elem]);
+    fn copy_from_slice(&mut self, src: &[<Self as RawData>::Elem]);
 
-    fn split_at_mut(&mut self, mid: usize) -> (&mut [Self::Elem], &mut [Self::Elem]);
+    fn split_at_mut(
+        &mut self,
+        mid: usize,
+    ) -> (
+        &mut [<Self as RawData>::Elem],
+        &mut [<Self as RawData>::Elem],
+    );
 
     /// Divides one mutable slice into two at an index, without doing bounds checking.
     ///
@@ -313,7 +331,10 @@ pub trait DataMut: Data + AsMut<[<Self as RawData>::Elem]> {
     unsafe fn split_at_mut_unchecked(
         &mut self,
         mid: usize,
-    ) -> (&mut [Self::Elem], &mut [Self::Elem]);
+    ) -> (
+        &mut [<Self as RawData>::Elem],
+        &mut [<Self as RawData>::Elem],
+    );
 }
 
 impl<T: UnsignedInteger> DataMut for &mut [T] {
@@ -328,7 +349,7 @@ impl<T: UnsignedInteger> DataMut for &mut [T] {
     }
 
     #[inline]
-    fn copy_from_slice(&mut self, src: &[Self::Elem]) {
+    fn copy_from_slice(&mut self, src: &[<Self as RawData>::Elem]) {
         <[T]>::copy_from_slice(self, src);
     }
 
@@ -341,7 +362,13 @@ impl<T: UnsignedInteger> DataMut for &mut [T] {
     }
 
     #[inline]
-    fn split_at_mut(&mut self, mid: usize) -> (&mut [Self::Elem], &mut [Self::Elem]) {
+    fn split_at_mut(
+        &mut self,
+        mid: usize,
+    ) -> (
+        &mut [<Self as RawData>::Elem],
+        &mut [<Self as RawData>::Elem],
+    ) {
         <[T]>::split_at_mut(self, mid)
     }
 
@@ -349,7 +376,10 @@ impl<T: UnsignedInteger> DataMut for &mut [T] {
     unsafe fn split_at_mut_unchecked(
         &mut self,
         mid: usize,
-    ) -> (&mut [Self::Elem], &mut [Self::Elem]) {
+    ) -> (
+        &mut [<Self as RawData>::Elem],
+        &mut [<Self as RawData>::Elem],
+    ) {
         unsafe { <[T]>::split_at_mut_unchecked(self, mid) }
     }
 }
@@ -366,7 +396,7 @@ impl<T: UnsignedInteger> DataMut for Vec<T> {
     }
 
     #[inline]
-    fn copy_from_slice(&mut self, src: &[Self::Elem]) {
+    fn copy_from_slice(&mut self, src: &[<Self as RawData>::Elem]) {
         <[T]>::copy_from_slice(self, src);
     }
 
@@ -379,7 +409,13 @@ impl<T: UnsignedInteger> DataMut for Vec<T> {
     }
 
     #[inline]
-    fn split_at_mut(&mut self, mid: usize) -> (&mut [Self::Elem], &mut [Self::Elem]) {
+    fn split_at_mut(
+        &mut self,
+        mid: usize,
+    ) -> (
+        &mut [<Self as RawData>::Elem],
+        &mut [<Self as RawData>::Elem],
+    ) {
         <[T]>::split_at_mut(self, mid)
     }
 
@@ -387,38 +423,40 @@ impl<T: UnsignedInteger> DataMut for Vec<T> {
     unsafe fn split_at_mut_unchecked(
         &mut self,
         mid: usize,
-    ) -> (&mut [Self::Elem], &mut [Self::Elem]) {
+    ) -> (
+        &mut [<Self as RawData>::Elem],
+        &mut [<Self as RawData>::Elem],
+    ) {
         unsafe { <[T]>::split_at_mut_unchecked(self, mid) }
     }
 }
 
-pub trait DataOwned: DataMut + FromIterator<Self::Elem> {
-    /// Creates array.
-    fn new_array(value: Self::Elem, len: usize) -> Self;
+pub trait DataOwned: Data + FromIterator<<Self as RawData>::Elem> {
+    fn zero(len: usize) -> Self;
 
-    fn from_slice(data: &[Self::Elem]) -> Self;
+    fn from_slice(data: &[<Self as RawData>::Elem]) -> Self;
 
-    fn from_vec(data: Vec<Self::Elem>) -> Self;
+    fn from_vec(data: Vec<<Self as RawData>::Elem>) -> Self;
 
     /// Creates a consuming iterator, that is, one that moves each value out of the vector (from start to end).
     fn into_iter(self) -> std::vec::IntoIter<<Self as RawData>::Elem>;
 
-    fn to_ref(&self) -> &[Self::Elem];
+    fn to_ref(&self) -> &[<Self as RawData>::Elem];
 }
 
 impl<T: UnsignedInteger> DataOwned for Vec<T> {
     #[inline(always)]
-    fn new_array(value: Self::Elem, len: usize) -> Self {
-        vec![value; len]
+    fn zero(len: usize) -> Self {
+        vec![T::ZERO; len]
     }
 
     #[inline]
-    fn from_slice(data: &[Self::Elem]) -> Self {
+    fn from_slice(data: &[<Self as RawData>::Elem]) -> Self {
         data.to_vec()
     }
 
     #[inline(always)]
-    fn from_vec(data: Vec<Self::Elem>) -> Self {
+    fn from_vec(data: Vec<<Self as RawData>::Elem>) -> Self {
         data
     }
 
@@ -428,7 +466,7 @@ impl<T: UnsignedInteger> DataOwned for Vec<T> {
     }
 
     #[inline]
-    fn to_ref(&self) -> &[Self::Elem] {
+    fn to_ref(&self) -> &[<Self as RawData>::Elem] {
         self
     }
 }

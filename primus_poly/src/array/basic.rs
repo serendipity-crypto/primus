@@ -49,7 +49,7 @@ where
 {
     #[inline]
     pub fn zero(len: usize) -> Self {
-        Self(S::new_array(<T as ConstZero>::ZERO, len))
+        Self(S::zero(len))
     }
 }
 
