@@ -7,6 +7,7 @@ mod add;
 mod inv;
 mod mul;
 mod neg;
+mod random;
 mod sub;
 
 /// This structure is used to store polynomials

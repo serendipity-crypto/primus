@@ -5,6 +5,7 @@ use crate::{Data, DataMut, DataOwned, RawData};
 mod add;
 mod mul;
 mod neg;
+mod random;
 mod sub;
 
 /// This structure is used to store polynomials with large integer coefficients.

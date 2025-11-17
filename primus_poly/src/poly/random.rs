@@ -1,7 +1,7 @@
 use primus_distr::DiscreteGaussian;
 use primus_integer::UnsignedInteger;
 use primus_reduce::{Modulus, ops::ReduceAddAssign};
-use rand::{CryptoRng, Rng, distr::Distribution};
+use rand::distr::Distribution;
 
 use crate::{DataMut, DataOwned, RawData, poly::PolynomialOwned};
 
@@ -14,28 +14,28 @@ where
 {
     /// Generate a random [`Polynomial<S, T>`].
     #[inline]
-    pub fn random<M, R>(n: usize, modulus: M, rng: &mut R) -> Self
+    pub fn random<M, R>(poly_length: usize, modulus: M, rng: &mut R) -> Self
     where
         M: Modulus<ValueT = T>,
-        R: Rng + CryptoRng,
+        R: rand::Rng + rand::CryptoRng,
     {
         Self(
             modulus
                 .uniform_distribution()
                 .sample_iter(rng)
-                .take(n)
+                .take(poly_length)
                 .collect(),
         )
     }
 
     /// Generate a random [`Polynomial<S>`] with a specified `distribution`.
     #[inline]
-    pub fn random_with_distribution<R, D>(n: usize, distribution: &D, rng: &mut R) -> Self
+    pub fn random_with_distribution<R, D>(poly_length: usize, distribution: &D, rng: &mut R) -> Self
     where
         D: Distribution<T>,
-        R: Rng + CryptoRng,
+        R: rand::Rng + rand::CryptoRng,
     {
-        Self(distribution.sample_iter(rng).take(n).collect())
+        Self(distribution.sample_iter(rng).take(poly_length).collect())
     }
 
     /// Generate a random [`Polynomial<S>`] with discrete gaussian distribution.
@@ -46,27 +46,27 @@ where
         rng: &mut R,
     ) -> Self
     where
-        R: Rng + CryptoRng,
+        R: rand::Rng + rand::CryptoRng,
     {
         Self(gaussian.sample_iter(rng).take(poly_length).collect())
     }
 }
 
 impl<T: UnsignedInteger> PolynomialOwned<T> {
-    /// Generate a random binary [`Polynomial<S>`].
+    /// Generate a random binary [`PolynomialOwned<T>`].
     #[inline]
     pub fn random_binary<R>(poly_length: usize, rng: &mut R) -> Self
     where
-        R: Rng + CryptoRng,
+        R: rand::Rng + rand::CryptoRng,
     {
         Self(primus_distr::sample_binary_values(poly_length, rng))
     }
 
-    /// Generate a random ternary [`Polynomial<S>`].
+    /// Generate a random ternary [`PolynomialOwned<T>`].
     #[inline]
     pub fn random_ternary<R>(minus_one: T, poly_length: usize, rng: &mut R) -> Self
     where
-        R: Rng + CryptoRng,
+        R: rand::Rng + rand::CryptoRng,
     {
         Self(primus_distr::sample_ternary_values(
             minus_one,
@@ -86,10 +86,9 @@ where
     pub fn random_assign<M, R>(&mut self, modulus: M, rng: &mut R)
     where
         M: Modulus<ValueT = T>,
-        R: Rng + CryptoRng,
+        R: rand::Rng + rand::CryptoRng,
     {
-        self.0
-            .iter_mut()
+        self.iter_mut()
             .zip(modulus.uniform_distribution().sample_iter(rng))
             .for_each(|(a, b)| *a = b);
     }
@@ -99,10 +98,9 @@ where
     pub fn random_with_distribution_assign<R, D>(&mut self, distribution: &D, rng: &mut R)
     where
         D: Distribution<T>,
-        R: Rng + CryptoRng,
+        R: rand::Rng + rand::CryptoRng,
     {
-        self.0
-            .iter_mut()
+        self.iter_mut()
             .zip(distribution.sample_iter(rng))
             .for_each(|(a, b)| *a = b);
     }
@@ -111,7 +109,7 @@ where
     #[inline]
     pub fn random_binary_assign<R>(&mut self, rng: &mut R)
     where
-        R: Rng + CryptoRng,
+        R: rand::Rng + rand::CryptoRng,
     {
         primus_distr::sample_binary_values_inplace(self.as_mut(), rng)
     }
@@ -120,7 +118,7 @@ where
     #[inline]
     pub fn random_ternary_assign<R>(&mut self, minus_one: T, rng: &mut R)
     where
-        R: Rng + CryptoRng,
+        R: rand::Rng + rand::CryptoRng,
     {
         primus_distr::sample_ternary_values_inplace(self.as_mut(), minus_one, rng)
     }
@@ -129,10 +127,9 @@ where
     #[inline]
     pub fn random_gaussian_assign<R>(&mut self, gaussian: &DiscreteGaussian<T>, rng: &mut R)
     where
-        R: Rng + CryptoRng,
+        R: rand::Rng + rand::CryptoRng,
     {
-        self.0
-            .iter_mut()
+        self.iter_mut()
             .zip(gaussian.sample_iter(rng))
             .for_each(|(a, b)| *a = b);
     }
@@ -145,11 +142,10 @@ where
         modulus: M,
         rng: &mut R,
     ) where
-        R: Rng + CryptoRng,
+        R: rand::Rng + rand::CryptoRng,
         M: Copy + ReduceAddAssign<T>,
     {
-        self.0
-            .iter_mut()
+        self.iter_mut()
             .zip(gaussian.sample_iter(rng))
             .for_each(|(a, b)| modulus.reduce_add_assign(a, b));
     }

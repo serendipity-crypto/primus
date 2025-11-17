@@ -214,6 +214,23 @@ pub fn sample_crt_ternary_values_inplace<T, R>(
 }
 
 /// Sample a uniform vector whose values are `T`.
+pub fn sample_crt_uniform_values<T, R>(
+    length: usize,
+    uniform_distrs: &[Uniform<T>],
+    rng: &mut R,
+) -> Vec<T>
+where
+    T: Integer,
+    R: rand::Rng + rand::CryptoRng,
+{
+    let mut result = vec![T::ZERO; length * uniform_distrs.len()];
+
+    sample_crt_uniform_values_inplace(&mut result, length, uniform_distrs, rng);
+
+    result
+}
+
+/// Sample a uniform vector whose values are `T`.
 pub fn sample_crt_uniform_values_inplace<T, R>(
     result: &mut [T],
     length: usize,
