@@ -36,11 +36,7 @@ impl<T: UnsignedInteger> DiscreteGaussian<T> {
     /// -   mean (`μ`, unrestricted)
     /// -   standard deviation (`σ`, must be finite)
     #[inline]
-    pub fn new(
-        _mean: f64,
-        std_dev: f64,
-        modulus_minus_one: T,
-    ) -> Result<DiscreteGaussian<T>, DistrErr<T>> {
+    pub fn new(std_dev: f64, modulus_minus_one: T) -> Result<DiscreteGaussian<T>, DistrErr<T>> {
         if std_dev < 3.0 {
             #[cfg(target_os = "linux")]
             {
@@ -74,14 +70,12 @@ impl<T: UnsignedInteger> DiscreteGaussian<T> {
     /// -   standard deviation (`σ`, must be finite)
     #[inline]
     pub fn new_with_max_limit(
-        mean: f64,
         std_dev: f64,
         max_std_dev: f64,
         modulus_minus_one: T,
     ) -> Result<DiscreteGaussian<T>, DistrErr<T>> {
         if max_std_dev <= std_dev || std_dev < 0.7 {
             return Err(DistrErr::DiscreteGaussianErr {
-                mean,
                 std_dev,
                 modulus_minus_one,
             });
@@ -93,10 +87,10 @@ impl<T: UnsignedInteger> DiscreteGaussian<T> {
     pub fn standard_deviation(&self) -> f64 {
         match self {
             #[cfg(not(target_os = "linux"))]
-            DiscreteGaussian::Cdt(cdtsampler) => cdtsampler.std_dev(),
+            DiscreteGaussian::Cdt(sampler) => sampler.std_dev(),
             #[cfg(target_os = "linux")]
             DiscreteGaussian::Unix(sampler) => sampler.std_dev(),
-            DiscreteGaussian::Ziggurat(discrete_ziggurat) => discrete_ziggurat.std_dev(),
+            DiscreteGaussian::Ziggurat(sampler) => sampler.std_dev(),
         }
     }
 }
@@ -106,10 +100,10 @@ impl<T: UnsignedInteger> Distribution<T> for DiscreteGaussian<T> {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> T {
         match self {
             #[cfg(not(target_os = "linux"))]
-            DiscreteGaussian::Cdt(cdtsampler) => cdtsampler.sample(rng),
+            DiscreteGaussian::Cdt(sampler) => sampler.sample(rng),
             #[cfg(target_os = "linux")]
             DiscreteGaussian::Unix(sampler) => sampler.sample(rng),
-            DiscreteGaussian::Ziggurat(discrete_ziggurat) => discrete_ziggurat.sample(rng),
+            DiscreteGaussian::Ziggurat(sampler) => sampler.sample(rng),
         }
     }
 }

@@ -49,7 +49,7 @@ where
         let cipher_modulus_minus_one = cipher_modulus.minus_one();
 
         let noise_distribution =
-            DiscreteGaussian::new(0.0, noise_standard_deviation, cipher_modulus_minus_one).unwrap();
+            DiscreteGaussian::new(noise_standard_deviation, cipher_modulus_minus_one).unwrap();
 
         Self {
             dimension,
@@ -112,7 +112,7 @@ where
         let noise_standard_deviation = self.noise_distribution.standard_deviation();
         let var = noise_standard_deviation * noise_standard_deviation;
         let sigma = (var / count as f64).sqrt();
-        DiscreteGaussian::new(0.0, sigma, self.cipher_modulus_minus_one).unwrap()
+        DiscreteGaussian::new(sigma, self.cipher_modulus_minus_one).unwrap()
     }
 }
 
@@ -275,8 +275,7 @@ where
             .map(|qi| qi.uniform_distribution())
             .collect();
 
-        let noise_distribution =
-            SignedDiscreteGaussian::new(0.0, noise_standard_deviation).unwrap();
+        let noise_distribution = SignedDiscreteGaussian::new(noise_standard_deviation).unwrap();
 
         let mut delta = vec![T::ZERO; cipher_modulus.len()];
 
@@ -530,7 +529,7 @@ where
         let cipher_modulus_minus_one = cipher_modulus.minus_one();
 
         let noise_distribution =
-            DiscreteGaussian::new(0.0, noise_standard_deviation, cipher_modulus_minus_one).unwrap();
+            DiscreteGaussian::new(noise_standard_deviation, cipher_modulus_minus_one).unwrap();
 
         Self {
             dimension,
@@ -721,8 +720,7 @@ where
             .map(|m| m.uniform_distribution())
             .collect();
 
-        let noise_distribution =
-            SignedDiscreteGaussian::new(0.0, noise_standard_deviation).unwrap();
+        let noise_distribution = SignedDiscreteGaussian::new(noise_standard_deviation).unwrap();
 
         let rns_glwe_common_size = RNSGlweCommonSize::new(
             dimension,

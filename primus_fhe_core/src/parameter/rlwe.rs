@@ -48,7 +48,7 @@ where
         let cipher_modulus_minus_one = cipher_modulus.minus_one();
 
         let noise_distribution =
-            DiscreteGaussian::new(0.0, noise_standard_deviation, cipher_modulus_minus_one).unwrap();
+            DiscreteGaussian::new(noise_standard_deviation, cipher_modulus_minus_one).unwrap();
 
         let cipher_modulus_uniform_distr = cipher_modulus.uniform_distribution();
 
@@ -122,7 +122,7 @@ where
         let noise_standard_deviation = self.noise_standard_deviation();
         let var = noise_standard_deviation * noise_standard_deviation;
         let sigma = (var / count as f64).sqrt();
-        DiscreteGaussian::new(0.0, sigma, self.cipher_modulus_minus_one).unwrap()
+        DiscreteGaussian::new(sigma, self.cipher_modulus_minus_one).unwrap()
     }
 
     /// Returns the cipher modulus uniform distr of this [`RlweParameters<T, M>`].
@@ -203,7 +203,7 @@ where
         let noise_standard_deviation = self.noise_standard_deviation();
         let var = noise_standard_deviation * noise_standard_deviation;
         let sigma = (var / count as f64).sqrt();
-        DiscreteGaussian::new(0.0, sigma, self.cipher_modulus_minus_one).unwrap()
+        DiscreteGaussian::new(sigma, self.cipher_modulus_minus_one).unwrap()
     }
 
     /// Returns a reference to the basis of this [`RlevParameters<T, M>`].
