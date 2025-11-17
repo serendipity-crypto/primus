@@ -2,7 +2,7 @@ use num_traits::ConstZero;
 use primus_integer::{UnsignedInteger, size::Size};
 use primus_reduce::ops::ReduceMulAdd;
 
-use crate::{ArrayBase, Data, DataMut, DataOwned, RawData};
+use crate::{Data, DataMut, DataOwned, RawData};
 
 mod basic;
 mod random;
@@ -18,10 +18,12 @@ pub type PolynomialMut<'a, T> = Polynomial<&'a mut [T], T>;
 
 /// Represents a polynomial where coefficients are elements of a specified unsigned integer `T`.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Polynomial<S, T = <S as RawData>::Elem>(pub ArrayBase<S, T>)
+pub struct Polynomial<S, T = <S as RawData>::Elem>(pub S)
 where
     S: RawData<Elem = T>,
     T: UnsignedInteger;
+
+impl_iters!(Polynomial, poly);
 
 impl<S, T> Polynomial<S, T>
 where
@@ -30,7 +32,7 @@ where
 {
     /// Creates a new [`Polynomial<T>`].
     #[inline]
-    pub fn new(poly: ArrayBase<S, T>) -> Self {
+    pub fn new(poly: S) -> Self {
         Self(poly)
     }
 }
@@ -43,19 +45,19 @@ where
     /// Creates a [`Polynomial<T>`] with all coefficients equal to zero.
     #[inline]
     pub fn zero(poly_length: usize) -> Self {
-        Self(ArrayBase::zero(poly_length))
+        Self(S::zero(poly_length))
     }
 
     /// Drop self, and return the vector.
     #[inline]
     pub fn into_owned(self) -> S {
-        self.0.0
+        self.0
     }
 
     /// Constructs a new polynomial from a slice.
     #[inline]
     pub fn from_slice(polynomial: &[T]) -> Self {
-        Self::new(ArrayBase::from_slice(polynomial))
+        Self::new(S::from_slice(polynomial))
     }
 }
 

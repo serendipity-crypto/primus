@@ -1,6 +1,9 @@
 use primus_integer::UnsignedInteger;
 use primus_ntt::{Ntt, NttTable};
-use primus_poly::{ArrayBase, Data, DataMut, DataOwned, NttPolynomial, RawData};
+use primus_poly::{
+    ArrayBase, Data, DataMut, DataOwned, NttPolynomial, NttPolynomialIter, NttPolynomialIterMut,
+    RawData,
+};
 use primus_reduce::FieldContext;
 
 use super::Rlwe;
@@ -15,18 +18,16 @@ pub type NttRlweOwned<T> = NttRlwe<Vec<T>>;
 ///
 /// where `a` and `b` are [`NttPolynomial`] with same poly length.
 #[derive(Clone)]
-pub struct NttRlwe<S, T = <S as RawData>::Elem>
+pub struct NttRlwe<S, T = <S as RawData>::Elem>(pub S)
 where
     S: RawData<Elem = T>,
-    T: UnsignedInteger,
-{
-    pub data: ArrayBase<S>,
-}
+    T: UnsignedInteger;
 
 impl_common!(NttRlwe<S, T>);
 impl_bytes_conversion!(NttRlwe<S, T>);
 impl_zero!(NttRlwe<S, T>);
-impl_iter_sub_structure!(NttRlwe<S, T>, ntt_poly);
+impl_iters!(NttRlwe);
+impl_iter_sub_structure!(NttRlwe<S, T>, NttPolynomial, ntt_poly);
 impl_basic_operation_single_modulus!(NttRlwe<S, T>);
 impl_intt!(NttRlwe<S, T>, Rlwe);
 
@@ -42,9 +43,7 @@ where
         A: RawData<Elem = T> + Data,
     {
         debug_assert_eq!(a.poly_length(), b.poly_length());
-        Self {
-            data: ArrayBase::from_vec([a.0.as_ref(), b.0.as_ref()].concat()),
-        }
+        Self(S::from_vec([a.as_ref(), b.as_ref()].concat()))
     }
 }
 
@@ -56,8 +55,16 @@ where
     /// Extracts mutable slice of `a` and `b` of this [`NttRlwe<S>`].
     #[inline]
     pub fn a_b_mut_slices(&mut self) -> (&mut [T], &mut [T]) {
-        let mid = self.data.len() >> 1;
-        unsafe { self.data.split_at_mut_unchecked(mid) }
+        let mid = self.0.len() >> 1;
+        unsafe { self.0.split_at_mut_unchecked(mid) }
+    }
+
+    /// Extracts mutable slice of `a` and `b` of this [`NttRlwe<S>`].
+    #[inline]
+    pub fn a_b_mut(&mut self) -> (NttPolynomial<&mut [T]>, NttPolynomial<&mut [T]>) {
+        let mid = self.0.len() >> 1;
+        let (a, b) = unsafe { self.0.split_at_mut_unchecked(mid) };
+        (NttPolynomial(a), NttPolynomial(b))
     }
 
     #[inline]
@@ -68,39 +75,35 @@ where
         ArrayBase(self.as_mut()).mul_scalar_assign(scalar, modulus);
     }
 
-    /// Performs a modular multiplication on the `self` [`NttRlwe<S>`] with another `polynomial` [`NttPolynomial<A>`].
+    /// Performs a modular multiplication on the `self` [`NttRlwe<S>`] with another `ntt_poly` [`NttPolynomial<A>`].
     #[inline]
-    pub fn mul_ntt_polynomial_assign<M, A>(&mut self, polynomial: &NttPolynomial<A>, modulus: M)
+    pub fn mul_ntt_polynomial_assign<M, A>(&mut self, ntt_poly: &NttPolynomial<A>, modulus: M)
     where
         M: FieldContext<T>,
         A: RawData<Elem = T> + Data,
     {
-        let poly_length = polynomial.poly_length();
+        let poly_len = ntt_poly.poly_length();
 
-        self.iter_ntt_poly_mut(poly_length).for_each(|p| {
-            NttPolynomial(ArrayBase(p)).mul_assign(polynomial, modulus);
+        self.iter_ntt_poly_mut(poly_len).for_each(|mut p| {
+            p.mul_assign(ntt_poly, modulus);
         });
     }
 
     pub fn add_ntt_rlwe_mul_ntt_polynomial_assign<M, A, B>(
         &mut self,
         ntt_rlwe: &NttRlwe<A>,
-        polynomial: &NttPolynomial<B>,
+        ntt_poly: &NttPolynomial<B>,
         modulus: M,
     ) where
         M: FieldContext<T>,
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + Data,
     {
-        let poly_length = polynomial.poly_length();
-        self.iter_ntt_poly_mut(poly_length)
-            .zip(ntt_rlwe.iter_ntt_poly(poly_length))
-            .for_each(|(x, y)| {
-                NttPolynomial(ArrayBase(x)).add_mul_assign(
-                    &NttPolynomial(ArrayBase(y)),
-                    polynomial,
-                    modulus,
-                );
+        let poly_len = ntt_poly.poly_length();
+        self.iter_ntt_poly_mut(poly_len)
+            .zip(ntt_rlwe.iter_ntt_poly(poly_len))
+            .for_each(|(mut x, y)| {
+                x.add_mul_assign(&y, ntt_poly, modulus);
             });
     }
 }
@@ -113,8 +116,16 @@ where
     /// Extracts slice of `a` and `b` of this [`NttRlwe<S>`].
     #[inline]
     pub fn a_b_slices(&self) -> (&[T], &[T]) {
-        let mid = self.data.len() >> 1;
-        unsafe { self.data.split_at_unchecked(mid) }
+        let mid = self.0.len() >> 1;
+        unsafe { self.0.split_at_unchecked(mid) }
+    }
+
+    /// Extracts `a` and `b` of this [`NttRlwe<S>`].
+    #[inline]
+    pub fn a_b(&self) -> (NttPolynomial<&[T]>, NttPolynomial<&[T]>) {
+        let mid = self.0.len() >> 1;
+        let (a, b) = unsafe { self.0.split_at_unchecked(mid) };
+        (NttPolynomial(a), NttPolynomial(b))
     }
 
     /// Performs a modular multiplication on the `self` [`NttRlwe<S>`] with another `polynomial` [`NttPolynomial`],
@@ -122,7 +133,7 @@ where
     #[inline]
     pub fn mul_ntt_polynomial_inplace<M, A, B>(
         &self,
-        polynomial: &NttPolynomial<A>,
+        ntt_poly: &NttPolynomial<A>,
         result: &mut NttRlwe<B>,
         modulus: M,
     ) where
@@ -130,16 +141,12 @@ where
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + DataMut,
     {
-        let poly_length = polynomial.poly_length();
+        let poly_len = ntt_poly.poly_length();
 
-        self.iter_ntt_poly(poly_length)
-            .zip(result.iter_ntt_poly_mut(poly_length))
-            .for_each(|(x, y)| {
-                NttPolynomial(ArrayBase(x)).mul_inplace(
-                    polynomial,
-                    &mut NttPolynomial(ArrayBase(y)),
-                    modulus,
-                );
+        self.iter_ntt_poly(poly_len)
+            .zip(result.iter_ntt_poly_mut(poly_len))
+            .for_each(|(x, mut y)| {
+                x.mul_inplace(ntt_poly, &mut y, modulus);
             });
     }
 }

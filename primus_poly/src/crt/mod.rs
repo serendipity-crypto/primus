@@ -1,6 +1,6 @@
-use primus_integer::{ByteCount, UnsignedInteger, size::Size};
+use primus_integer::{UnsignedInteger, size::Size};
 
-use crate::{ArrayBase, Data, DataMut, DataOwned, RawData};
+use crate::{Data, DataMut, DataOwned, RawData};
 
 mod add;
 mod mul;
@@ -16,10 +16,12 @@ mod sub;
 /// several polynomials with relatively small coefficients can be obtained,
 /// and the latter has better performance in addition and subtraction computation.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CrtPolynomial<S, T = <S as RawData>::Elem>(pub ArrayBase<S, T>)
+pub struct CrtPolynomial<S, T = <S as RawData>::Elem>(pub S)
 where
     S: RawData<Elem = T>,
     T: UnsignedInteger;
+
+impl_iters!(CrtPolynomial, crt_poly);
 
 impl<S, T> CrtPolynomial<S, T>
 where
@@ -28,7 +30,7 @@ where
 {
     /// Creates a new [`CrtPolynomial<T>`].
     #[inline]
-    pub fn new(polys: ArrayBase<S, T>) -> Self {
+    pub fn new(polys: S) -> Self {
         Self(polys)
     }
 }
@@ -41,12 +43,12 @@ where
     /// Creates a [`CrtPolynomial<T>`] with all coefficients equal to zero.
     #[inline]
     pub fn zero(crt_poly_len: usize) -> Self {
-        Self(ArrayBase::zero(crt_poly_len))
+        Self(S::zero(crt_poly_len))
     }
 
     #[inline]
     pub fn into_owned(self) -> S {
-        self.0.0
+        self.0
     }
 }
 
@@ -110,7 +112,7 @@ where
 {
     #[inline]
     fn byte_count(&self) -> usize {
-        self.0.len() * <T as ByteCount>::BYTES
+        self.0.byte_count()
     }
 }
 

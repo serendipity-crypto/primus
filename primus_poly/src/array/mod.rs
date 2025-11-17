@@ -1,6 +1,7 @@
 use std::ops::{Deref, DerefMut};
 
-use primus_integer::UnsignedInteger;
+use num_traits::{ConstZero, Zero};
+use primus_integer::{ByteCount, UnsignedInteger};
 
 mod basic;
 mod random;
@@ -151,6 +152,15 @@ pub trait Data: RawData + AsRef<[<Self as RawData>::Elem]> {
 
     /// Returns `true` if `self` has a length of 0.
     fn is_empty(&self) -> bool;
+
+    #[inline]
+    fn is_zero(&self) -> bool {
+        self.iter().all(<<Self as RawData>::Elem as Zero>::is_zero)
+    }
+
+    fn byte_count(&self) -> usize {
+        self.len() * <<Self as RawData>::Elem as ByteCount>::BYTES
+    }
 
     /// Returns an iterator.
     ///
@@ -335,6 +345,10 @@ pub trait DataMut: Data + AsMut<[<Self as RawData>::Elem]> {
         &mut [<Self as RawData>::Elem],
         &mut [<Self as RawData>::Elem],
     );
+
+    fn set_zero(&mut self) {
+        self.fill(<<Self as RawData>::Elem as ConstZero>::ZERO);
+    }
 }
 
 impl<T: UnsignedInteger> DataMut for &mut [T] {

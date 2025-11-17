@@ -1,6 +1,8 @@
 use primus_integer::UnsignedInteger;
 use primus_ntt::{Ntt, NttTable};
-use primus_poly::{ArrayBase, Data, DataMut, DataOwned, NttPolynomial, RawData};
+use primus_poly::{
+    ArrayBase, Data, DataMut, DataOwned, NttPolynomial, PolynomialIter, PolynomialIterMut, RawData,
+};
 use primus_reduce::FieldContext;
 
 use super::NttGlwe;
@@ -13,18 +15,16 @@ use super::NttGlwe;
 ///
 /// where `a1`...`ak` and `b` are [`primus_poly::Polynomial`] with same poly length, `k` is the dimension.
 #[derive(Clone)]
-pub struct Glwe<S, T = <S as RawData>::Elem>
+pub struct Glwe<S, T = <S as RawData>::Elem>(pub S)
 where
     S: RawData<Elem = T>,
-    T: UnsignedInteger,
-{
-    pub data: ArrayBase<S>,
-}
+    T: UnsignedInteger;
 
 impl_common!(Glwe<S, T>);
 impl_bytes_conversion!(Glwe<S, T>);
 impl_zero!(Glwe<S, T>);
-impl_iter_sub_structure!(Glwe<S, T>, poly);
+impl_iters!(Glwe);
+impl_iter_sub_structure!(Glwe<S, T>, Polynomial, poly);
 impl_basic_operation_single_modulus!(Glwe<S, T>);
 impl_ntt!(Glwe<S, T>, NttGlwe);
 
@@ -33,12 +33,12 @@ where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
 {
-    /// Performs a multiplication on the `self` [`Glwe<S>`] with another `ntt_polynomial` [`NttPolynomial<A>`],
+    /// Performs a multiplication on the `self` [`Glwe<S>`] with another `ntt_poly` [`NttPolynomial<A>`],
     /// store the result into `result` [`NttGlwe<B>`].
     #[inline]
     pub fn mul_ntt_polynomial_inplace<M, Table, A, B>(
         &self,
-        ntt_polynomial: &NttPolynomial<A>,
+        ntt_poly: &NttPolynomial<A>,
         result: &mut NttGlwe<B>,
         modulus: M,
         ntt_table: &Table,
@@ -48,13 +48,13 @@ where
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + DataMut,
     {
-        let poly_length = ntt_table.poly_length();
+        let ntt_poly_len = ntt_table.poly_length();
 
-        result.data.copy_from_slice(self.as_ref());
+        result.0.copy_from_slice(self.as_ref());
 
-        result.iter_ntt_poly_mut(poly_length).for_each(|poly| {
-            ntt_table.transform_slice(poly);
-            NttPolynomial(ArrayBase(poly)).mul_assign(ntt_polynomial, modulus);
+        result.iter_ntt_poly_mut(ntt_poly_len).for_each(|mut poly| {
+            ntt_table.transform_slice(poly.0);
+            poly.mul_assign(ntt_poly, modulus);
         });
     }
 }

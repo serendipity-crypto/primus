@@ -6,9 +6,9 @@ macro_rules! impl_common {
             $t: UnsignedInteger,
         {
             #[doc = concat!(r" Creates a new [`",stringify!($cipher),"<",stringify!($s),", ",stringify!($t),">`].")]
-            #[inline]
-            pub fn new(data: ArrayBase<S>) -> Self {
-                Self { data }
+            #[inline(always)]
+            pub fn new(data: $s) -> Self {
+                Self(data)
             }
         }
 
@@ -17,9 +17,9 @@ macro_rules! impl_common {
             $s: RawData<Elem = $t> + Data,
             $t: UnsignedInteger,
         {
-            #[inline]
+            #[inline(always)]
             fn as_ref(&self)->&[$t]{
-                self.data.as_ref()
+                self.0.as_ref()
             }
 
         }
@@ -29,9 +29,9 @@ macro_rules! impl_common {
             $s: RawData<Elem = $t> + DataMut,
             $t: UnsignedInteger,
         {
-            #[inline]
+            #[inline(always)]
             fn as_mut(&mut self)->&mut [$t]{
-                self.data.as_mut()
+                self.0.as_mut()
             }
 
         }
@@ -50,9 +50,7 @@ macro_rules! impl_bytes_conversion {
             pub fn from_bytes(data: &[u8]) -> Self {
                 let converted_data: &[$t] = bytemuck::cast_slice(data);
 
-                Self {
-                    data: ArrayBase::from_slice(converted_data),
-                }
+                Self(<$s>::from_slice(converted_data))
             }
         }
 
@@ -66,7 +64,7 @@ macro_rules! impl_bytes_conversion {
             pub fn from_bytes_assign(&mut self, data: &[u8]) {
                 let converted_data: &[$t] = bytemuck::cast_slice(data);
 
-                self.data.copy_from_slice(converted_data);
+                self.0.copy_from_slice(converted_data);
             }
         }
 
@@ -78,7 +76,7 @@ macro_rules! impl_bytes_conversion {
             /// Converts `self` into bytes.
             #[inline]
             pub fn to_bytes(&self) -> Vec<u8> {
-                let converted_data: &[u8] = bytemuck::cast_slice(self.data.as_ref());
+                let converted_data: &[u8] = bytemuck::cast_slice(self.as_ref());
 
                 converted_data.to_vec()
             }
@@ -86,7 +84,7 @@ macro_rules! impl_bytes_conversion {
             /// Converts `self` into bytes, stored in `data`.
             #[inline]
             pub fn to_bytes_inplace(&self, data: &mut [u8]) {
-                let converted_data: &[u8] = bytemuck::cast_slice(self.data.as_ref());
+                let converted_data: &[u8] = bytemuck::cast_slice(self.as_ref());
 
                 data.copy_from_slice(converted_data);
             }
@@ -94,7 +92,7 @@ macro_rules! impl_bytes_conversion {
             /// Returns the bytes count.
             #[inline]
             pub fn byte_count(&self) -> usize {
-                self.data.len() * <$t>::BYTES
+                self.0.byte_count()
             }
         }
     };
@@ -107,11 +105,11 @@ macro_rules! impl_zero {
             $s: RawData<Elem = $t> + DataOwned,
             $t: UnsignedInteger,
         {
-            #[doc = concat!(r" Creates a new [`",stringify!($cipher),"<",stringify!($s),", ",stringify!($t),">`] with all values or coefficients equal to zero.")]
-            #[inline]
-            pub fn zero(cipher_len: usize) -> Self {
-                Self {
-                    data: ArrayBase::from_vec(vec![T::ZERO; cipher_len]),
+            paste::paste! {
+                #[doc = concat!(r" Creates a new [`",stringify!($cipher),"<",stringify!($s),", ",stringify!($t),">`] with all values or coefficients equal to zero.")]
+                #[inline]
+                pub fn zero([<$cipher:snake _len>]: usize) -> Self {
+                    Self(<$s>::zero([<$cipher:snake _len>]))
                 }
             }
         }
@@ -124,8 +122,69 @@ macro_rules! impl_zero {
             /// Set all values or coefficients equal to zero.
             #[inline]
             pub fn set_zero(&mut self) {
-                self.data.set_zero();
+                self.0.set_zero();
             }
+        }
+    };
+}
+macro_rules! impl_iters {
+    ($cipher:ident) => {
+        paste::paste! {
+            pub struct [<$cipher Iter>]<'a, T>
+            where
+                T: UnsignedInteger,
+            {
+                pub(crate) iter: core::slice::ChunksExact<'a, T>
+            }
+
+            impl<'a, T: UnsignedInteger> [<$cipher Iter>]<'a, T> {
+                #[inline]
+                pub fn new(data:&'a [T], [<$cipher:snake _len>]:usize) -> Self{
+                    Self {
+                        iter: data.chunks_exact([<$cipher:snake _len>])
+                    }
+                }
+            }
+
+            impl<'a, T: UnsignedInteger> Iterator for [<$cipher Iter>]<'a, T> {
+                type Item = $cipher<&'a [T], T>;
+
+                #[inline]
+                fn next(&mut self) -> Option<Self::Item> {
+                    self.iter.next().map(|slice| $cipher(slice))
+                }
+            }
+
+            impl<'a, T: UnsignedInteger> core::iter::FusedIterator for [<$cipher Iter>]<'a, T> {}
+        }
+
+        paste::paste! {
+            pub struct [<$cipher IterMut>]<'a, T>
+            where
+                T: UnsignedInteger,
+            {
+                pub(crate) iter: core::slice::ChunksExactMut<'a, T>
+            }
+
+            impl<'a, T: UnsignedInteger> [<$cipher IterMut>]<'a, T> {
+                #[inline]
+                pub fn new(data:&'a mut [T], [<$cipher:snake _len>]:usize) -> Self{
+                    Self {
+                        iter: data.chunks_exact_mut([<$cipher:snake _len>])
+                    }
+                }
+            }
+
+            impl<'a, T: UnsignedInteger> Iterator for [<$cipher IterMut>]<'a, T> {
+                type Item = $cipher<&'a mut [T], T>;
+
+                #[inline]
+                fn next(&mut self) -> Option<Self::Item> {
+                    self.iter.next().map(|slice| $cipher(slice))
+                }
+            }
+
+            impl<'a, T: UnsignedInteger> core::iter::FusedIterator for [<$cipher IterMut>]<'a, T> {}
         }
     };
 }
@@ -134,20 +193,39 @@ macro_rules! impl_iter_sub_structure {
     ($cipher:ident < $s:ident, $t:ident >, $sub:ident) => {
         impl<$s, $t> $cipher<$s, $t>
         where
+            $s: RawData<Elem = $t> + Data,
+            $t: UnsignedInteger,
+        {
+            paste::paste! {
+                #[inline]
+                pub fn [<iter_ $sub:snake>]<'a>(&'a self, [<$sub:snake _len>]: usize) -> [<$sub Iter>]<'a, $t> {
+                    [<$sub Iter>] {
+                        iter: self.0.chunks_exact([<$sub:snake _len>])
+                    }
+
+                }
+            }
+        }
+
+        impl<$s, $t> $cipher<$s, $t>
+        where
             $s: RawData<Elem = $t> + DataMut,
             $t: UnsignedInteger,
         {
             paste::paste! {
                 #[inline]
-                pub fn [<iter_ $sub _mut>](
-                    &mut self,
-                    [<$sub _len>]: usize,
-                ) -> std::slice::ChunksExactMut<'_, T> {
-                    self.data.chunks_exact_mut([<$sub _len>])
+                pub fn [<iter_ $sub:snake _mut>]<'a>(
+                    &'a mut self,
+                    [<$sub:snake _len>]: usize,
+                ) -> [<$sub IterMut>]<'a, $t> {
+                    [<$sub IterMut>] {
+                        iter: self.0.chunks_exact_mut([<$sub:snake _len>])
+                    }
                 }
             }
         }
-
+    };
+    ($cipher:ident < $s:ident, $t:ident >, $sub:ident, $sub_short:ident) => {
         impl<$s, $t> $cipher<$s, $t>
         where
             $s: RawData<Elem = $t> + Data,
@@ -155,8 +233,29 @@ macro_rules! impl_iter_sub_structure {
         {
             paste::paste! {
                 #[inline]
-                pub fn [<iter_ $sub>](&self, [<$sub _len>]: usize) -> std::slice::ChunksExact<'_, T> {
-                    self.data.chunks_exact([<$sub _len>])
+                pub fn [<iter_ $sub_short>]<'a>(&'a self, [<$sub_short _len>]: usize) -> [<$sub Iter>]<'a, $t> {
+                    [<$sub Iter>] {
+                        iter: self.0.chunks_exact([<$sub_short _len>])
+                    }
+
+                }
+            }
+        }
+
+        impl<$s, $t> $cipher<$s, $t>
+        where
+            $s: RawData<Elem = $t> + DataMut,
+            $t: UnsignedInteger,
+        {
+            paste::paste! {
+                #[inline]
+                pub fn [<iter_ $sub_short _mut>]<'a>(
+                    &'a mut self,
+                    [<$sub_short _len>]: usize,
+                ) -> [<$sub IterMut>]<'a, $t> {
+                    [<$sub IterMut>] {
+                        iter: self.0.chunks_exact_mut([<$sub_short _len>])
+                    }
                 }
             }
         }
@@ -177,7 +276,7 @@ macro_rules! impl_basic_operation_single_modulus {
                 M: FieldContext<$t>,
                 A: RawData<Elem = $t> + Data,
             {
-                self.data.add_element_wise_assign(&rhs.data, modulus);
+                ArrayBase(self.as_mut()).add_element_wise_assign(&ArrayBase(rhs.as_ref()), modulus);
                 self
             }
 
@@ -188,7 +287,7 @@ macro_rules! impl_basic_operation_single_modulus {
                 M: FieldContext<$t>,
                 A: RawData<Elem = $t> + Data,
             {
-                self.data.sub_element_wise_assign(&rhs.data, modulus);
+                ArrayBase(self.as_mut()).sub_element_wise_assign(&ArrayBase(rhs.as_ref()), modulus);
                 self
             }
 
@@ -199,7 +298,7 @@ macro_rules! impl_basic_operation_single_modulus {
                 M: FieldContext<$t>,
                 A: RawData<Elem = $t> + Data,
             {
-                self.data.add_element_wise_assign(&rhs.data, modulus);
+                ArrayBase(self.as_mut()).add_element_wise_assign(&ArrayBase(rhs.as_ref()), modulus);
             }
 
             /// Performs an element-wise modular subtraction assignment `self -= rhs`
@@ -209,7 +308,7 @@ macro_rules! impl_basic_operation_single_modulus {
                 M: FieldContext<$t>,
                 A: RawData<Elem = $t> + Data,
             {
-                self.data.sub_element_wise_assign(&rhs.data, modulus);
+                ArrayBase(self.as_mut()).sub_element_wise_assign(&ArrayBase(rhs.as_ref()), modulus);
             }
         }
 
@@ -230,8 +329,11 @@ macro_rules! impl_basic_operation_single_modulus {
                 A: RawData<Elem = $t> + Data,
                 B: RawData<Elem = $t> + DataMut,
             {
-                self.data
-                    .add_element_wise_inplace(&rhs.data, &mut result.data, modulus)
+                ArrayBase(self.as_ref()).add_element_wise_inplace(
+                    &ArrayBase(rhs.as_ref()),
+                    &mut ArrayBase(result.as_mut()),
+                    modulus,
+                )
             }
 
             /// Performs in-place element-wise modular addition:`result = self - rhs`,
@@ -246,8 +348,11 @@ macro_rules! impl_basic_operation_single_modulus {
                 A: RawData<Elem = $t> + Data,
                 B: RawData<Elem = $t> + DataMut,
             {
-                self.data
-                    .sub_element_wise_inplace(&rhs.data, &mut result.data, modulus)
+                ArrayBase(self.as_ref()).sub_element_wise_inplace(
+                    &ArrayBase(rhs.as_ref()),
+                    &mut ArrayBase(result.as_mut()),
+                    modulus,
+                )
             }
         }
     };
@@ -260,14 +365,6 @@ macro_rules! impl_basic_operation_multiple_modulus {
             $s: RawData<Elem = $t> + DataMut,
             $t: UnsignedInteger,
         {
-            // #[inline]
-            // pub fn iter_crt_poly_mut(
-            //     &mut self,
-            //     crt_poly_length: usize,
-            // ) -> std::slice::ChunksExactMut<'_, T> {
-            //     self.data.chunks_exact_mut(crt_poly_length)
-            // }
-
             /// Perform element-wise modular addition `self + rhs`.
             #[inline]
             pub fn add_element_wise<M, A>(
@@ -315,8 +412,8 @@ macro_rules! impl_basic_operation_multiple_modulus {
                 A: RawData<Elem = T> + Data,
             {
                 izip!(
-                    self.data.chunks_exact_mut(crt_poly_length),
-                    rhs.data.chunks_exact(crt_poly_length),
+                    self.0.chunks_exact_mut(crt_poly_length),
+                    rhs.0.chunks_exact(crt_poly_length),
                 )
                 .for_each(|(x, y)| {
                     izip!(
@@ -343,8 +440,8 @@ macro_rules! impl_basic_operation_multiple_modulus {
                 A: RawData<Elem = T> + Data,
             {
                 izip!(
-                    self.data.chunks_exact_mut(crt_poly_length),
-                    rhs.data.chunks_exact(crt_poly_length),
+                    self.0.chunks_exact_mut(crt_poly_length),
+                    rhs.0.chunks_exact(crt_poly_length),
                 )
                 .for_each(|(x, y)| {
                     izip!(
@@ -364,14 +461,6 @@ macro_rules! impl_basic_operation_multiple_modulus {
             $s: RawData<Elem = $t> + Data,
             $t: UnsignedInteger,
         {
-            // #[inline]
-            // pub fn iter_each_modulus(
-            //     &self,
-            //     single_modulus_len: usize,
-            // ) -> std::slice::ChunksExact<'_, T> {
-            //     self.data.chunks_exact(single_modulus_len)
-            // }
-
             /// Performs element-wise modular addition `result = self + rhs`.
             #[inline]
             pub fn add_element_wise_inplace<M, A, B>(
@@ -387,9 +476,9 @@ macro_rules! impl_basic_operation_multiple_modulus {
                 B: RawData<Elem = T> + DataMut,
             {
                 izip!(
-                    self.data.chunks_exact(crt_poly_length),
-                    rhs.data.chunks_exact(crt_poly_length),
-                    result.data.chunks_exact_mut(crt_poly_length),
+                    self.0.chunks_exact(crt_poly_length),
+                    rhs.0.chunks_exact(crt_poly_length),
+                    result.0.chunks_exact_mut(crt_poly_length),
                 )
                 .for_each(|(x, y, z)| {
                     izip!(
@@ -423,9 +512,9 @@ macro_rules! impl_basic_operation_multiple_modulus {
                 B: RawData<Elem = T> + DataMut,
             {
                 izip!(
-                    self.data.chunks_exact(crt_poly_length),
-                    rhs.data.chunks_exact(crt_poly_length),
-                    result.data.chunks_exact_mut(crt_poly_length),
+                    self.0.chunks_exact(crt_poly_length),
+                    rhs.0.chunks_exact(crt_poly_length),
+                    result.0.chunks_exact_mut(crt_poly_length),
                 )
                 .for_each(|(x, y, z)| {
                     izip!(
@@ -461,10 +550,10 @@ macro_rules! impl_ntt {
                 Table: NttTable<ValueT = $t> + Ntt,
             {
                 let poly_length = ntt_table.poly_length();
-                self.data.chunks_exact_mut(poly_length).for_each(|poly| {
+                self.0.chunks_exact_mut(poly_length).for_each(|poly| {
                     ntt_table.transform_slice(poly);
                 });
-                $ntt_cipher::new(self.data)
+                $ntt_cipher::new(self.0)
             }
         }
 
@@ -484,8 +573,8 @@ macro_rules! impl_ntt {
                 Table: NttTable<ValueT = $t> + Ntt,
             {
                 let poly_length = ntt_table.poly_length();
-                result.data.copy_from_slice(self.data.as_ref());
-                result.data.chunks_exact_mut(poly_length).for_each(|poly| {
+                result.0.copy_from_slice(self.as_ref());
+                result.0.chunks_exact_mut(poly_length).for_each(|poly| {
                     ntt_table.transform_slice(poly);
                 });
             }
@@ -507,10 +596,10 @@ macro_rules! impl_intt {
                 Table: NttTable<ValueT = $t> + Ntt,
             {
                 let poly_length = ntt_table.poly_length();
-                self.data.chunks_exact_mut(poly_length).for_each(|poly| {
+                self.0.chunks_exact_mut(poly_length).for_each(|poly| {
                     ntt_table.inverse_transform_slice(poly);
                 });
-                $cipher::new(self.data)
+                $cipher::new(self.0)
             }
         }
 
@@ -530,13 +619,10 @@ macro_rules! impl_intt {
                 Table: NttTable<ValueT = $t> + Ntt,
             {
                 let poly_length = ntt_table.poly_length();
-                result.data.copy_from_slice(self.data.as_ref());
-                result
-                    .data
-                    .chunks_exact_mut(poly_length)
-                    .for_each(|values| {
-                        ntt_table.inverse_transform_slice(values);
-                    });
+                result.0.copy_from_slice(self.as_ref());
+                result.0.chunks_exact_mut(poly_length).for_each(|values| {
+                    ntt_table.inverse_transform_slice(values);
+                });
             }
         }
     };
@@ -556,7 +642,7 @@ macro_rules! impl_crt_ntt {
                 Table: DcrtTable<ValueT = $t> + Dcrt,
             {
                 let crt_poly_length = table.crt_poly_length();
-                let Self { mut data } = self;
+                let Self(mut data) = self;
                 data.chunks_exact_mut(crt_poly_length).for_each(|crt_poly| {
                     table.transform_slice(crt_poly);
                 });
@@ -577,9 +663,9 @@ macro_rules! impl_crt_ntt {
                 A: RawData<Elem = $t> + DataMut,
             {
                 let crt_poly_length = table.crt_poly_length();
-                result.data.copy_from_slice(self.data.as_ref());
+                result.0.copy_from_slice(self.as_ref());
                 result
-                    .data
+                    .0
                     .chunks_exact_mut(crt_poly_length)
                     .for_each(|crt_poly| {
                         table.transform_slice(crt_poly);
@@ -603,7 +689,7 @@ macro_rules! impl_crt_intt {
                 Table: DcrtTable<ValueT = $t> + Dcrt,
             {
                 let crt_poly_length = table.crt_poly_length();
-                let Self { mut data } = self;
+                let Self(mut data) = self;
                 data.chunks_exact_mut(crt_poly_length).for_each(|crt_poly| {
                     table.inverse_transform_slice(crt_poly);
                 });
@@ -624,9 +710,9 @@ macro_rules! impl_crt_intt {
                 A: RawData<Elem = $t> + DataMut,
             {
                 let crt_poly_length = table.crt_poly_length();
-                result.data.copy_from_slice(self.data.as_ref());
+                result.0.copy_from_slice(self.as_ref());
                 result
-                    .data
+                    .0
                     .chunks_exact_mut(crt_poly_length)
                     .for_each(|crt_poly| {
                         table.inverse_transform_slice(crt_poly);

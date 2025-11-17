@@ -6,10 +6,10 @@ mod ntt;
 mod crt;
 mod dcrt;
 
-pub use big_uint::BigUintGlwe;
+pub use big_uint::{BigUintGlwe, BigUintGlweIter, BigUintGlweIterMut};
 
-pub use coeff::Glwe;
-pub use ntt::NttGlwe;
+pub use coeff::{Glwe, GlweIter, GlweIterMut};
+pub use ntt::{NttGlwe, NttGlweIter, NttGlweIterMut};
 
-pub use crt::CrtGlwe;
-pub use dcrt::DcrtGlwe;
+pub use crt::{CrtGlwe, CrtGlweIter, CrtGlweIterMut};
+pub use dcrt::{DcrtGlwe, DcrtGlweIter, DcrtGlweIterMut};

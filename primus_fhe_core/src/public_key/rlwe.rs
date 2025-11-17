@@ -1,7 +1,7 @@
 use primus_integer::UnsignedInteger;
 use primus_lattice::rlwe::NttRlwe;
 use primus_ntt::{Ntt, NttTable};
-use primus_poly::{ArrayBase, Data, DataMut, DataOwned, NttPolynomial, Polynomial, RawData};
+use primus_poly::{Data, DataMut, DataOwned, NttPolynomial, Polynomial, RawData};
 use primus_reduce::FieldContext;
 
 use crate::{NttRlweCiphertext, NttRlweSecretKey, RlweParameters};
@@ -72,14 +72,10 @@ impl<T: UnsignedInteger> NttRlwePublicKey<Vec<T>, T> {
 
         primus_distr::sample_uniform_values_inplace(a, &params.cipher_modulus_uniform_distr(), rng);
 
-        NttPolynomial(ArrayBase(b)).add_mul_assign(
-            &NttPolynomial(ArrayBase(a)),
-            secret_key,
-            params.cipher_modulus(),
-        );
+        NttPolynomial(b).add_mul_assign(&NttPolynomial(a), secret_key, params.cipher_modulus());
 
         Self {
-            key: NttRlwe::new(ArrayBase(data)),
+            key: NttRlwe::new(data),
         }
     }
 
@@ -129,7 +125,7 @@ where
 {
     /// Converts [`NttRlwePublicKey<T>`] into bytes.
     #[inline]
-    pub fn into_bytes(&self) -> Vec<u8> {
+    pub fn to_bytes(&self) -> Vec<u8> {
         self.key.to_bytes()
     }
 
@@ -169,27 +165,17 @@ where
         let mut v = vec![T::ZERO; poly_length];
         primus_distr::sample_ternary_values_inplace(&mut v, params.cipher_modulus_minus_one(), rng);
         ntt_table.transform_slice(&mut v);
+        let v_poly = &NttPolynomial(v);
 
         primus_distr::sample_gaussian_values_inplace(a_out, params.noise_distribution(), rng);
         ntt_table.transform_slice(a_out);
-        NttPolynomial(ArrayBase(a_out)).add_mul_assign(
-            &NttPolynomial(ArrayBase(a_in)),
-            &NttPolynomial(ArrayBase(v.as_ref())),
-            modulus,
-        );
+        NttPolynomial(a_out).add_mul_assign(&NttPolynomial(a_in), v_poly, modulus);
 
         primus_distr::sample_gaussian_values_inplace(b_out, params.noise_distribution(), rng);
-        Polynomial(ArrayBase(&mut *b_out)).add_mul_factor_assign(
-            msg,
-            params.delta_factor(),
-            modulus_value,
-        );
+        Polynomial(&mut *b_out).add_mul_factor_assign(msg, params.delta_factor(), modulus_value);
         ntt_table.transform_slice(b_out);
-        NttPolynomial(ArrayBase(b_out)).add_mul_assign(
-            &NttPolynomial(ArrayBase(b_in)),
-            &NttPolynomial(ArrayBase(v.as_ref())),
-            modulus,
-        );
+
+        NttPolynomial(b_out).add_mul_assign(&NttPolynomial(b_in), v_poly, modulus);
     }
 
     pub fn encrypt<M, Table, R, A>(
@@ -225,28 +211,21 @@ where
         let poly_length = params.poly_length();
         let modulus = params.cipher_modulus();
 
-        let (a_in, b_in) = self.key.a_b_slices();
+        let (a_in, b_in) = self.key.a_b();
         let (a_out, b_out) = result.a_b_mut_slices();
 
         let mut v = vec![T::ZERO; poly_length];
         primus_distr::sample_ternary_values_inplace(&mut v, params.cipher_modulus_minus_one(), rng);
         ntt_table.transform_slice(&mut v);
+        let v_poly = &NttPolynomial(v);
 
         primus_distr::sample_gaussian_values_inplace(a_out, params.noise_distribution(), rng);
         ntt_table.transform_slice(a_out);
-        NttPolynomial(ArrayBase(a_out)).add_mul_assign(
-            &NttPolynomial(ArrayBase(a_in)),
-            &NttPolynomial(ArrayBase(v.as_ref())),
-            modulus,
-        );
+        NttPolynomial(a_out).add_mul_assign(&a_in, v_poly, modulus);
 
         primus_distr::sample_gaussian_values_inplace(b_out, params.noise_distribution(), rng);
         ntt_table.transform_slice(b_out);
-        NttPolynomial(ArrayBase(b_out)).add_mul_assign(
-            &NttPolynomial(ArrayBase(b_in)),
-            &NttPolynomial(ArrayBase(v.as_ref())),
-            modulus,
-        );
+        NttPolynomial(b_out).add_mul_assign(&b_in, v_poly, modulus);
     }
 
     pub fn encrypt_zeros<M, Table, R>(

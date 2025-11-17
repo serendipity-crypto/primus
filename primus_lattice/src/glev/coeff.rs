@@ -3,6 +3,8 @@ use primus_ntt::{Ntt, NttTable};
 use primus_poly::{ArrayBase, Data, DataMut, DataOwned, RawData};
 use primus_reduce::FieldContext;
 
+use crate::glwe::{GlweIter, GlweIterMut};
+
 use super::NttGlev;
 
 /// A representation of Module Learning with Errors (MLWE) ciphertexts with respect to different base,
@@ -14,17 +16,15 @@ use super::NttGlev;
 ///
 /// where `c1` to `cd` are [`crate::glwe::Glwe`] with same parameter, `d` is the decompose length.
 #[derive(Clone)]
-pub struct Glev<S, T = <S as RawData>::Elem>
+pub struct Glev<S, T = <S as RawData>::Elem>(pub S)
 where
     S: RawData<Elem = T>,
-    T: UnsignedInteger,
-{
-    pub data: ArrayBase<S>,
-}
+    T: UnsignedInteger;
 
 impl_common!(Glev<S, T>);
 impl_bytes_conversion!(Glev<S, T>);
 impl_zero!(Glev<S, T>);
-impl_iter_sub_structure!(Glev<S, T>, glwe);
+impl_iters!(Glev);
+impl_iter_sub_structure!(Glev<S, T>, Glwe);
 impl_basic_operation_single_modulus!(Glev<S, T>);
 impl_ntt!(Glev<S, T>, NttGlev);

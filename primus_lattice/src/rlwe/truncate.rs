@@ -11,13 +11,10 @@ use super::Rlwe;
 
 /// A cryptographic structure for Ring Learning with Errors (RLWE).
 #[derive(Clone)]
-pub struct TruncatedRlwe<S, T = <S as RawData>::Elem>
+pub struct TruncatedRlwe<S, T = <S as RawData>::Elem>(pub S)
 where
     S: RawData<Elem = T>,
-    T: UnsignedInteger,
-{
-    pub data: ArrayBase<S>,
-}
+    T: UnsignedInteger;
 
 impl_common!(TruncatedRlwe<S, T>);
 impl_bytes_conversion!(TruncatedRlwe<S, T>);
@@ -34,8 +31,7 @@ where
     where
         M: Copy + ReduceNegAssign<T>,
     {
-        let Self { data } = self;
-        let ArrayBase(mut data) = data;
+        let Self(mut data) = self;
         let b = data[poly_length];
         data.truncate(poly_length);
 
@@ -57,8 +53,7 @@ where
     where
         M: Copy + ReduceNegAssign<T>,
     {
-        let Self { data } = self;
-        let ArrayBase(mut data) = data;
+        let Self(mut data) = self;
 
         let b = data[poly_length..poly_length + count].to_vec();
 
@@ -94,22 +89,20 @@ where
 
         let (a, b) = cipher.a_b_mut_slices();
 
-        Polynomial(ArrayBase(&mut *a)).random_with_distribution_assign(&uniform, rng);
+        Polynomial(&mut *a).random_with_distribution_assign(&uniform, rng);
 
         b.copy_from_slice(a);
         ntt_table.transform_slice(b);
-        NttPolynomial(ArrayBase(&mut *b)).mul_assign(secret_key, modulus);
+        NttPolynomial(&mut *b).mul_assign(secret_key, modulus);
         ntt_table.inverse_transform_slice(b);
 
-        Polynomial(ArrayBase(b)).add_random_gaussian_assign(gaussian, modulus, rng);
+        Polynomial(b).add_random_gaussian_assign(gaussian, modulus, rng);
 
-        let mut data: Vec<T> = cipher.data.0;
+        let mut data: Vec<T> = cipher.0;
 
         data.truncate(poly_length + msg_count);
 
-        TruncatedRlwe {
-            data: ArrayBase(data),
-        }
+        TruncatedRlwe(data)
     }
 }
 
@@ -121,6 +114,6 @@ where
     /// Extracts slice of `a` and `b` of this [`TruncatedRlwe<S>`].
     #[inline]
     pub fn a_b_slices(&self, poly_length: usize) -> (&[T], &[T]) {
-        unsafe { self.data.split_at_unchecked(poly_length) }
+        unsafe { self.0.split_at_unchecked(poly_length) }
     }
 }

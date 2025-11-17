@@ -1,7 +1,7 @@
 use primus_integer::{UnsignedInteger, izip};
-use primus_lattice::{ggsw::DcrtGgsw, glwe::DcrtGlwe};
+use primus_lattice::{ggsw::DcrtGgsw, glev::DcrtGlev, glwe::DcrtGlwe};
 use primus_ntt::{Dcrt, DcrtTable};
-use primus_poly::{ArrayBase, Data, DataMut, RawData, crt::CrtPolynomial, dcrt::DcrtPolynomial};
+use primus_poly::{Data, DataMut, RawData, crt::CrtPolynomial, dcrt::DcrtPolynomial};
 use primus_reduce::FieldContext;
 
 use crate::{CrtGgswParameters, CrtGlevParameters, CrtGlweParameters, DcrtGlweSecretKey};
@@ -42,44 +42,30 @@ impl<T: UnsignedInteger> DcrtGlwePublicKey<T> {
         M: FieldContext<T>,
     {
         let poly_length = params.poly_length();
-        let rns_poly_len = params.rns_poly_len();
-        let rns_glwe_len = params.rns_glwe_len();
+        let dcrt_glwe_len = params.rns_glwe_len();
 
         let moduli = params.cipher_moduli();
         let moduli_value = params.cipher_moduli_value();
         let uniform_distrs = params.cipher_moduli_uniform_distr();
 
-        let mut data: DcrtGlwe<Vec<T>> = DcrtGlwe::zero(rns_glwe_len);
+        let mut data: DcrtGlwe<Vec<T>> = DcrtGlwe::zero(dcrt_glwe_len);
 
-        let (a, b) = data.a_b_mut_slices(params.rns_glwe_mid());
+        let (a, mut b) = data.a_b_mut(params.rns_glwe_mid());
 
         primus_distr::sample_crt_gaussian_values_inplace(
-            b,
+            b.0,
             poly_length,
             moduli_value,
             params.noise_distribution(),
             rng,
         );
 
-        table.transform_slice(b);
-        let mut b_dcrt_poly = DcrtPolynomial(ArrayBase(b));
+        table.transform_slice(b.0);
 
-        a.chunks_exact_mut(rns_poly_len)
-            .zip(secret_key.iter_dcrt_poly())
-            .for_each(|(ai, si)| {
-                primus_distr::sample_crt_uniform_values_inplace(
-                    ai,
-                    poly_length,
-                    uniform_distrs,
-                    rng,
-                );
-                b_dcrt_poly.add_mul_assign(
-                    &DcrtPolynomial(ArrayBase(ai)),
-                    &DcrtPolynomial(ArrayBase(si)),
-                    poly_length,
-                    moduli,
-                );
-            });
+        secret_key.iter_dcrt_poly().zip(a).for_each(|(si, ai)| {
+            primus_distr::sample_crt_uniform_values_inplace(ai.0, poly_length, uniform_distrs, rng);
+            b.add_mul_assign(&ai, &si, poly_length, moduli);
+        });
 
         Self { key: data }
     }
@@ -100,11 +86,11 @@ impl<T: UnsignedInteger> DcrtGlwePublicKey<T> {
         let dimension = params.dimension();
         let poly_length = params.poly_length();
         let rns_poly_len = params.rns_poly_len();
-        let rns_glwe_len = params.rns_glwe_len();
+        let dcrt_glwe_len = params.rns_glwe_len();
 
         let moduli = params.cipher_moduli();
 
-        let mut result = DcrtGlwe::new(ArrayBase(vec![T::ZERO; rns_glwe_len]));
+        let mut result = DcrtGlwe::zero(dcrt_glwe_len);
         let mut v = vec![T::ZERO; rns_poly_len];
 
         primus_distr::sample_crt_ternary_values_inplace(
@@ -114,15 +100,15 @@ impl<T: UnsignedInteger> DcrtGlwePublicKey<T> {
             rng,
         );
         table.transform_slice(&mut v);
-        let v_dcrt_poly = DcrtPolynomial(ArrayBase(v.as_ref()));
+        let v_dcrt_poly = DcrtPolynomial(v.as_ref());
 
         result
             .iter_dcrt_poly_mut(rns_poly_len)
             .zip(self.key.iter_dcrt_poly(rns_poly_len))
             .enumerate()
-            .for_each(|(i, (ai, pk_ai))| {
+            .for_each(|(i, (mut ai, pk_ai))| {
                 primus_distr::sample_crt_gaussian_values_inplace(
-                    ai,
+                    ai.0,
                     poly_length,
                     params.cipher_moduli_value(),
                     params.noise_distribution(),
@@ -130,15 +116,10 @@ impl<T: UnsignedInteger> DcrtGlwePublicKey<T> {
                 );
 
                 if i == dimension {
-                    CrtPolynomial(ArrayBase(&mut *ai)).add_assign(message, poly_length, moduli);
+                    CrtPolynomial(&mut *ai.0).add_assign(message, poly_length, moduli);
                 }
-                table.transform_slice(ai);
-                DcrtPolynomial(ArrayBase(ai)).add_mul_assign(
-                    &v_dcrt_poly,
-                    &DcrtPolynomial(ArrayBase(pk_ai)),
-                    poly_length,
-                    moduli,
-                );
+                table.transform_slice(ai.0);
+                ai.add_mul_assign(&v_dcrt_poly, &pk_ai, poly_length, moduli);
             });
 
         result
@@ -149,7 +130,7 @@ impl<T: UnsignedInteger> DcrtGlwePublicKey<T> {
         index: usize,
         coeff_residues: &[T],
         degree: usize,
-        dcrt_glev: &mut [T],
+        dcrt_glev: &mut DcrtGlev<&mut [T]>,
         params: &CrtGlevParameters<T, M>,
         table: &Table,
         v: &mut [T],
@@ -160,66 +141,60 @@ impl<T: UnsignedInteger> DcrtGlwePublicKey<T> {
         M: FieldContext<T>,
     {
         let poly_length = params.poly_length();
-        let rns_poly_len = params.rns_poly_len();
-        let rns_glwe_len = params.rns_glwe_len();
+        let dcrt_poly_len = params.rns_poly_len();
+        let dcrt_glwe_len = params.rns_glwe_len();
 
         let moduli = params.cipher_moduli();
 
-        izip!(
-            dcrt_glev.chunks_exact_mut(rns_glwe_len),
-            params.basis().iter_scalar_residues()
-        )
-        .for_each(|(dcrt_glwe, scalar_residues)| {
-            primus_distr::sample_crt_ternary_values_inplace(
-                v,
-                poly_length,
-                params.cipher_moduli_minus_one(),
-                rng,
-            );
-            table.transform_slice(v);
-            let v_poly = DcrtPolynomial(ArrayBase(v.as_ref()));
+        dcrt_glev
+            .iter_dcrt_glwe_mut(dcrt_glwe_len)
+            .zip(params.basis().iter_scalar_residues())
+            .for_each(|(mut dcrt_glwe, scalar_residues)| {
+                primus_distr::sample_crt_ternary_values_inplace(
+                    v,
+                    poly_length,
+                    params.cipher_moduli_minus_one(),
+                    rng,
+                );
+                table.transform_slice(v);
+                let v_poly = DcrtPolynomial(v.as_ref());
 
-            dcrt_glwe
-                .chunks_exact_mut(rns_poly_len)
-                .zip(self.key.iter_dcrt_poly(rns_poly_len))
-                .enumerate()
-                .for_each(|(i, (ai, pk_ai))| {
-                    primus_distr::sample_crt_gaussian_values_inplace(
-                        ai,
-                        poly_length,
-                        params.cipher_moduli_value(),
-                        params.noise_distribution(),
-                        rng,
-                    );
-
-                    if i == index {
-                        izip!(
-                            ai.chunks_exact_mut(poly_length),
-                            coeff_residues,
-                            scalar_residues,
-                            moduli,
-                        )
-                        .for_each(
-                            |(poly, &coeff_residue, &scalar_residue, &modulus)| {
-                                poly[degree] = modulus.reduce_mul_add(
-                                    coeff_residue,
-                                    scalar_residue,
-                                    poly[degree],
-                                );
-                            },
+                dcrt_glwe
+                    .iter_dcrt_poly_mut(dcrt_poly_len)
+                    .zip(self.key.iter_dcrt_poly(dcrt_poly_len))
+                    .enumerate()
+                    .for_each(|(i, (mut ai, pk_ai))| {
+                        primus_distr::sample_crt_gaussian_values_inplace(
+                            ai.0,
+                            poly_length,
+                            params.cipher_moduli_value(),
+                            params.noise_distribution(),
+                            rng,
                         );
-                    }
 
-                    table.transform_slice(ai);
+                        if i == index {
+                            izip!(
+                                ai.iter_each_modulus_mut(poly_length),
+                                coeff_residues,
+                                scalar_residues,
+                                moduli,
+                            )
+                            .for_each(
+                                |(poly, &coeff_residue, &scalar_residue, &modulus)| {
+                                    poly[degree] = modulus.reduce_mul_add(
+                                        coeff_residue,
+                                        scalar_residue,
+                                        poly[degree],
+                                    );
+                                },
+                            );
+                        }
 
-                    DcrtPolynomial(ArrayBase(ai)).add_mul_assign(
-                        &v_poly,
-                        &DcrtPolynomial(ArrayBase(pk_ai)),
-                        poly_length,
-                        moduli,
-                    );
-                });
-        });
+                        table.transform_slice(ai.0);
+
+                        ai.add_mul_assign(&v_poly, &pk_ai, poly_length, moduli);
+                    });
+            });
     }
 
     /// Generate a [`DcrtGgsw`] ciphertext which encrypted `coeff*X^degree`.
@@ -236,9 +211,9 @@ impl<T: UnsignedInteger> DcrtGlwePublicKey<T> {
         Table: DcrtTable<ValueT = T> + Dcrt,
         M: FieldContext<T>,
     {
-        let rns_ggsw_len = params.rns_ggsw_len();
+        let dcrt_ggsw_len = params.rns_ggsw_len();
 
-        let mut result: DcrtGgsw<Vec<T>> = DcrtGgsw::zero(rns_ggsw_len);
+        let mut result: DcrtGgsw<Vec<T>> = DcrtGgsw::zero(dcrt_ggsw_len);
 
         self.encrypt_monomial_ggsw_inplace(coeff_residues, degree, &mut result, params, table, rng);
 
@@ -261,7 +236,7 @@ impl<T: UnsignedInteger> DcrtGlwePublicKey<T> {
         A: RawData<Elem = T> + DataMut,
     {
         let rns_poly_len = params.rns_poly_len();
-        let rns_glev_len = params.rns_glev_len();
+        let dcrt_glev_len = params.rns_glev_len();
 
         assert_eq!(result.as_ref().len(), params.rns_ggsw_len());
         assert!(degree < params.poly_length());
@@ -269,14 +244,14 @@ impl<T: UnsignedInteger> DcrtGlwePublicKey<T> {
         let mut v = vec![T::ZERO; rns_poly_len];
 
         result
-            .iter_dcrt_glev_mut(rns_glev_len)
+            .iter_dcrt_glev_mut(dcrt_glev_len)
             .enumerate()
-            .for_each(|(i, dcrt_glev)| {
+            .for_each(|(i, mut dcrt_glev)| {
                 self.encrypt_monomial_in_dcrt_glev_inplace(
                     i,
                     coeff_residues,
                     degree,
-                    dcrt_glev,
+                    &mut dcrt_glev,
                     params,
                     table,
                     &mut v,

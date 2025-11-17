@@ -1,4 +1,4 @@
-use primus_integer::{UnsignedInteger, izip};
+use primus_integer::UnsignedInteger;
 use primus_reduce::ops::{ReduceAdd, ReduceAddAssign};
 
 use crate::{Data, DataMut, RawData};
@@ -28,9 +28,8 @@ where
         A: RawData<Elem = T> + Data,
     {
         debug_assert_eq!(self.poly_length(), rhs.poly_length());
-        self.0
-            .iter_mut()
-            .zip(rhs.0.iter())
+        self.iter_mut()
+            .zip(rhs.iter())
             .for_each(|(a, &b)| modulus.reduce_add_assign(a, b));
     }
 }
@@ -42,13 +41,22 @@ where
 {
     /// Performs `result = self + rhs` according to `modulus`.
     #[inline]
-    pub fn add_inplace<M, A>(&self, rhs: &Self, result: &mut Polynomial<A, T>, modulus: M)
-    where
+    pub fn add_inplace<M, A, B>(
+        &self,
+        rhs: &Polynomial<A, T>,
+        result: &mut Polynomial<B, T>,
+        modulus: M,
+    ) where
         M: Copy + ReduceAdd<T, Output = T>,
-        A: RawData<Elem = T> + DataMut,
+        A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + DataMut,
     {
         debug_assert_eq!(self.poly_length(), rhs.poly_length());
         debug_assert_eq!(self.poly_length(), result.poly_length());
-        izip!(&self.0, &rhs.0, &mut result.0).for_each(|(&a, &b, c)| *c = modulus.reduce_add(a, b));
+
+        self.iter()
+            .zip(rhs.iter())
+            .zip(result.iter_mut())
+            .for_each(|((&a, &b), c)| *c = modulus.reduce_add(a, b));
     }
 }

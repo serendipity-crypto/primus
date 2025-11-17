@@ -2,7 +2,10 @@ use primus_distr::DiscreteGaussian;
 use primus_factor::ShoupFactor;
 use primus_integer::UnsignedInteger;
 use primus_ntt::{Ntt, NttTable};
-use primus_poly::{ArrayBase, Data, DataMut, DataOwned, NttPolynomial, Polynomial, RawData};
+use primus_poly::{
+    ArrayBase, Data, DataMut, DataOwned, NttPolynomial, Polynomial, PolynomialIter,
+    PolynomialIterMut, RawData,
+};
 use primus_reduce::{
     FieldContext,
     ops::{ReduceNeg, ReduceNegAssign},
@@ -22,18 +25,16 @@ pub type RlweOwned<T> = Rlwe<Vec<T>>;
 ///
 /// where `a` and `b` are [`Polynomial`] with same poly length.
 #[derive(Clone)]
-pub struct Rlwe<S, T = <S as RawData>::Elem>
+pub struct Rlwe<S, T = <S as RawData>::Elem>(pub S)
 where
     S: RawData<Elem = T>,
-    T: UnsignedInteger,
-{
-    pub data: ArrayBase<S>,
-}
+    T: UnsignedInteger;
 
 impl_common!(Rlwe<S, T>);
 impl_bytes_conversion!(Rlwe<S, T>);
 impl_zero!(Rlwe<S, T>);
-impl_iter_sub_structure!(Rlwe<S, T>, poly);
+impl_iters!(Rlwe);
+impl_iter_sub_structure!(Rlwe<S, T>, Polynomial, poly);
 impl_basic_operation_single_modulus!(Rlwe<S, T>);
 impl_ntt!(Rlwe<S, T>, NttRlwe);
 
@@ -49,24 +50,19 @@ where
         A: RawData<Elem = T> + Data,
     {
         debug_assert_eq!(a.poly_length(), b.poly_length());
-        Self {
-            data: ArrayBase::from_vec([a.0.as_ref(), b.0.as_ref()].concat()),
-        }
+        Self(S::from_vec([a.as_ref(), b.as_ref()].concat()))
     }
 }
 
-impl<T> Rlwe<Vec<T>, T>
-where
-    T: UnsignedInteger,
-{
+impl<T: UnsignedInteger> Rlwe<Vec<T>, T> {
     /// Extract an LWE sample from RLWE.
     #[inline]
     pub fn extract_lwe_locally<M>(self, modulus: M) -> Lwe<T>
     where
         M: Copy + ReduceNegAssign<T>,
     {
-        let Self { data } = self;
-        let ArrayBase(mut data) = data;
+        let Self(mut data) = self;
+
         let len = data.len() / 2;
         let b = data[len];
         data.truncate(len);
@@ -84,8 +80,7 @@ where
     where
         M: Copy + ReduceNegAssign<T>,
     {
-        let Self { data } = self;
-        let ArrayBase(mut data) = data;
+        let Self(mut data) = self;
         let len = data.len() / 2;
 
         let b = data[len..len + count].to_vec();
@@ -120,14 +115,14 @@ where
 
         let (a, b) = data.a_b_mut_slices();
 
-        Polynomial(ArrayBase(&mut *a)).random_assign(modulus, rng);
+        Polynomial(&mut *a).random_assign(modulus, rng);
 
         b.copy_from_slice(a);
         ntt_table.transform_slice(b);
-        NttPolynomial(ArrayBase(&mut *b)).mul_assign(secret_key, modulus);
+        NttPolynomial(&mut *b).mul_assign(secret_key, modulus);
         ntt_table.inverse_transform_slice(b);
 
-        Polynomial(ArrayBase(b)).add_random_gaussian_assign(gaussian, modulus, rng);
+        Polynomial(b).add_random_gaussian_assign(gaussian, modulus, rng);
 
         data
     }
@@ -141,8 +136,8 @@ where
     /// Extracts mutable slice of `a` and `b` of this [`Rlwe<S>`].
     #[inline]
     pub fn a_b_mut_slices(&mut self) -> (&mut [T], &mut [T]) {
-        let mid = self.data.len() >> 1;
-        unsafe { self.data.0.split_at_mut_unchecked(mid) }
+        let mid = self.0.len() >> 1;
+        unsafe { self.0.split_at_mut_unchecked(mid) }
     }
 
     #[inline]
@@ -167,8 +162,8 @@ where
     /// Extracts slice of `a` and `b` of this [`Rlwe<S>`].
     #[inline]
     pub fn a_b_slices(&self) -> (&[T], &[T]) {
-        let mid = self.data.len() >> 1;
-        unsafe { self.data.split_at_unchecked(mid) }
+        let mid = self.0.len() >> 1;
+        unsafe { self.0.split_at_unchecked(mid) }
     }
 
     /// Performs a multiplication on the `self` [`Rlwe<S>`] with another `ntt_polynomial` [`NttPolynomial<A>`],
@@ -176,7 +171,7 @@ where
     #[inline]
     pub fn mul_ntt_polynomial_inplace<M, Table, A, B>(
         &self,
-        ntt_polynomial: &NttPolynomial<A>,
+        ntt_poly: &NttPolynomial<A>,
         result: &mut NttRlwe<B>,
         modulus: M,
         ntt_table: &Table,
@@ -188,11 +183,11 @@ where
     {
         let poly_length = ntt_table.poly_length();
 
-        result.data.copy_from_slice(self.data.as_ref());
+        result.0.copy_from_slice(self.as_ref());
 
-        result.data.chunks_exact_mut(poly_length).for_each(|poly| {
+        result.0.chunks_exact_mut(poly_length).for_each(|poly| {
             ntt_table.transform_slice(poly);
-            NttPolynomial(ArrayBase(poly)).mul_assign(ntt_polynomial, modulus);
+            NttPolynomial(poly).mul_assign(ntt_poly, modulus);
         });
     }
 

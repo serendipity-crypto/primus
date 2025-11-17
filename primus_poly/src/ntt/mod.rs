@@ -1,7 +1,7 @@
-use primus_integer::{ByteCount, UnsignedInteger, izip, size::Size};
+use primus_integer::{UnsignedInteger, izip, size::Size};
 use primus_reduce::{lazy_ops::LazyReduceMulAdd, ops::ReduceMulAdd};
 
-use crate::{ArrayBase, Data, DataMut, DataOwned, RawData};
+use crate::{Data, DataMut, DataOwned, RawData};
 
 mod basic;
 mod random;
@@ -19,10 +19,12 @@ pub type NttPolynomialMut<'a, T> = NttPolynomial<&'a mut [T], T>;
 /// Represents a ntt polynomial where values are elements of a specified numeric `T`.
 /// It stores the values of the polynomial at some particular points.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct NttPolynomial<S, T = <S as RawData>::Elem>(pub ArrayBase<S, T>)
+pub struct NttPolynomial<S, T = <S as RawData>::Elem>(pub S)
 where
     S: RawData<Elem = T>,
     T: UnsignedInteger;
+
+impl_iters!(NttPolynomial, ntt_poly);
 
 impl<S, T> NttPolynomial<S, T>
 where
@@ -31,7 +33,7 @@ where
 {
     /// Creates a new [`NttPolynomial<T>`].
     #[inline]
-    pub fn new(values: ArrayBase<S, T>) -> Self {
+    pub fn new(values: S) -> Self {
         Self(values)
     }
 }
@@ -44,19 +46,19 @@ where
     /// Creates a [`NttPolynomial<T>`] with all coefficients equal to zero.
     #[inline]
     pub fn zero(poly_length: usize) -> Self {
-        Self(ArrayBase::zero(poly_length))
+        Self(S::zero(poly_length))
     }
 
     /// Drop self, and return the data.
     #[inline]
     pub fn into_owned(self) -> S {
-        self.0.0
+        self.0
     }
 
     /// Constructs a new ntt polynomial from a slice.
     #[inline]
     pub fn from_slice(polynomial: &[T]) -> Self {
-        Self::new(ArrayBase::from_slice(polynomial))
+        Self::new(S::from_slice(polynomial))
     }
 }
 
@@ -103,7 +105,7 @@ where
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + Data,
     {
-        izip!(self.0.iter_mut(), a.0.iter(), b.0.iter())
+        izip!(self.iter_mut(), a.iter(), b.iter())
             .for_each(|(z, &x, &y)| *z = modulus.reduce_mul_add(x, y, *z));
     }
 
@@ -118,7 +120,7 @@ where
         M: Copy + LazyReduceMulAdd<T, Output = T>,
         A: RawData<Elem = T> + Data,
     {
-        izip!(self.0.iter_mut(), a.0.iter(), b.0.iter())
+        izip!(self.iter_mut(), a.iter(), b.iter())
             .for_each(|(z, &x, &y)| *z = modulus.lazy_reduce_mul_add(x, y, *z));
     }
 }
@@ -200,6 +202,6 @@ where
 {
     #[inline]
     fn byte_count(&self) -> usize {
-        self.poly_length() * <T as ByteCount>::BYTES
+        self.0.byte_count()
     }
 }

@@ -42,10 +42,15 @@ where
 {
     /// Performs `result = self - rhs` according to `modulus`.
     #[inline]
-    pub fn sub_inplace<M, A>(&self, rhs: &Self, result: &mut Polynomial<A, T>, modulus: M)
-    where
+    pub fn sub_inplace<M, A, B>(
+        &self,
+        rhs: &Polynomial<A, T>,
+        result: &mut Polynomial<B, T>,
+        modulus: M,
+    ) where
         M: Copy + ReduceSub<T, Output = T>,
-        A: RawData<Elem = T> + DataMut,
+        A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + DataMut,
     {
         debug_assert_eq!(self.poly_length(), rhs.poly_length());
         debug_assert_eq!(self.poly_length(), result.poly_length());

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use primus_factor::ShoupFactor;
 use primus_integer::{AsInto, UnsignedInteger};
 use primus_ntt::{Dcrt, DcrtTable};
-use primus_poly::{ArrayBase, Data, DataMut, RawData};
+use primus_poly::{Data, DataMut, RawData};
 use primus_reduce::FieldContext;
 use primus_rns::RNSBase;
 
@@ -123,7 +123,7 @@ where
 
         let (crt_glwe, auto_context) = context.as_mut();
 
-        let dcrt_glwe = &mut DcrtGlweCiphertext::new(ArrayBase(crt_glwe.as_mut()));
+        let dcrt_glwe = &mut DcrtGlweCiphertext::new(crt_glwe.as_mut());
 
         result.as_mut().copy_from_slice(ciphertext.as_ref());
 

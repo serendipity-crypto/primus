@@ -1,4 +1,4 @@
-use primus_integer::{UnsignedInteger, izip};
+use primus_integer::UnsignedInteger;
 use primus_reduce::ops::{ReduceSub, ReduceSubAssign};
 
 use crate::{Data, DataMut, RawData};
@@ -49,7 +49,9 @@ where
     {
         debug_assert_eq!(self.poly_length(), rhs.poly_length());
 
-        izip!(self.iter(), rhs.iter_mut()).for_each(|(&a, b)| *b = modulus.reduce_sub(a, *b))
+        self.iter()
+            .zip(rhs.iter_mut())
+            .for_each(|(&a, b)| *b = modulus.reduce_sub(a, *b))
     }
 
     /// Performs `result = self - rhs` according to `moduli`.
@@ -67,7 +69,9 @@ where
         debug_assert_eq!(self.poly_length(), rhs.poly_length());
         debug_assert_eq!(self.poly_length(), result.poly_length());
 
-        izip!(self.iter(), rhs.iter(), result.iter_mut())
-            .for_each(|(&a, &b, c)| *c = modulus.reduce_sub(a, b))
+        self.iter()
+            .zip(rhs.iter())
+            .zip(result.iter_mut())
+            .for_each(|((&a, &b), c)| *c = modulus.reduce_sub(a, b))
     }
 }

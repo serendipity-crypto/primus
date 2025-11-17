@@ -14,3 +14,4 @@ primus_distr = { path = "../primus_distr" }
 serde = { workspace = true }
 num-traits = { workspace = true }
 rand = { workspace = true }
+paste = { workspace = true }

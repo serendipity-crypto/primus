@@ -3,6 +3,8 @@ use primus_ntt::{Dcrt, DcrtTable};
 use primus_poly::{ArrayBase, Data, DataMut, DataOwned, RawData};
 use primus_reduce::FieldContext;
 
+use crate::glev::{CrtGlevIter, CrtGlevIterMut};
+
 use super::DcrtGgsw;
 
 /// Represents a ciphertext in the General-GSW homomorphic encryption scheme.
@@ -13,17 +15,15 @@ use super::DcrtGgsw;
 ///
 /// where `c1` to `c[k+1]` are [`crate::glev::CrtGlev`] with same parameter, `k` is the dimension.
 #[derive(Clone)]
-pub struct CrtGgsw<S, T = <S as RawData>::Elem>
+pub struct CrtGgsw<S, T = <S as RawData>::Elem>(pub S)
 where
     S: RawData<Elem = T>,
-    T: UnsignedInteger,
-{
-    pub data: ArrayBase<S>,
-}
+    T: UnsignedInteger;
 
 impl_common!(CrtGgsw<S, T>);
 impl_bytes_conversion!(CrtGgsw<S, T>);
 impl_zero!(CrtGgsw<S, T>);
-impl_iter_sub_structure!(CrtGgsw<S, T>, crt_glev);
+impl_iters!(CrtGgsw);
+impl_iter_sub_structure!(CrtGgsw<S, T>, CrtGlev);
 impl_basic_operation_multiple_modulus!(CrtGgsw<S, T>);
 impl_crt_ntt!(CrtGgsw<S, T>, DcrtGgsw);

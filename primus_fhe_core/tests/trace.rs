@@ -109,7 +109,7 @@ fn test_rns_glwe_trace() {
 
     c1.mul_scalar_assign(&scalar_residue, poly_length, rns_poly_len, &moduli);
 
-    let mut c2: CrtGlwe<Vec<ValueT>> = CrtGlwe::new(c2.data);
+    let mut c2: CrtGlwe<Vec<ValueT>> = CrtGlwe::new(c2.0);
 
     trace_key.trace_inplace(
         &c1,

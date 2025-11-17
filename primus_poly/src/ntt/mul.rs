@@ -1,5 +1,5 @@
 use primus_factor::{FactorMul, ShoupFactor};
-use primus_integer::{UnsignedInteger, izip};
+use primus_integer::UnsignedInteger;
 use primus_modulus::UintModulus;
 use primus_reduce::ops::*;
 
@@ -114,7 +114,9 @@ where
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + DataMut,
     {
-        izip!(self.iter(), rhs.iter(), result.iter_mut())
-            .for_each(|(&a, &b, c)| *c = modulus.reduce_mul(a, b));
+        self.iter()
+            .zip(rhs.iter())
+            .zip(result.iter_mut())
+            .for_each(|((&a, &b), c)| *c = modulus.reduce_mul(a, b));
     }
 }

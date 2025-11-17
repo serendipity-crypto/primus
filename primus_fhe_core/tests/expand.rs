@@ -91,7 +91,7 @@ fn test_rns_glwe_expand_coefficients() {
         assert!(m_dec[1..].iter().all(|&v| v == 0));
     }
 
-    let mut c1 = DcrtGlweCiphertext::new(c1.data);
+    let mut c1 = DcrtGlweCiphertext::new(c1.0);
 
     input1[256..].fill(0);
 

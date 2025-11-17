@@ -94,8 +94,8 @@ fn test_rns_glwe_auto() {
         .zip(auto_c1.iter_crt_poly_mut(crt_poly_length))
         .for_each(|(in_crt_poly, auto_crt_poly)| {
             crt_poly_auto_inplace(
-                in_crt_poly,
-                auto_crt_poly,
+                in_crt_poly.0,
+                auto_crt_poly.0,
                 auto_key.auto_helper(),
                 poly_length,
                 &moduli,
@@ -107,7 +107,7 @@ fn test_rns_glwe_auto() {
         .zip(auto_sk.key_mut().chunks_exact_mut(crt_poly_length))
         .for_each(|(in_crt_poly, auto_crt_poly)| {
             crt_poly_auto_inplace(
-                in_crt_poly,
+                in_crt_poly.0,
                 auto_crt_poly,
                 auto_key.auto_helper(),
                 poly_length,

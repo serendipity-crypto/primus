@@ -2,8 +2,9 @@ use primus_decompose::big_integer::BigUintApproxSignedBasis;
 use primus_integer::{UnsignedInteger, izip};
 use primus_ntt::{Dcrt, DcrtTable};
 use primus_poly::{
-    ArrayBase, BigUintPolynomial, Data, DataMut, DataOwned, RawData, crt::CrtPolynomial,
-    dcrt::DcrtPolynomial,
+    ArrayBase, BigUintPolynomial, Data, DataMut, DataOwned, RawData,
+    crt::CrtPolynomial,
+    dcrt::{DcrtPolynomial, DcrtPolynomialIter, DcrtPolynomialIterMut},
 };
 use primus_reduce::FieldContext;
 use primus_rns::RNSBase;
@@ -20,18 +21,16 @@ use super::CrtGlwe;
 ///
 /// where `a1`...`ak` and `b` are [`DcrtPolynomial`] with same poly length and moduli count, `k` is the dimension.
 #[derive(Clone)]
-pub struct DcrtGlwe<S, T = <S as RawData>::Elem>
+pub struct DcrtGlwe<S, T = <S as RawData>::Elem>(pub S)
 where
     S: RawData<Elem = T>,
-    T: UnsignedInteger,
-{
-    pub data: ArrayBase<S>,
-}
+    T: UnsignedInteger;
 
 impl_common!(DcrtGlwe<S, T>);
 impl_bytes_conversion!(DcrtGlwe<S, T>);
 impl_zero!(DcrtGlwe<S, T>);
-impl_iter_sub_structure!(DcrtGlwe<S, T>, dcrt_poly);
+impl_iters!(DcrtGlwe);
+impl_iter_sub_structure!(DcrtGlwe<S, T>, DcrtPolynomial, dcrt_poly);
 impl_basic_operation_multiple_modulus!(DcrtGlwe<S, T>);
 impl_crt_intt!(DcrtGlwe<S, T>, CrtGlwe);
 
@@ -46,13 +45,23 @@ where
         self.as_mut().split_at_mut(mid)
     }
 
-    pub fn neg_assign<M>(&mut self, dcrt_poly_length: usize, poly_length: usize, moduli: &[M])
+    /// Extracts mutable `a` and `b` of this [`DcrtGlwe<S>`].
+    #[inline]
+    pub fn a_b_mut(
+        &mut self,
+        mid: usize,
+    ) -> (DcrtPolynomialIterMut<'_, T>, DcrtPolynomial<&mut [T]>) {
+        let (a, b) = self.as_mut().split_at_mut(mid);
+        (DcrtPolynomialIterMut::new(a, b.len()), DcrtPolynomial(b))
+    }
+
+    pub fn neg_assign<M>(&mut self, dcrt_poly_len: usize, poly_length: usize, moduli: &[M])
     where
         M: FieldContext<T>,
     {
-        self.iter_dcrt_poly_mut(dcrt_poly_length)
-            .for_each(|dcrt_poly| {
-                DcrtPolynomial(ArrayBase(dcrt_poly)).neg_assign(poly_length, moduli);
+        self.iter_dcrt_poly_mut(dcrt_poly_len)
+            .for_each(|mut dcrt_poly| {
+                dcrt_poly.neg_assign(poly_length, moduli);
             });
     }
 
@@ -66,19 +75,15 @@ where
         M: FieldContext<T>,
     {
         self.iter_dcrt_poly_mut(dcrt_poly_len)
-            .for_each(|dcrt_poly| {
-                DcrtPolynomial(ArrayBase(dcrt_poly)).mul_scalar_assign(
-                    scalar_residue,
-                    poly_length,
-                    moduli,
-                );
+            .for_each(|mut dcrt_poly| {
+                dcrt_poly.mul_scalar_assign(scalar_residue, poly_length, moduli);
             });
     }
 
     pub fn add_dcrt_glwe_mul_dcrt_polynomial_assign<M, A, B>(
         &mut self,
         dcrt_glwe: &DcrtGlwe<A>,
-        dcrt_polynomial: &DcrtPolynomial<B>,
+        dcrt_poly: &DcrtPolynomial<B>,
         poly_length: usize,
         moduli: &[M],
     ) where
@@ -86,19 +91,13 @@ where
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + Data,
     {
-        let dcrt_poly_length = dcrt_polynomial.dcrt_poly_length();
-        izip!(
-            self.iter_dcrt_poly_mut(dcrt_poly_length),
-            dcrt_glwe.iter_dcrt_poly(dcrt_poly_length)
-        )
-        .for_each(|(x, y)| {
-            DcrtPolynomial(ArrayBase(x)).add_mul_assign(
-                &DcrtPolynomial(ArrayBase(y)),
-                dcrt_polynomial,
-                poly_length,
-                moduli,
-            );
-        });
+        let dcrt_poly_len = dcrt_poly.dcrt_poly_len();
+
+        self.iter_dcrt_poly_mut(dcrt_poly_len)
+            .zip(dcrt_glwe.iter_dcrt_poly(dcrt_poly_len))
+            .for_each(|(mut x, y)| {
+                x.add_mul_assign(&y, dcrt_poly, poly_length, moduli);
+            });
     }
 
     pub fn add_dcrt_glev_mul_crt_poly_assign<M, Table, A, B>(
@@ -120,7 +119,7 @@ where
         let basis_value = basis.basis_value();
 
         let moduli = rns_base.moduli();
-        let dcrt_glwe_len = self.data.len();
+        let dcrt_glwe_len = self.0.len();
 
         let (adjust_big_uint_values, decomposed_unsigned_values, carries, multi_residues) =
             context.as_mut();
@@ -137,9 +136,9 @@ where
             dcrt_glwe_len * basis.decompose_length()
         );
 
-        rns_base.compose_polynomial_inplace(
-            crt_poly,
-            &mut BigUintPolynomial(ArrayBase(&mut *adjust_big_uint_values)),
+        rns_base.compose_multiple_values_inplace(
+            crt_poly.as_ref(),
+            adjust_big_uint_values,
             poly_length,
         );
 
@@ -166,8 +165,8 @@ where
                 table.transform_slice(multi_residues);
 
                 self.add_dcrt_glwe_mul_dcrt_polynomial_assign(
-                    &DcrtGlwe::new(ArrayBase(dcrt_glwe)),
-                    &DcrtPolynomial(ArrayBase(multi_residues.as_ref())),
+                    &dcrt_glwe,
+                    &DcrtPolynomial(multi_residues.as_ref()),
                     poly_length,
                     moduli,
                 );
@@ -196,7 +195,7 @@ where
         debug_assert_eq!(big_uint_poly_len, big_uint_value_len * poly_length);
 
         let moduli = rns_base.moduli();
-        let dcrt_glwe_len = self.data.len();
+        let dcrt_glwe_len = self.0.len();
 
         context.clear();
         let (adjust_big_uint_values, decomposed_unsigned_values, carries, multi_residues) =
@@ -239,8 +238,8 @@ where
                 table.transform_slice(multi_residues);
 
                 self.add_dcrt_glwe_mul_dcrt_polynomial_assign(
-                    &DcrtGlwe::new(ArrayBase(dcrt_glwe)),
-                    &DcrtPolynomial(ArrayBase(multi_residues.as_ref())),
+                    &dcrt_glwe,
+                    &DcrtPolynomial(multi_residues.as_ref()),
                     poly_length,
                     moduli,
                 );
@@ -253,10 +252,17 @@ where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
 {
-    /// Extracts slice of `a` and `b` of this [`DcrtGlwe<S>`].
+    /// Extracts slice of `a` and `b` of this [`DcrtGlwe<S, T>`].
     #[inline]
     pub fn a_b_slices(&self, mid: usize) -> (&[T], &[T]) {
-        self.data.split_at(mid)
+        self.0.split_at(mid)
+    }
+
+    /// Extracts `a` and `b` of this [`DcrtGlwe<S, T>`].
+    #[inline]
+    pub fn a_b(&self, mid: usize) -> (DcrtPolynomialIter<'_, T>, DcrtPolynomial<&[T], T>) {
+        let (a, b) = self.0.split_at(mid);
+        (DcrtPolynomialIter::new(a, b.len()), DcrtPolynomial(b))
     }
 
     /// Performs a multiplication on the `self` [`DcrtGlwe<S>`] with another `dcrt_polynomial` [`DcrtPolynomial<A>`],
@@ -264,7 +270,7 @@ where
     #[inline]
     pub fn mul_dcrt_polynomial_inplace<M, A, B>(
         &self,
-        dcrt_polynomial: &DcrtPolynomial<A>,
+        dcrt_poly: &DcrtPolynomial<A>,
         result: &mut DcrtGlwe<B>,
         poly_length: usize,
         moduli: &[M],
@@ -273,19 +279,12 @@ where
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + DataMut,
     {
-        let dcrt_poly_length = dcrt_polynomial.dcrt_poly_length();
+        let dcrt_poly_len = dcrt_poly.dcrt_poly_len();
 
-        izip!(
-            self.iter_dcrt_poly(dcrt_poly_length),
-            result.iter_dcrt_poly_mut(dcrt_poly_length),
-        )
-        .for_each(|(a, b)| {
-            DcrtPolynomial(ArrayBase(a)).mul_inplace(
-                dcrt_polynomial,
-                &mut DcrtPolynomial(ArrayBase(b)),
-                poly_length,
-                moduli,
-            );
-        });
+        self.iter_dcrt_poly(dcrt_poly_len)
+            .zip(result.iter_dcrt_poly_mut(dcrt_poly_len))
+            .for_each(|(a, mut b)| {
+                a.mul_inplace(dcrt_poly, &mut b, poly_length, moduli);
+            });
     }
 }

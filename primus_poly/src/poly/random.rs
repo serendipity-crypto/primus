@@ -3,7 +3,7 @@ use primus_integer::UnsignedInteger;
 use primus_reduce::{Modulus, ops::ReduceAddAssign};
 use rand::{CryptoRng, Rng, distr::Distribution};
 
-use crate::{ArrayBase, DataMut, DataOwned, RawData, poly::PolynomialOwned};
+use crate::{DataMut, DataOwned, RawData, poly::PolynomialOwned};
 
 use super::Polynomial;
 
@@ -59,10 +59,7 @@ impl<T: UnsignedInteger> PolynomialOwned<T> {
     where
         R: Rng + CryptoRng,
     {
-        Self(ArrayBase(primus_distr::sample_binary_values(
-            poly_length,
-            rng,
-        )))
+        Self(primus_distr::sample_binary_values(poly_length, rng))
     }
 
     /// Generate a random ternary [`Polynomial<S>`].
@@ -71,11 +68,11 @@ impl<T: UnsignedInteger> PolynomialOwned<T> {
     where
         R: Rng + CryptoRng,
     {
-        Self(ArrayBase(primus_distr::sample_ternary_values(
+        Self(primus_distr::sample_ternary_values(
             minus_one,
             poly_length,
             rng,
-        )))
+        ))
     }
 }
 

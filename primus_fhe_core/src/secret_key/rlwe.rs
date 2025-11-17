@@ -4,8 +4,7 @@ use primus_integer::UnsignedInteger;
 use primus_lattice::rlwe::TruncatedRlwe;
 use primus_ntt::{Ntt, NttTable};
 use primus_poly::{
-    ArrayBase, Data, DataMut, NttPolynomial, NttPolynomialOwned, Polynomial, PolynomialOwned,
-    RawData,
+    Data, DataMut, NttPolynomial, NttPolynomialOwned, Polynomial, PolynomialOwned, RawData,
 };
 use primus_reduce::FieldContext;
 
@@ -165,15 +164,11 @@ where
         Table: NttTable<ValueT = T> + Ntt,
         A: RawData<Elem = T> + Data,
     {
-        let (a, b) = cipher.a_b_slices();
+        let (a, b) = cipher.a_b();
+        let mut temp = NttPolynomial(result.as_mut());
 
-        NttPolynomial(ArrayBase(a)).mul_inplace(
-            self,
-            &mut NttPolynomial(ArrayBase(result.as_mut())),
-            modulus,
-        );
-        NttPolynomial(ArrayBase(b))
-            .sub_to_right(&mut NttPolynomial(ArrayBase(result.as_mut())), modulus);
+        a.mul_inplace(self, &mut temp, modulus);
+        b.sub_to_right(&mut temp, modulus);
 
         ntt_table.inverse_transform_slice(result.as_mut())
     }
@@ -196,7 +191,7 @@ where
 
         primus_distr::sample_gaussian_values_inplace(b, params.noise_distribution(), rng);
 
-        Polynomial(ArrayBase(&mut *b)).add_mul_scalar_assign(
+        Polynomial(&mut *b).add_mul_scalar_assign(
             msg,
             params.plain_modulus_value(),
             params.cipher_modulus(),
@@ -205,11 +200,7 @@ where
 
         primus_distr::sample_uniform_values_inplace(a, &params.cipher_modulus_uniform_distr(), rng);
 
-        NttPolynomial(ArrayBase(b)).add_mul_assign(
-            &NttPolynomial(ArrayBase(a)),
-            self,
-            params.cipher_modulus(),
-        );
+        NttPolynomial(b).add_mul_assign(&NttPolynomial(a), self, params.cipher_modulus());
     }
 
     pub fn encrypt_zeros<M, Table, R>(
@@ -248,11 +239,7 @@ where
 
         primus_distr::sample_uniform_values_inplace(a, &params.cipher_modulus_uniform_distr(), rng);
 
-        NttPolynomial(ArrayBase(b)).add_mul_assign(
-            &NttPolynomial(ArrayBase(a)),
-            self,
-            params.cipher_modulus(),
-        );
+        NttPolynomial(b).add_mul_assign(&NttPolynomial(a), self, params.cipher_modulus());
     }
 
     /// Encrypts multiple zeros using the secret key.
@@ -295,12 +282,12 @@ where
         let q = modulus.value();
         let t = params.plain_modulus_value();
 
-        let (a, b) = cipher.a_b_slices();
+        let (a, b) = cipher.a_b();
 
-        let mut temp = NttPolynomial(ArrayBase(result.as_mut()));
+        let mut temp = NttPolynomial(result.as_mut());
 
-        NttPolynomial(ArrayBase(a)).mul_inplace(self, &mut temp, modulus);
-        NttPolynomial(ArrayBase(b)).sub_to_right(&mut temp, modulus);
+        a.mul_inplace(self, &mut temp, modulus);
+        b.sub_to_right(&mut temp, modulus);
         ntt_table.inverse_transform_slice(result.as_mut());
 
         result
@@ -345,7 +332,7 @@ where
 
         let mut a = a.to_vec();
         ntt_table.transform_slice(&mut a);
-        NttPolynomial(ArrayBase(a.as_mut())).mul_assign(&self.key, modulus);
+        NttPolynomial(a.as_mut()).mul_assign(&self.key, modulus);
         ntt_table.inverse_transform_slice(&mut a);
 
         b.iter()
@@ -378,7 +365,7 @@ where
 
         let mut a = a.to_vec();
         ntt_table.transform_slice(&mut a);
-        NttPolynomial(ArrayBase(a.as_mut())).mul_assign(&self.key, modulus);
+        NttPolynomial(a.as_mut()).mul_assign(&self.key, modulus);
         ntt_table.inverse_transform_slice(&mut a);
 
         b.iter()

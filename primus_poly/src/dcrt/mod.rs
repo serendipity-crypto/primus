@@ -1,4 +1,4 @@
-use primus_integer::{ByteCount, UnsignedInteger, izip, size::Size};
+use primus_integer::{UnsignedInteger, izip, size::Size};
 use primus_reduce::ops::ReduceMulAdd;
 
 use crate::{ArrayBase, Data, DataMut, DataOwned, RawData};
@@ -22,10 +22,12 @@ mod sub;
 /// Also, applying number theory transform to each factorized polynomial,
 /// we can get polynomials that are more efficient in addition, subtraction and multiplication.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DcrtPolynomial<S, T = <S as RawData>::Elem>(pub ArrayBase<S, T>)
+pub struct DcrtPolynomial<S, T = <S as RawData>::Elem>(pub S)
 where
     S: RawData<Elem = T>,
     T: UnsignedInteger;
+
+impl_iters!(DcrtPolynomial, dcrt_poly);
 
 impl<S, T> DcrtPolynomial<S, T>
 where
@@ -34,7 +36,7 @@ where
 {
     /// Creates a new [`DcrtPolynomial<T>`].
     #[inline]
-    pub fn new(polys: ArrayBase<S, T>) -> Self {
+    pub fn new(polys: S) -> Self {
         Self(polys)
     }
 }
@@ -47,12 +49,12 @@ where
     /// Creates a [`DcrtPolynomial<T>`] with all coefficients equal to zero.
     #[inline]
     pub fn zero(dcrt_poly_length: usize) -> Self {
-        Self(ArrayBase::zero(dcrt_poly_length))
+        Self(S::zero(dcrt_poly_length))
     }
 
     #[inline]
     pub fn into_owned(self) -> S {
-        self.0.0
+        self.0
     }
 }
 
@@ -128,7 +130,7 @@ where
     }
 
     #[inline]
-    pub fn dcrt_poly_length(&self) -> usize {
+    pub fn dcrt_poly_len(&self) -> usize {
         self.0.len()
     }
 }
@@ -140,7 +142,7 @@ where
 {
     #[inline]
     fn byte_count(&self) -> usize {
-        self.0.len() * <T as ByteCount>::BYTES
+        self.0.byte_count()
     }
 }
 

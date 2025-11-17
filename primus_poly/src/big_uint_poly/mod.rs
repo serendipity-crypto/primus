@@ -1,6 +1,6 @@
 use primus_integer::UnsignedInteger;
 
-use crate::{ArrayBase, Data, DataMut, DataOwned, RawData};
+use crate::{Data, DataMut, DataOwned, RawData};
 
 mod add;
 mod neg;
@@ -8,10 +8,12 @@ mod sub;
 
 /// Represents a polynomial where coefficients are elements of a specified numeric `T`.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct BigUintPolynomial<S, T = <S as RawData>::Elem>(pub ArrayBase<S, T>)
+pub struct BigUintPolynomial<S, T = <S as RawData>::Elem>(pub S)
 where
     S: RawData<Elem = T>,
     T: UnsignedInteger;
+
+impl_iters!(BigUintPolynomial, bit_uint_poly);
 
 impl<S, T> BigUintPolynomial<S, T>
 where
@@ -20,7 +22,7 @@ where
 {
     /// Creates a new [`BigUintPolynomial<T>`].
     #[inline]
-    pub fn new(big_uint_poly: ArrayBase<S, T>) -> Self {
+    pub fn new(big_uint_poly: S) -> Self {
         Self(big_uint_poly)
     }
 }
@@ -33,19 +35,19 @@ where
     /// Creates a [`BigUintPolynomial<S>`] with all coefficients equal to zero.
     #[inline]
     pub fn zero(big_uint_poly_len: usize) -> Self {
-        Self(ArrayBase::zero(big_uint_poly_len))
+        Self(S::zero(big_uint_poly_len))
     }
 
     /// Drop self, and return the vector.
     #[inline]
     pub fn into_owned(self) -> S {
-        self.0.0
+        self.0
     }
 
     /// Constructs a new polynomial from a slice.
     #[inline]
     pub fn from_slice(polynomial: &[T]) -> Self {
-        Self::new(ArrayBase::from_slice(polynomial))
+        Self(S::from_slice(polynomial))
     }
 }
 

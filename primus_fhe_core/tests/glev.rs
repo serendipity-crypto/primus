@@ -7,9 +7,7 @@ use primus_fhe_core::{
 use primus_lattice::{context::DcrtGlevContext, glev::DcrtGlev, glwe::DcrtGlwe};
 use primus_modulus::BarrettModulus;
 use primus_ntt::{Dcrt, DcrtTable, UintCrtNttTable};
-use primus_poly::{
-    ArrayBase, BigUintPolynomial, Polynomial, crt::CrtPolynomial, dcrt::DcrtPolynomial,
-};
+use primus_poly::{BigUintPolynomial, Polynomial, crt::CrtPolynomial, dcrt::DcrtPolynomial};
 
 #[test]
 fn test_rns_glev() {
@@ -169,7 +167,7 @@ fn test_key_switching() {
 
     sk.iter_crt_poly()
         .zip(msgs.iter_mut())
-        .for_each(|(a, b)| b.as_mut().copy_from_slice(a));
+        .for_each(|(a, b)| b.as_mut().copy_from_slice(a.0));
 
     msgs.iter()
         .zip(dcrt_glevs.iter_mut())
@@ -206,7 +204,7 @@ fn test_key_switching() {
         .iter_dcrt_poly()
         .zip(cipher.iter())
         .for_each(|(si, ai)| {
-            b.add_mul_assign(ai, &DcrtPolynomial(ArrayBase(si)), poly_length, &moduli);
+            b.add_mul_assign(ai, &si, poly_length, &moduli);
         });
 
     let cipher: Vec<_> = cipher

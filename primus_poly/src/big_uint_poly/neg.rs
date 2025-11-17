@@ -36,7 +36,7 @@ where
     where
         A: RawData<Elem = T> + DataMut,
     {
-        debug_assert_eq!(self.0.len(), result.0.len());
+        debug_assert_eq!(self.len(), result.len());
         let value_len = modulus.len();
         result
             .iter_mut(value_len)
