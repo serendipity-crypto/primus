@@ -6,6 +6,7 @@ mod ops;
 ///
 /// Just store the modulus value and only support some basic operations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(transparent)]
 pub struct UintModulus<T>(pub T);
 
 impl<T: UnsignedInteger> UintModulus<T> {
