@@ -49,22 +49,20 @@ where
         count: usize,
         poly_length: usize,
         modulus: M,
-    ) -> MultiMsgLwe<T>
+    ) -> MultiMsgLwe<Vec<T>>
     where
         M: Copy + ReduceNegAssign<T>,
     {
-        let Self(mut data) = self;
+        let mut data = self.0;
 
-        let b = data[poly_length..poly_length + count].to_vec();
+        data.truncate(poly_length + count);
 
-        data.truncate(poly_length);
-
-        data[1..].reverse();
-        data[1..]
+        data[1..poly_length].reverse();
+        data[1..poly_length]
             .iter_mut()
             .for_each(|v| modulus.reduce_neg_assign(v));
 
-        MultiMsgLwe::new(data, b)
+        MultiMsgLwe::new(data)
     }
 
     /// Generate a [`TruncatedRlwe<Vec<T>>`] sample which encrypts `0`.

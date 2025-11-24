@@ -18,7 +18,7 @@ impl<T: UnsignedInteger> DcrtGlwePublicKey<T> {
         self.key.from_bytes_assign(data);
     }
 
-    /// Converts [`DcrtGlwePublicKey<T>`] into bytes, stored in `data``.
+    /// Converts [`DcrtGlwePublicKey<T>`] into bytes, stored in `data`.
     #[inline]
     pub fn to_bytes_inplace(&self, data: &mut [u8]) {
         self.key.to_bytes_inplace(data);

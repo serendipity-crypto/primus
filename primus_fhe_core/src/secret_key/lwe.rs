@@ -89,7 +89,7 @@ impl<T: UnsignedInteger> LweSecretKey<T> {
             self.as_ref(),
             modulus,
             uniform,
-            &gaussian,
+            gaussian,
             rng,
         );
         modulus.reduce_add_assign(
@@ -118,8 +118,8 @@ impl<T: UnsignedInteger> LweSecretKey<T> {
         let uniform = params.cipher_modulus_uniform_distr();
         let modulus = params.cipher_modulus();
 
-        let mut a: Vec<T> = vec![T::ZERO; dimension];
-        let mut b: Vec<T> = vec![T::ZERO; messages.len()];
+        let mut data: Vec<T> = vec![T::ZERO; dimension + messages.len()];
+        let (a, b) = data.split_at_mut(dimension);
 
         for (i, o) in a.iter_mut().zip(uniform.sample_iter(&mut *rng)) {
             *i = o;
@@ -150,7 +150,7 @@ impl<T: UnsignedInteger> LweSecretKey<T> {
             modulus.reduce_add_assign(bi, ei);
         }
 
-        MultiMsgLweCiphertext::new(a, b)
+        MultiMsgLweCiphertext::new(data)
     }
 
     /// Encrypts multiple zeros using the secret key.
@@ -170,8 +170,8 @@ impl<T: UnsignedInteger> LweSecretKey<T> {
         let uniform = params.cipher_modulus_uniform_distr();
         let modulus = params.cipher_modulus();
 
-        let mut a: Vec<T> = vec![T::ZERO; dimension];
-        let mut b: Vec<T> = vec![T::ZERO; zero_count];
+        let mut data: Vec<T> = vec![T::ZERO; dimension + zero_count];
+        let (a, b) = data.split_at_mut(dimension);
 
         a.iter_mut()
             .zip(uniform.sample_iter(&mut *rng))
@@ -197,7 +197,7 @@ impl<T: UnsignedInteger> LweSecretKey<T> {
             modulus.reduce_add_assign(bi, ei);
         }
 
-        MultiMsgLweCiphertext::new(a, b)
+        MultiMsgLweCiphertext::new(data)
     }
 
     /// Decrypts the [`LweCiphertext<T>`] back to message.
@@ -264,20 +264,17 @@ impl<T: UnsignedInteger> LweSecretKey<T> {
         M: RingContext<T>,
     {
         let modulus = params.cipher_modulus();
-        let dimension = cipher_text.a().len();
+        let dimension = params.dimension();
+        let (a, b) = cipher_text.a_b(dimension);
 
-        cipher_text
-            .b()
-            .iter()
+        b.iter()
             .enumerate()
             .map(|(i, &b)| {
                 let a_mul_s = modulus.reduce_dot_product_iter(
-                    cipher_text
-                        .a()
-                        .iter()
+                    a.iter()
                         .skip(dimension - i)
                         .map(|&v| modulus.reduce_neg(v))
-                        .chain(cipher_text.a().iter().take(dimension - i).copied()),
+                        .chain(a.iter().take(dimension - i).copied()),
                     self.data.iter().copied(),
                 );
                 let plaintext = modulus.reduce_sub(b, a_mul_s);

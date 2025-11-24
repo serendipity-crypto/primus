@@ -279,7 +279,7 @@ where
 
         let mut delta = vec![T::ZERO; cipher_modulus.len()];
 
-        let rem = DivRemScalar::div_rem_scalar(&cipher_modulus, t, &mut delta);
+        let rem = DivRemScalar::div_rem_scalar(cipher_modulus, t, &mut delta);
         if rem * T::TWO >= t {
             let _ = delta.slice_add_value_assign(T::ONE);
         }
@@ -361,7 +361,7 @@ where
 
     /// Returns a reference to the cipher modulus of this [`CrtGlweParameters<T, M>`].
     pub fn cipher_modulus(&self) -> &[T] {
-        &self.base_q.moduli_product()
+        self.base_q.moduli_product()
     }
 
     /// Returns a reference to the modulus minus one of this [`CrtGlweParameters<T, M>`].

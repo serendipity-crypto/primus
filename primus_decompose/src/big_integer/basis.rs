@@ -148,7 +148,7 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
                 if let Some(pre) = prev.as_mut() {
                     let carry = pre.slice_left_shift_assign(log_basis);
                     assert_eq!(carry, T::ZERO);
-                    scalar.copy_from_slice(&pre);
+                    scalar.copy_from_slice(pre);
                 } else {
                     scalar[0] = T::ONE;
                     let carry = scalar.slice_left_shift_assign(drop_bits);

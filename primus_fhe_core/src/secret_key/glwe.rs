@@ -417,7 +417,7 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
         );
 
         let mut b_crt_poly = CrtPolynomial(&mut *b.0);
-        b_crt_poly.add_mul_scalar_assign(&msg, delta_residues, poly_length, moduli);
+        b_crt_poly.add_mul_scalar_assign(msg, delta_residues, poly_length, moduli);
         table.transform_slice(b.0);
 
         self.iter_dcrt_poly().zip(a).for_each(|(si, ai)| {

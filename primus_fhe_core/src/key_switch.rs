@@ -49,7 +49,7 @@ impl<T: UnsignedInteger> CrtGlweKeySwitchingKey<T> {
             .iter_crt_poly()
             .zip(key_iter)
             .for_each(|(si, mut dcrt_glev)| {
-                output_sk.encrypt_dcrt_glev_inplace(&si, &mut dcrt_glev, &ksk_params, table, rng);
+                output_sk.encrypt_dcrt_glev_inplace(&si, &mut dcrt_glev, ksk_params, table, rng);
             });
 
         let poly_length = input_params.poly_length();
@@ -96,7 +96,7 @@ impl<T: UnsignedInteger> CrtGlweKeySwitchingKey<T> {
 
             c_out.add_dcrt_glev_mul_big_uint_poly_assign(
                 &ki,
-                &big_uint_poly,
+                big_uint_poly,
                 basis,
                 table,
                 rns_base,

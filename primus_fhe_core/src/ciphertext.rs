@@ -2,7 +2,7 @@
 pub type LweCiphertext<T> = primus_lattice::lwe::Lwe<Vec<T>>;
 
 /// CmLwe Ciphertext
-pub type MultiMsgLweCiphertext<T> = primus_lattice::lwe::MultiMsgLwe<T>;
+pub type MultiMsgLweCiphertext<T> = primus_lattice::lwe::MultiMsgLwe<Vec<T>>;
 
 /// Rlwe Ciphertext
 pub type RlweCiphertext<T> = primus_lattice::rlwe::Rlwe<T>;

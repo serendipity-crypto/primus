@@ -123,7 +123,7 @@ where
             });
         data[len].write(gaussian.sample(rng));
 
-        let mut data = unsafe { std::mem::transmute::<_, Vec<T>>(data) };
+        let mut data = unsafe { std::mem::transmute::<Vec<MaybeUninit<T>>, Vec<T>>(data) };
 
         let b = modulus.reduce_dot_product(&data[0..len], secret_key);
         data[len] = modulus.reduce_add(b, data[len]);

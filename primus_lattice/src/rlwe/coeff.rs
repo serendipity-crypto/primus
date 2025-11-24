@@ -65,10 +65,10 @@ impl<T: UnsignedInteger> Rlwe<Vec<T>, T> {
     {
         let mut data = self.0;
 
-        let len = data.len() / 2;
-        data.truncate(len + 1);
+        let poly_len = data.len() / 2;
+        data.truncate(poly_len + 1);
 
-        let chunk = &mut data[1..len];
+        let chunk = &mut data[1..poly_len];
 
         chunk.reverse();
         chunk.iter_mut().for_each(|v| modulus.reduce_neg_assign(v));
@@ -77,23 +77,21 @@ impl<T: UnsignedInteger> Rlwe<Vec<T>, T> {
     }
 
     /// Sample extract a [`MultiMsgLwe<T>`] with several encrypted messages.
-    pub fn extract_first_few_lwe_locally<M>(self, count: usize, modulus: M) -> MultiMsgLwe<T>
+    pub fn extract_first_few_lwe_locally<M>(self, count: usize, modulus: M) -> MultiMsgLwe<Vec<T>>
     where
         M: Copy + ReduceNegAssign<T>,
     {
-        let Self(mut data) = self;
-        let len = data.len() / 2;
+        let mut data = self.0;
+        let poly_len = data.len() / 2;
 
-        let b = data[len..len + count].to_vec();
+        data.truncate(poly_len + count);
 
-        data.truncate(len);
-
-        data[1..].reverse();
-        data[1..]
+        data[1..poly_len].reverse();
+        data[1..poly_len]
             .iter_mut()
             .for_each(|v| modulus.reduce_neg_assign(v));
 
-        MultiMsgLwe::new(data, b)
+        MultiMsgLwe::new(data)
     }
 
     /// Generate a [`Rlwe<Vec<T>>`] sample which encrypts `0`.
@@ -198,16 +196,16 @@ where
     where
         M: Copy + ReduceNeg<T, Output = T>,
     {
-        let len = self.0.len();
+        let poly_len = self.0.len() / 2;
 
-        assert!(index < len);
+        assert!(index < poly_len);
 
         let src = self.0.as_ref();
         let split = index + 1;
 
-        let mut data: Vec<MaybeUninit<T>> = Vec::with_capacity(len + 1);
+        let mut data: Vec<MaybeUninit<T>> = Vec::with_capacity(poly_len + 1);
         unsafe {
-            data.set_len(len + 1);
+            data.set_len(poly_len + 1);
         }
 
         data[..split]
@@ -217,31 +215,49 @@ where
                 x.write(y);
             });
 
-        data[split..len]
+        data[split..poly_len]
             .iter_mut()
-            .zip(src[split..len].iter().rev())
+            .zip(src[split..poly_len].iter().rev())
             .for_each(|(x, &y)| {
                 x.write(modulus.reduce_neg(y));
             });
 
-        data[len].write(src[len + index]);
+        data[poly_len].write(src[poly_len + index]);
 
-        Lwe::new(unsafe { std::mem::transmute::<_, Vec<T>>(data) })
+        Lwe::new(unsafe { std::mem::transmute::<Vec<MaybeUninit<T>>, Vec<T>>(data) })
     }
 
     /// Extract an LWE sample from RLWE.
     #[inline]
-    pub fn extract_first_few_lwe<M>(&self, count: usize, modulus: M) -> MultiMsgLwe<T>
+    pub fn extract_first_few_lwe<M>(&self, count: usize, modulus: M) -> MultiMsgLwe<Vec<T>>
     where
         M: Copy + ReduceNeg<T, Output = T> + ReduceNegAssign<T>,
     {
-        let (a, b) = self.a_b_slices();
+        let poly_len = self.0.len() / 2;
+        let src = self.0.as_ref();
 
-        let mut a: Vec<_> = a.iter().map(|&x| modulus.reduce_neg(x)).collect();
-        a[1..].reverse();
-        modulus.reduce_neg_assign(&mut a[0]);
+        let mut data: Vec<MaybeUninit<T>> = Vec::with_capacity(poly_len + count);
+        unsafe {
+            data.set_len(poly_len + count);
+        }
 
-        MultiMsgLwe::new(a, b[..count].to_vec())
+        data[0].write(src[0]);
+
+        data[1..poly_len]
+            .iter_mut()
+            .zip(src[1..poly_len].iter().rev())
+            .for_each(|(x, &y)| {
+                x.write(modulus.reduce_neg(y));
+            });
+
+        data[poly_len..]
+            .iter_mut()
+            .zip(src[poly_len..].iter())
+            .for_each(|(x, &y)| {
+                x.write(y);
+            });
+
+        MultiMsgLwe::new(unsafe { std::mem::transmute::<Vec<MaybeUninit<T>>, Vec<T>>(data) })
     }
 
     /// Extract an LWE sample from RLWE.
@@ -250,24 +266,25 @@ where
     where
         M: Copy + ReduceNeg<T, Output = T> + ReduceNegAssign<T>,
     {
-        let len = self.0.len();
+        let poly_len = self.0.len() / 2;
         let src = self.0.as_ref();
-        let mut data: Vec<MaybeUninit<T>> = Vec::with_capacity(len + 1);
+
+        let mut data: Vec<MaybeUninit<T>> = Vec::with_capacity(poly_len + 1);
         unsafe {
-            data.set_len(len + 1);
+            data.set_len(poly_len + 1);
         }
 
         data[0].write(src[0]);
 
-        data[1..len]
+        data[1..poly_len]
             .iter_mut()
-            .zip(src[1..len].iter().rev())
+            .zip(src[1..poly_len].iter().rev())
             .for_each(|(x, &y)| {
                 x.write(modulus.reduce_neg(y));
             });
 
-        data[len].write(src[len]);
+        data[poly_len].write(src[poly_len]);
 
-        Lwe::new(unsafe { std::mem::transmute::<_, Vec<T>>(data) })
+        Lwe::new(unsafe { std::mem::transmute::<Vec<MaybeUninit<T>>, Vec<T>>(data) })
     }
 }

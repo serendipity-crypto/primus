@@ -129,7 +129,7 @@ where
         self.key.to_bytes()
     }
 
-    /// Converts [`NttRlwePublicKey<T>`] into bytes, stored in `data``.
+    /// Converts [`NttRlwePublicKey<T>`] into bytes, stored in `data`.
     #[inline]
     pub fn to_bytes_inplace(&self, data: &mut [u8]) {
         self.key.to_bytes_inplace(data);
