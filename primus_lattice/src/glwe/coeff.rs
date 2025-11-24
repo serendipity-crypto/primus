@@ -1,5 +1,5 @@
 use primus_integer::UnsignedInteger;
-use primus_ntt::{Ntt, NttTable};
+use primus_ntt::NttTable;
 use primus_poly::{
     ArrayBase, Data, DataMut, DataOwned, NttPolynomial, PolynomialIter, PolynomialIterMut, RawData,
 };
@@ -44,7 +44,7 @@ where
         ntt_table: &Table,
     ) where
         M: FieldContext<T>,
-        Table: NttTable<ValueT = T> + Ntt,
+        Table: NttTable<ValueT = T>,
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + DataMut,
     {

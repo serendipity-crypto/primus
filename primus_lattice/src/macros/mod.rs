@@ -547,7 +547,7 @@ macro_rules! impl_ntt {
             #[inline]
             pub fn into_ntt_form<Table>(mut self, ntt_table: &Table) -> $ntt_cipher<S>
             where
-                Table: NttTable<ValueT = $t> + Ntt,
+                Table: NttTable<ValueT = $t>,
             {
                 let poly_length = ntt_table.poly_length();
                 self.0.chunks_exact_mut(poly_length).for_each(|poly| {
@@ -570,7 +570,7 @@ macro_rules! impl_ntt {
                 ntt_table: &Table,
             ) where
                 A: RawData<Elem = $t> + DataMut,
-                Table: NttTable<ValueT = $t> + Ntt,
+                Table: NttTable<ValueT = $t>,
             {
                 let poly_length = ntt_table.poly_length();
                 result.0.copy_from_slice(self.as_ref());
@@ -593,7 +593,7 @@ macro_rules! impl_intt {
             #[inline]
             pub fn into_coeff_form<Table>(mut self, ntt_table: &Table) -> $cipher<S>
             where
-                Table: NttTable<ValueT = $t> + Ntt,
+                Table: NttTable<ValueT = $t>,
             {
                 let poly_length = ntt_table.poly_length();
                 self.0.chunks_exact_mut(poly_length).for_each(|poly| {
@@ -616,7 +616,7 @@ macro_rules! impl_intt {
                 ntt_table: &Table,
             ) where
                 A: RawData<Elem = $t> + DataMut,
-                Table: NttTable<ValueT = $t> + Ntt,
+                Table: NttTable<ValueT = $t>,
             {
                 let poly_length = ntt_table.poly_length();
                 result.0.copy_from_slice(self.as_ref());
@@ -639,7 +639,7 @@ macro_rules! impl_crt_ntt {
             #[inline]
             pub fn into_ntt_form<Table>(self, table: &Table) -> $ntt_cipher<$s>
             where
-                Table: DcrtTable<ValueT = $t> + Dcrt,
+                Table: DcrtTable<ValueT = $t>,
             {
                 let crt_poly_length = table.crt_poly_length();
                 let Self(mut data) = self;
@@ -659,7 +659,7 @@ macro_rules! impl_crt_ntt {
             #[inline]
             pub fn to_ntt_form_inplace<Table, A>(&self, result: &mut $ntt_cipher<A>, table: &Table)
             where
-                Table: DcrtTable<ValueT = $t> + Dcrt,
+                Table: DcrtTable<ValueT = $t>,
                 A: RawData<Elem = $t> + DataMut,
             {
                 let crt_poly_length = table.crt_poly_length();
@@ -686,7 +686,7 @@ macro_rules! impl_crt_intt {
             #[inline]
             pub fn into_coeff_form<Table>(self, table: &Table) -> $cipher<$s>
             where
-                Table: DcrtTable<ValueT = $t> + Dcrt,
+                Table: DcrtTable<ValueT = $t>,
             {
                 let crt_poly_length = table.crt_poly_length();
                 let Self(mut data) = self;
@@ -706,7 +706,7 @@ macro_rules! impl_crt_intt {
             #[inline]
             pub fn to_coeff_form_inplace<Table, A>(&self, result: &mut $cipher<A>, table: &Table)
             where
-                Table: DcrtTable<ValueT = $t> + Dcrt,
+                Table: DcrtTable<ValueT = $t>,
                 A: RawData<Elem = $t> + DataMut,
             {
                 let crt_poly_length = table.crt_poly_length();

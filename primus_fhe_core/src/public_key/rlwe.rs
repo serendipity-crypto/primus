@@ -1,6 +1,6 @@
 use primus_integer::UnsignedInteger;
 use primus_lattice::rlwe::NttRlwe;
-use primus_ntt::{Ntt, NttTable};
+use primus_ntt::NttTable;
 use primus_poly::{Data, DataMut, DataOwned, NttPolynomial, Polynomial, RawData};
 use primus_reduce::FieldContext;
 
@@ -57,7 +57,7 @@ impl<T: UnsignedInteger> NttRlwePublicKey<Vec<T>, T> {
     ) -> NttRlwePublicKey<Vec<T>>
     where
         M: FieldContext<T>,
-        Table: NttTable<ValueT = T> + Ntt,
+        Table: NttTable<ValueT = T>,
         R: rand::Rng + rand::CryptoRng,
     {
         let poly_length = params.poly_length();
@@ -150,7 +150,7 @@ where
         rng: &mut R,
     ) where
         M: FieldContext<T>,
-        Table: NttTable<ValueT = T> + Ntt,
+        Table: NttTable<ValueT = T>,
         R: rand::Rng + rand::CryptoRng,
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + DataMut,
@@ -187,7 +187,7 @@ where
     ) -> NttRlweCiphertext<Vec<T>>
     where
         M: FieldContext<T>,
-        Table: NttTable<ValueT = T> + Ntt,
+        Table: NttTable<ValueT = T>,
         R: rand::Rng + rand::CryptoRng,
         A: RawData<Elem = T> + Data,
     {
@@ -204,7 +204,7 @@ where
         rng: &mut R,
     ) where
         M: FieldContext<T>,
-        Table: NttTable<ValueT = T> + Ntt,
+        Table: NttTable<ValueT = T>,
         R: rand::Rng + rand::CryptoRng,
         A: RawData<Elem = T> + DataMut,
     {
@@ -236,7 +236,7 @@ where
     ) -> NttRlweCiphertext<Vec<T>>
     where
         M: FieldContext<T>,
-        Table: NttTable<ValueT = T> + Ntt,
+        Table: NttTable<ValueT = T>,
         R: rand::Rng + rand::CryptoRng,
     {
         let mut result = NttRlweCiphertext::zero(params.poly_length() * 2);

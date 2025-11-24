@@ -1,6 +1,6 @@
 use primus_integer::{UnsignedInteger, izip};
 use primus_lattice::{ggsw::DcrtGgsw, glev::DcrtGlev, glwe::DcrtGlwe};
-use primus_ntt::{Dcrt, DcrtTable};
+use primus_ntt::DcrtTable;
 use primus_poly::{CrtPolynomial, Data, DataMut, DcrtPolynomial, RawData};
 use primus_reduce::FieldContext;
 
@@ -37,7 +37,7 @@ impl<T: UnsignedInteger> DcrtGlwePublicKey<T> {
         rng: &mut R,
     ) -> DcrtGlwePublicKey<T>
     where
-        Table: DcrtTable<ValueT = T> + Dcrt,
+        Table: DcrtTable<ValueT = T>,
         R: rand::Rng + rand::CryptoRng,
         M: FieldContext<T>,
     {
@@ -80,7 +80,7 @@ impl<T: UnsignedInteger> DcrtGlwePublicKey<T> {
     where
         R: rand::Rng + rand::CryptoRng,
         M: FieldContext<T>,
-        Table: DcrtTable<ValueT = T> + Dcrt,
+        Table: DcrtTable<ValueT = T>,
         A: RawData<Elem = T> + Data,
     {
         let dimension = params.dimension();
@@ -137,7 +137,7 @@ impl<T: UnsignedInteger> DcrtGlwePublicKey<T> {
         rng: &mut R,
     ) where
         R: rand::Rng + rand::CryptoRng,
-        Table: DcrtTable<ValueT = T> + Dcrt,
+        Table: DcrtTable<ValueT = T>,
         M: FieldContext<T>,
     {
         let poly_length = params.poly_length();
@@ -208,7 +208,7 @@ impl<T: UnsignedInteger> DcrtGlwePublicKey<T> {
     ) -> DcrtGgsw<Vec<T>>
     where
         R: rand::Rng + rand::CryptoRng,
-        Table: DcrtTable<ValueT = T> + Dcrt,
+        Table: DcrtTable<ValueT = T>,
         M: FieldContext<T>,
     {
         let dcrt_ggsw_len = params.rns_ggsw_len();
@@ -231,7 +231,7 @@ impl<T: UnsignedInteger> DcrtGlwePublicKey<T> {
         rng: &mut R,
     ) where
         R: rand::Rng + rand::CryptoRng,
-        Table: DcrtTable<ValueT = T> + Dcrt,
+        Table: DcrtTable<ValueT = T>,
         M: FieldContext<T>,
         A: RawData<Elem = T> + DataMut,
     {

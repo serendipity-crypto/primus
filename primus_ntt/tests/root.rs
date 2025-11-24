@@ -1,5 +1,5 @@
 use primus_modulus::BarrettModulus;
-use primus_ntt::{Ntt, NttTable, UintNttTable};
+use primus_ntt::{NttTable, UintNttTable};
 use rand::distr::{Distribution, Uniform};
 
 type P = u64;

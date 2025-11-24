@@ -1,6 +1,6 @@
 use primus_decompose::big_integer::BigUintApproxSignedBasis;
 use primus_integer::{UnsignedInteger, izip};
-use primus_ntt::{Dcrt, DcrtTable};
+use primus_ntt::DcrtTable;
 use primus_poly::{
     ArrayBase, BigUintPolynomial, CrtPolynomial, Data, DataMut, DataOwned, DcrtPolynomial,
     DcrtPolynomialIter, DcrtPolynomialIterMut, RawData,
@@ -109,7 +109,7 @@ where
         context: &mut DcrtGlevContext<T>,
     ) where
         M: FieldContext<T>,
-        Table: DcrtTable<ValueT = T> + Dcrt,
+        Table: DcrtTable<ValueT = T>,
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + Data,
     {
@@ -182,7 +182,7 @@ where
         context: &mut DcrtGlevContext<T>,
     ) where
         M: FieldContext<T>,
-        Table: DcrtTable<ValueT = T> + Dcrt,
+        Table: DcrtTable<ValueT = T>,
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + Data,
     {

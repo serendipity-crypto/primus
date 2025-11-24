@@ -1,7 +1,7 @@
 use primus_factor::FactorMul;
 use primus_integer::{UnsignedInteger, izip};
 use primus_lattice::glev::DcrtGlev;
-use primus_ntt::{Dcrt, DcrtTable, Ntt, NttTable};
+use primus_ntt::{DcrtTable, NttTable};
 use primus_poly::{
     CrtPolynomial, CrtPolynomialIter, Data, DataMut, DcrtPolynomial, DcrtPolynomialIter,
     NttPolynomial, NttPolynomialIter, Polynomial, PolynomialOwned, RawData,
@@ -147,7 +147,7 @@ impl<T: UnsignedInteger> NttGlweSecretKey<T> {
     #[inline]
     pub fn from_coeff_secret_key<Table>(secret_key: &GlweSecretKey<T>, ntt_table: &Table) -> Self
     where
-        Table: NttTable<ValueT = T> + Ntt,
+        Table: NttTable<ValueT = T>,
     {
         let poly_length = secret_key.poly_length;
 
@@ -172,7 +172,7 @@ impl<T: UnsignedInteger> NttGlweSecretKey<T> {
         modulus: M,
     ) where
         M: FieldContext<T>,
-        Table: NttTable<ValueT = T> + Ntt,
+        Table: NttTable<ValueT = T>,
         S: RawData<Elem = T> + Data,
     {
         let mid = self.poly_length * self.dimension;
@@ -294,7 +294,7 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
     #[inline]
     pub fn from_coeff_secret_key<Table>(secret_key: &CrtGlweSecretKey<T>, table: &Table) -> Self
     where
-        Table: DcrtTable<ValueT = T> + Dcrt,
+        Table: DcrtTable<ValueT = T>,
     {
         let rns_poly_len = secret_key.rns_poly_len;
 
@@ -321,7 +321,7 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
     ) where
         R: rand::Rng + rand::CryptoRng,
         M: FieldContext<T>,
-        Table: DcrtTable<ValueT = T> + Dcrt,
+        Table: DcrtTable<ValueT = T>,
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + DataMut,
     {
@@ -360,7 +360,7 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
     ) where
         R: rand::Rng + rand::CryptoRng,
         M: FieldContext<T>,
-        Table: DcrtTable<ValueT = T> + Dcrt,
+        Table: DcrtTable<ValueT = T>,
         A: RawData<Elem = T> + DataMut,
     {
         let poly_length = params.poly_length();
@@ -398,7 +398,7 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
     ) where
         R: rand::Rng + rand::CryptoRng,
         M: FieldContext<T>,
-        Table: DcrtTable<ValueT = T> + Dcrt,
+        Table: DcrtTable<ValueT = T>,
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + DataMut,
     {
@@ -441,7 +441,7 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
     ) where
         R: rand::Rng + rand::CryptoRng,
         M: FieldContext<T>,
-        Table: DcrtTable<ValueT = T> + Dcrt,
+        Table: DcrtTable<ValueT = T>,
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + DataMut,
     {
@@ -496,7 +496,7 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
     ) -> PolynomialOwned<T>
     where
         M: FieldContext<T>,
-        Table: DcrtTable<ValueT = T> + Dcrt,
+        Table: DcrtTable<ValueT = T>,
         A: RawData<Elem = T> + Data,
     {
         let mut msg = PolynomialOwned::zero(params.poly_length());
@@ -513,7 +513,7 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
         context: &mut DcrtGlweDecryptContext<T>,
     ) where
         M: FieldContext<T>,
-        Table: DcrtTable<ValueT = T> + Dcrt,
+        Table: DcrtTable<ValueT = T>,
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + DataMut,
     {

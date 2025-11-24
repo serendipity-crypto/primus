@@ -13,7 +13,7 @@ pub use concrete::prime32::Concrete32Table;
 pub use concrete::prime64::Concrete64Table;
 pub use primitive::UintNttTable;
 
-/// An abstract for ntt table generation.
+/// An abstract for Number Theory Transform.
 pub trait NttTable: Sized {
     /// The value type.
     type ValueT: PrimitiveRoot;
@@ -25,10 +25,7 @@ pub trait NttTable: Sized {
 
     /// Get the polynomial length.
     fn poly_length(&self) -> usize;
-}
 
-/// An abstract for Number Theory Transform.
-pub trait Ntt: NttTable {
     /// Perform a fast number theory transform in place.
     ///
     /// This function transforms a polynomial to a ntt polynomial.

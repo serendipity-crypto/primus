@@ -3,7 +3,7 @@ pub mod prime32 {
 
     use primus_poly::{CrtPolynomial, DataMut, DcrtPolynomial, RawData};
 
-    use crate::{Concrete32Table, Dcrt, DcrtTable, Ntt, NttTable};
+    use crate::{Concrete32Table, DcrtTable, NttTable};
 
     /// Wrapping crt concrete NTT for 32bit primes.
     pub struct CrtConcrete32Table {
@@ -63,9 +63,7 @@ pub mod prime32 {
         fn crt_poly_length(&self) -> usize {
             self.crt_poly_length
         }
-    }
 
-    impl Dcrt for CrtConcrete32Table {
         #[inline]
         fn transform_inplace<S: RawData<Elem = Self::ValueT> + DataMut>(
             &self,
@@ -133,7 +131,7 @@ pub mod prime64 {
 
     use primus_poly::{CrtPolynomial, DataMut, DcrtPolynomial, RawData};
 
-    use crate::{Concrete64Table, Dcrt, DcrtTable, Ntt, NttTable};
+    use crate::{Concrete64Table, DcrtTable, NttTable};
 
     /// Wrapping crt concrete NTT for 64bit primes.
     #[derive(Clone)]
@@ -194,9 +192,7 @@ pub mod prime64 {
         fn crt_poly_length(&self) -> usize {
             self.crt_poly_length
         }
-    }
 
-    impl Dcrt for CrtConcrete64Table {
         #[inline]
         fn transform_inplace<S: RawData<Elem = Self::ValueT> + DataMut>(
             &self,

@@ -2,7 +2,7 @@ use primus_integer::UnsignedInteger;
 use primus_poly::{CrtPolynomial, DataMut, DcrtPolynomial, RawData};
 use primus_reduce::FieldContext;
 
-use crate::{Dcrt, Ntt, NttError, NttTable, UintNttTable};
+use crate::{NttError, NttTable, UintNttTable};
 
 use super::DcrtTable;
 
@@ -68,9 +68,7 @@ impl<T: UnsignedInteger> DcrtTable for UintCrtNttTable<T> {
     fn crt_poly_length(&self) -> usize {
         self.crt_poly_length
     }
-}
 
-impl<T: UnsignedInteger> Dcrt for UintCrtNttTable<T> {
     #[inline]
     fn transform_inplace<S: RawData<Elem = Self::ValueT> + DataMut>(
         &self,

@@ -4,7 +4,7 @@ use primus_lattice::{
     context::DcrtGlevContext,
     glev::{DcrtGlevIter, DcrtGlevIterMut},
 };
-use primus_ntt::{Dcrt, DcrtTable};
+use primus_ntt::DcrtTable;
 use primus_poly::{BigUintPolynomial, CrtPolynomial, Data, DataMut, DcrtPolynomial, RawData};
 use primus_reduce::FieldContext;
 use primus_rns::RNSBase;
@@ -35,7 +35,7 @@ impl<T: UnsignedInteger> CrtGlweKeySwitchingKey<T> {
     where
         R: rand::Rng + rand::CryptoRng,
         M: FieldContext<T>,
-        Table: DcrtTable<ValueT = T> + Dcrt,
+        Table: DcrtTable<ValueT = T>,
     {
         debug_assert_eq!(input_params.poly_length(), ksk_params.poly_length());
         debug_assert_eq!(input_params.cipher_modulus(), ksk_params.cipher_modulus());
@@ -80,7 +80,7 @@ impl<T: UnsignedInteger> CrtGlweKeySwitchingKey<T> {
         context: &mut CrtGlweKeySwitchingContext<T>,
     ) where
         M: FieldContext<T>,
-        Table: DcrtTable<ValueT = T> + Dcrt,
+        Table: DcrtTable<ValueT = T>,
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + DataMut,
     {

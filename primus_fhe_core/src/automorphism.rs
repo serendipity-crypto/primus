@@ -4,7 +4,7 @@ use primus_integer::{UnsignedInteger, izip};
 use primus_lattice::glev::DcrtGlevIter;
 use primus_lattice::{context::DcrtGlevContext, glev::DcrtGlevIterMut};
 use primus_modulus::PowOf2Modulus;
-use primus_ntt::{Dcrt, DcrtTable};
+use primus_ntt::DcrtTable;
 use primus_poly::{CrtPolynomial, Data, DataMut, DcrtPolynomial, RawData};
 use primus_reduce::FieldContext;
 use primus_reduce::ops::ReduceMul;
@@ -74,7 +74,7 @@ pub enum AutoHelper {
 pub struct CrtGlweAutoKey<T, Table>
 where
     T: UnsignedInteger,
-    Table: DcrtTable<ValueT = T> + Dcrt,
+    Table: DcrtTable<ValueT = T>,
 {
     key: Vec<T>,
     degree: usize,
@@ -86,7 +86,7 @@ where
 impl<T, Table> CrtGlweAutoKey<T, Table>
 where
     T: UnsignedInteger,
-    Table: DcrtTable<ValueT = T> + Dcrt,
+    Table: DcrtTable<ValueT = T>,
 {
     pub fn new<M, R>(
         params: &CrtGlevParameters<T, M>,

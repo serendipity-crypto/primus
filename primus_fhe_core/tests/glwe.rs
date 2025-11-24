@@ -6,7 +6,7 @@ use primus_fhe_core::{
 };
 use primus_lattice::glwe::DcrtGlwe;
 use primus_modulus::BarrettModulus;
-use primus_ntt::{Dcrt, DcrtTable, UintCrtNttTable};
+use primus_ntt::{DcrtTable, UintCrtNttTable};
 use primus_poly::{CrtPolynomial, Polynomial};
 
 #[test]

@@ -2,7 +2,7 @@ use std::ops::Deref;
 
 use primus_integer::UnsignedInteger;
 use primus_lattice::rlwe::TruncatedRlwe;
-use primus_ntt::{Ntt, NttTable};
+use primus_ntt::NttTable;
 use primus_poly::{
     Data, DataMut, NttPolynomial, NttPolynomialOwned, Polynomial, PolynomialOwned, RawData,
 };
@@ -142,7 +142,7 @@ where
     #[inline]
     pub fn from_coeff_secret_key<Table>(secret_key: &RlweSecretKey<T>, ntt_table: &Table) -> Self
     where
-        Table: NttTable<ValueT = T> + Ntt,
+        Table: NttTable<ValueT = T>,
     {
         let key = secret_key.key.clone();
         let key = ntt_table.transform_inplace(key);
@@ -161,7 +161,7 @@ where
         ntt_table: &Table,
     ) where
         M: FieldContext<T>,
-        Table: NttTable<ValueT = T> + Ntt,
+        Table: NttTable<ValueT = T>,
         A: RawData<Elem = T> + Data,
     {
         let (a, b) = cipher.a_b();
@@ -182,7 +182,7 @@ where
         rng: &mut R,
     ) where
         M: FieldContext<T>,
-        Table: NttTable<ValueT = T> + Ntt,
+        Table: NttTable<ValueT = T>,
         R: rand::Rng + rand::CryptoRng,
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + DataMut,
@@ -211,7 +211,7 @@ where
     ) -> NttRlweCiphertext<Vec<T>>
     where
         M: FieldContext<T>,
-        Table: NttTable<ValueT = T> + Ntt,
+        Table: NttTable<ValueT = T>,
         R: rand::Rng + rand::CryptoRng,
     {
         let mut result: NttRlweCiphertext<Vec<T>> =
@@ -228,7 +228,7 @@ where
         rng: &mut R,
     ) where
         M: FieldContext<T>,
-        Table: NttTable<ValueT = T> + Ntt,
+        Table: NttTable<ValueT = T>,
         R: rand::Rng + rand::CryptoRng,
         A: RawData<Elem = T> + DataMut,
     {
@@ -253,7 +253,7 @@ where
     where
         R: rand::Rng + rand::CryptoRng,
         M: FieldContext<T>,
-        Table: NttTable<ValueT = T> + Ntt,
+        Table: NttTable<ValueT = T>,
     {
         TruncatedRlwe::generate_random_zero_sample(
             zero_count,
@@ -274,7 +274,7 @@ where
         ntt_table: &Table,
     ) where
         M: FieldContext<T>,
-        Table: NttTable<ValueT = T> + Ntt,
+        Table: NttTable<ValueT = T>,
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + DataMut,
     {
@@ -303,7 +303,7 @@ where
     ) -> PolynomialOwned<T>
     where
         M: FieldContext<T>,
-        Table: NttTable<ValueT = T> + Ntt,
+        Table: NttTable<ValueT = T>,
         A: RawData<Elem = T> + Data,
     {
         let mut result = PolynomialOwned::zero(params.poly_length());
@@ -322,7 +322,7 @@ where
     where
         Msg: TryFrom<T>,
         M: FieldContext<T>,
-        Table: NttTable<ValueT = T> + Ntt,
+        Table: NttTable<ValueT = T>,
     {
         let poly_length = params.poly_length();
         let modulus = params.cipher_modulus();
@@ -357,7 +357,7 @@ where
     ) -> Vec<T>
     where
         M: FieldContext<T>,
-        Table: NttTable<ValueT = T> + Ntt,
+        Table: NttTable<ValueT = T>,
     {
         let poly_length = ntt_table.poly_length();
 

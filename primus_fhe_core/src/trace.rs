@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use primus_factor::ShoupFactor;
 use primus_integer::{AsInto, UnsignedInteger};
-use primus_ntt::{Dcrt, DcrtTable};
+use primus_ntt::DcrtTable;
 use primus_poly::{Data, DataMut, RawData};
 use primus_reduce::FieldContext;
 use primus_rns::RNSBase;
@@ -45,7 +45,7 @@ impl<T: UnsignedInteger> CrtGlweTraceContext<T> {
 #[derive(Clone)]
 pub struct CrtGlweTraceKey<T: UnsignedInteger, Table>
 where
-    Table: DcrtTable<ValueT = T> + Dcrt,
+    Table: DcrtTable<ValueT = T>,
 {
     auto_keys: Vec<CrtGlweAutoKey<T, Table>>,
     table: Arc<Table>,
@@ -53,7 +53,7 @@ where
 
 impl<T: UnsignedInteger, Table> CrtGlweTraceKey<T, Table>
 where
-    Table: DcrtTable<ValueT = T> + Dcrt,
+    Table: DcrtTable<ValueT = T>,
 {
     pub fn new<M, R>(
         params: &CrtGlevParameters<T, M>,

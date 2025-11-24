@@ -1,7 +1,7 @@
 use primus_distr::DiscreteGaussian;
 use primus_factor::ShoupFactor;
 use primus_integer::UnsignedInteger;
-use primus_ntt::{Ntt, NttTable};
+use primus_ntt::NttTable;
 use primus_poly::{
     ArrayBase, Data, DataMut, DataOwned, NttPolynomial, Polynomial, PolynomialIter,
     PolynomialIterMut, RawData,
@@ -105,7 +105,7 @@ impl<T: UnsignedInteger> Rlwe<Vec<T>, T> {
     ) -> Self
     where
         R: rand::Rng + rand::CryptoRng,
-        Table: NttTable<ValueT = T> + Ntt,
+        Table: NttTable<ValueT = T>,
         A: RawData<Elem = T> + Data,
         M: FieldContext<T>,
     {
@@ -177,7 +177,7 @@ where
         ntt_table: &Table,
     ) where
         M: FieldContext<T>,
-        Table: NttTable<ValueT = T> + Ntt,
+        Table: NttTable<ValueT = T>,
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + DataMut,
     {

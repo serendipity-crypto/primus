@@ -1,5 +1,5 @@
 use primus_integer::UnsignedInteger;
-use primus_ntt::{Ntt, NttTable};
+use primus_ntt::NttTable;
 use primus_poly::{
     ArrayBase, Data, DataMut, DataOwned, NttPolynomial, NttPolynomialIter, NttPolynomialIterMut,
     RawData,

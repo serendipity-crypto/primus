@@ -5,7 +5,7 @@ pub mod prime32 {
     use primus_poly::{DataMut, NttPolynomial, Polynomial, RawData};
     use primus_reduce::FieldContext;
 
-    use crate::{Ntt, NttError, NttTable};
+    use crate::{NttError, NttTable};
 
     /// Wrapping concrete NTT for 32bit primes.
     pub struct Concrete32Table {
@@ -51,9 +51,7 @@ pub mod prime32 {
         fn poly_length(&self) -> usize {
             self.plan.ntt_size()
         }
-    }
 
-    impl Ntt for Concrete32Table {
         #[inline]
         fn transform_inplace<S: RawData<Elem = Self::ValueT> + DataMut>(
             &self,
@@ -129,7 +127,7 @@ pub mod prime64 {
     use concrete_ntt::prime64::Plan;
     use primus_poly::{DataMut, NttPolynomial, Polynomial, RawData};
 
-    use crate::{Ntt, NttError, NttTable};
+    use crate::{NttError, NttTable};
 
     /// Wrapping concrete NTT for 64bit primes.
     #[derive(Clone)]
@@ -174,9 +172,7 @@ pub mod prime64 {
         fn poly_length(&self) -> usize {
             self.plan.ntt_size()
         }
-    }
 
-    impl Ntt for Concrete64Table {
         #[inline]
         fn transform_inplace<S: RawData<Elem = Self::ValueT> + DataMut>(
             &self,

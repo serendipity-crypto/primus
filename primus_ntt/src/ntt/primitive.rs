@@ -5,7 +5,7 @@ use primus_modulus::UintModulus;
 use primus_poly::{DataMut, NttPolynomial, Polynomial, RawData};
 use primus_reduce::{FieldContext, ops::*};
 
-use crate::{Ntt, NttError, reverse::ReverseLsbs, root::PrimitiveRoot};
+use crate::{NttError, reverse::ReverseLsbs, root::PrimitiveRoot};
 
 use super::NttTable;
 
@@ -188,9 +188,7 @@ impl<T: UnsignedInteger> NttTable for UintNttTable<T> {
     fn poly_length(&self) -> usize {
         self.n
     }
-}
 
-impl<T: UnsignedInteger> Ntt for UintNttTable<T> {
     #[inline]
     fn transform_inplace<S: RawData<Elem = Self::ValueT> + DataMut>(
         &self,

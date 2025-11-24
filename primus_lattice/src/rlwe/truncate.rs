@@ -1,6 +1,6 @@
 use primus_distr::DiscreteGaussian;
 use primus_integer::UnsignedInteger;
-use primus_ntt::{Ntt, NttTable};
+use primus_ntt::NttTable;
 use primus_poly::{ArrayBase, Data, DataMut, DataOwned, NttPolynomial, Polynomial, RawData};
 use primus_reduce::{FieldContext, ops::ReduceNegAssign};
 use rand::distr::Uniform;
@@ -79,7 +79,7 @@ where
     ) -> Self
     where
         R: rand::Rng + rand::CryptoRng,
-        Table: NttTable<ValueT = T> + Ntt,
+        Table: NttTable<ValueT = T>,
         A: RawData<Elem = T> + Data,
         M: FieldContext<T>,
     {
