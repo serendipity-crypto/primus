@@ -1,8 +1,8 @@
 use primus_integer::{UnsignedInteger, izip};
 use primus_ntt::{Dcrt, DcrtTable};
 use primus_poly::{
-    ArrayBase, Data, DataMut, DataOwned, RawData,
-    dcrt::{DcrtPolynomial, DcrtPolynomialIter, DcrtPolynomialIterMut},
+    ArrayBase, Data, DataMut, DataOwned, DcrtPolynomial, DcrtPolynomialIter, DcrtPolynomialIterMut,
+    RawData,
 };
 use primus_reduce::FieldContext;
 

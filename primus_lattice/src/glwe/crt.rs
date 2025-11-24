@@ -3,9 +3,8 @@ use primus_factor::ShoupFactor;
 use primus_integer::{UnsignedInteger, izip};
 use primus_ntt::{Dcrt, DcrtTable};
 use primus_poly::{
-    ArrayBase, Data, DataMut, DataOwned, RawData,
-    crt::{CrtPolynomial, CrtPolynomialIter, CrtPolynomialIterMut},
-    dcrt::DcrtPolynomial,
+    ArrayBase, CrtPolynomial, CrtPolynomialIter, CrtPolynomialIterMut, Data, DataMut, DataOwned,
+    DcrtPolynomial, RawData,
 };
 use primus_reduce::FieldContext;
 use primus_rns::RNSBase;

@@ -1,7 +1,7 @@
 /// ntt for 32bits
 pub mod prime32 {
 
-    use primus_poly::{DataMut, RawData, crt::CrtPolynomial, dcrt::DcrtPolynomial};
+    use primus_poly::{CrtPolynomial, DataMut, DcrtPolynomial, RawData};
 
     use crate::{Concrete32Table, Dcrt, DcrtTable, Ntt, NttTable};
 
@@ -131,7 +131,7 @@ pub mod prime32 {
 /// ntt for 64bits
 pub mod prime64 {
 
-    use primus_poly::{DataMut, RawData, crt::CrtPolynomial, dcrt::DcrtPolynomial};
+    use primus_poly::{CrtPolynomial, DataMut, DcrtPolynomial, RawData};
 
     use crate::{Concrete64Table, Dcrt, DcrtTable, Ntt, NttTable};
 

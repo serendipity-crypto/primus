@@ -5,7 +5,7 @@ use primus_lattice::glev::DcrtGlevIter;
 use primus_lattice::{context::DcrtGlevContext, glev::DcrtGlevIterMut};
 use primus_modulus::PowOf2Modulus;
 use primus_ntt::{Dcrt, DcrtTable};
-use primus_poly::{Data, DataMut, RawData, crt::CrtPolynomial, dcrt::DcrtPolynomial};
+use primus_poly::{CrtPolynomial, Data, DataMut, DcrtPolynomial, RawData};
 use primus_reduce::FieldContext;
 use primus_reduce::ops::ReduceMul;
 use primus_rns::RNSBase;

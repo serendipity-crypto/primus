@@ -2,8 +2,7 @@ use primus_decompose::big_integer::BigUintApproxSignedBasis;
 use primus_integer::{UnsignedInteger, izip};
 use primus_ntt::{Dcrt, DcrtTable};
 use primus_poly::{
-    ArrayBase, BigUintPolynomial, Data, DataMut, DataOwned, RawData, crt::CrtPolynomial,
-    dcrt::DcrtPolynomial,
+    ArrayBase, BigUintPolynomial, CrtPolynomial, Data, DataMut, DataOwned, DcrtPolynomial, RawData,
 };
 use primus_reduce::FieldContext;
 use primus_rns::RNSBase;

@@ -4,7 +4,7 @@ use primus_factor::{FactorMul, ShoupFactor};
 use primus_integer::{BigIntegerOps, DivRemScalar, multiply_many_values};
 use primus_modulo::{InvModulo, Modulo};
 use primus_modulus::BarrettModulus;
-use primus_poly::crt::CrtPolynomial;
+use primus_poly::CrtPolynomial;
 use primus_reduce::ops::*;
 use primus_rns::{BaseConverter, RNSBase};
 use rand::distr::{Distribution, Uniform};

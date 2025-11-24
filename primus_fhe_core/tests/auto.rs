@@ -9,7 +9,7 @@ use primus_fhe_core::{
 use primus_lattice::glwe::{CrtGlwe, DcrtGlwe};
 use primus_modulus::BarrettModulus;
 use primus_ntt::{DcrtTable, UintCrtNttTable};
-use primus_poly::{Polynomial, crt::CrtPolynomial};
+use primus_poly::{CrtPolynomial, Polynomial};
 use rand::Rng;
 
 #[test]

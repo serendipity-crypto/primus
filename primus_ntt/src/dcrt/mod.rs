@@ -1,6 +1,4 @@
-use primus_poly::crt::CrtPolynomial;
-use primus_poly::dcrt::DcrtPolynomial;
-use primus_poly::{DataMut, RawData};
+use primus_poly::{CrtPolynomial, DataMut, DcrtPolynomial, RawData};
 use primus_reduce::FieldContext;
 
 use crate::{Ntt, NttError, NttTable, PrimitiveRoot};

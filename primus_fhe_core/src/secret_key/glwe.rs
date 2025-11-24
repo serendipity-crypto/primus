@@ -3,9 +3,8 @@ use primus_integer::{UnsignedInteger, izip};
 use primus_lattice::glev::DcrtGlev;
 use primus_ntt::{Dcrt, DcrtTable, Ntt, NttTable};
 use primus_poly::{
-    Data, DataMut, NttPolynomial, NttPolynomialIter, Polynomial, PolynomialOwned, RawData,
-    crt::{CrtPolynomial, CrtPolynomialIter},
-    dcrt::{DcrtPolynomial, DcrtPolynomialIter},
+    CrtPolynomial, CrtPolynomialIter, Data, DataMut, DcrtPolynomial, DcrtPolynomialIter,
+    NttPolynomial, NttPolynomialIter, Polynomial, PolynomialOwned, RawData,
 };
 use primus_reduce::FieldContext;
 

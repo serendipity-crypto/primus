@@ -1,7 +1,7 @@
 use primus_integer::{UnsignedInteger, izip};
 use primus_lattice::{ggsw::DcrtGgsw, glev::DcrtGlev, glwe::DcrtGlwe};
 use primus_ntt::{Dcrt, DcrtTable};
-use primus_poly::{Data, DataMut, RawData, crt::CrtPolynomial, dcrt::DcrtPolynomial};
+use primus_poly::{CrtPolynomial, Data, DataMut, DcrtPolynomial, RawData};
 use primus_reduce::FieldContext;
 
 use crate::{CrtGgswParameters, CrtGlevParameters, CrtGlweParameters, DcrtGlweSecretKey};
