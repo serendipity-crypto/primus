@@ -3,8 +3,6 @@ use primus_integer::{ByteCount, UnsignedInteger, size::Size};
 use primus_reduce::ops::*;
 use serde::{Deserialize, Serialize};
 
-use super::Lwe;
-
 /// Represents a cryptographic structure based on the Learning with Errors (LWE) problem.
 ///
 /// This structure encrypts several messages like a rlwe but truncated `b`.
@@ -312,43 +310,43 @@ impl<T: UnsignedInteger> MultiMsgLwe<T> {
             .for_each(|(v, &r)| *v = modulus.reduce_mul_add(r, scalar, *v));
     }
 
-    /// Sample extract [`Lwe<T>`].
-    #[inline]
-    pub fn extract_rlwe_mode<M>(&self, index: usize, modulus: M) -> Lwe<T>
-    where
-        M: Copy + ReduceNegAssign<T>,
-    {
-        let mut a = self.a.clone();
-        if index == 0 {
-            Lwe::new(a, self.b[0])
-        } else {
-            a.rotate_right(index);
-            a[..index]
-                .iter_mut()
-                .for_each(|v| modulus.reduce_neg_assign(v));
-            Lwe::new(a, self.b[index])
-        }
-    }
+    // /// Sample extract [`Lwe<T>`].
+    // #[inline]
+    // pub fn extract_rlwe_mode<M>(&self, index: usize, modulus: M) -> Lwe<T>
+    // where
+    //     M: Copy + ReduceNegAssign<T>,
+    // {
+    //     let mut a = self.a.clone();
+    //     if index == 0 {
+    //         Lwe::new(a, self.b[0])
+    //     } else {
+    //         a.rotate_right(index);
+    //         a[..index]
+    //             .iter_mut()
+    //             .for_each(|v| modulus.reduce_neg_assign(v));
+    //         Lwe::new(a, self.b[index])
+    //     }
+    // }
 
-    /// Sample extract all [`Lwe<T>`].
-    #[inline]
-    pub fn extract_all<M>(&self, modulus: M) -> Vec<Lwe<T>>
-    where
-        M: Copy + ReduceNegAssign<T>,
-    {
-        let msg_count = self.msg_count();
-        let mut result = Vec::with_capacity(msg_count);
-        let mut a = self.a.clone();
-        self.b[0..msg_count - 1].iter().for_each(|&b| {
-            let lwe = Lwe::new(a.clone(), b);
-            a.rotate_right(1);
-            modulus.reduce_neg_assign(&mut a[0]);
-            result.push(lwe);
-        });
-        result.push(Lwe::new(a, *self.b.last().unwrap()));
+    // /// Sample extract all [`Lwe<T>`].
+    // #[inline]
+    // pub fn extract_all<M>(&self, modulus: M) -> Vec<Lwe<T>>
+    // where
+    //     M: Copy + ReduceNegAssign<T>,
+    // {
+    //     let msg_count = self.msg_count();
+    //     let mut result = Vec::with_capacity(msg_count);
+    //     let mut a = self.a.clone();
+    //     self.b[0..msg_count - 1].iter().for_each(|&b| {
+    //         let lwe = Lwe::new(a.clone(), b);
+    //         a.rotate_right(1);
+    //         modulus.reduce_neg_assign(&mut a[0]);
+    //         result.push(lwe);
+    //     });
+    //     result.push(Lwe::new(a, *self.b.last().unwrap()));
 
-        result
-    }
+    //     result
+    // }
 }
 
 impl<T: Copy + ByteCount> Size for MultiMsgLwe<T> {

@@ -213,8 +213,10 @@ impl<T: UnsignedInteger> LweSecretKey<T> {
     {
         let modulus = params.cipher_modulus();
 
-        let a_mul_s = modulus.reduce_dot_product(cipher_text.a(), self);
-        let plaintext = modulus.reduce_sub(cipher_text.b(), a_mul_s);
+        let (a, b) = cipher_text.a_b();
+
+        let a_mul_s = modulus.reduce_dot_product(a, self);
+        let plaintext = modulus.reduce_sub(b, a_mul_s);
 
         decode(plaintext, params.plain_modulus_value(), modulus.value())
     }
@@ -231,8 +233,11 @@ impl<T: UnsignedInteger> LweSecretKey<T> {
         M: RingContext<T>,
     {
         let modulus = params.cipher_modulus();
-        let a_mul_s = modulus.reduce_dot_product(cipher_text.a(), self);
-        let plaintext = modulus.reduce_sub(cipher_text.b(), a_mul_s);
+
+        let (a, b) = cipher_text.a_b();
+
+        let a_mul_s = modulus.reduce_dot_product(a, self);
+        let plaintext = modulus.reduce_sub(b, a_mul_s);
 
         let t = params.plain_modulus_value();
         let q = modulus.value();

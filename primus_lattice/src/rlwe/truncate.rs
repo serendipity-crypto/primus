@@ -27,20 +27,20 @@ where
 {
     /// Extract an LWE sample from RLWE.
     #[inline]
-    pub fn extract_lwe_locally<M>(self, poly_length: usize, modulus: M) -> Lwe<T>
+    pub fn extract_lwe_locally<M>(self, poly_length: usize, modulus: M) -> Lwe<Vec<T>>
     where
         M: Copy + ReduceNegAssign<T>,
     {
-        let Self(mut data) = self;
-        let b = data[poly_length];
-        data.truncate(poly_length);
+        let mut data = self.0;
 
-        data[1..].reverse();
-        data[1..]
+        data.truncate(poly_length + 1);
+
+        data[1..poly_length].reverse();
+        data[1..poly_length]
             .iter_mut()
             .for_each(|v| modulus.reduce_neg_assign(v));
 
-        Lwe::new(data, b)
+        Lwe::new(data)
     }
 
     /// Sample extract a [`MultiMsgLwe<T>`] with several encrypted messages.

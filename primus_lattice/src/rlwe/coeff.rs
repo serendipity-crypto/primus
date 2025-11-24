@@ -1,3 +1,5 @@
+use std::mem::MaybeUninit;
+
 use primus_distr::DiscreteGaussian;
 use primus_factor::ShoupFactor;
 use primus_integer::UnsignedInteger;
@@ -57,22 +59,21 @@ where
 impl<T: UnsignedInteger> Rlwe<Vec<T>, T> {
     /// Extract an LWE sample from RLWE.
     #[inline]
-    pub fn extract_lwe_locally<M>(self, modulus: M) -> Lwe<T>
+    pub fn extract_lwe_locally<M>(self, modulus: M) -> Lwe<Vec<T>>
     where
         M: Copy + ReduceNegAssign<T>,
     {
-        let Self(mut data) = self;
+        let mut data = self.0;
 
         let len = data.len() / 2;
-        let b = data[len];
-        data.truncate(len);
+        data.truncate(len + 1);
 
-        data[1..].reverse();
-        data[1..]
-            .iter_mut()
-            .for_each(|v| modulus.reduce_neg_assign(v));
+        let chunk = &mut data[1..len];
 
-        Lwe::new(data, b)
+        chunk.reverse();
+        chunk.iter_mut().for_each(|v| modulus.reduce_neg_assign(v));
+
+        Lwe::new(data)
     }
 
     /// Sample extract a [`MultiMsgLwe<T>`] with several encrypted messages.
@@ -193,23 +194,39 @@ where
 
     /// Extract an LWE sample from RLWE.
     #[inline]
-    pub fn extract_lwe_with_index<M>(&self, index: usize, modulus: M) -> Lwe<T>
+    pub fn extract_lwe_with_index<M>(&self, index: usize, modulus: M) -> Lwe<Vec<T>>
     where
-        M: Copy + ReduceNegAssign<T>,
+        M: Copy + ReduceNeg<T, Output = T>,
     {
+        let len = self.0.len();
+
+        assert!(index < len);
+
+        let src = self.0.as_ref();
         let split = index + 1;
 
-        let (a, b) = self.a_b_slices();
+        let mut data: Vec<MaybeUninit<T>> = Vec::with_capacity(len + 1);
+        unsafe {
+            data.set_len(len + 1);
+        }
 
-        let mut a: Vec<T> = a.to_vec();
-
-        a[..split].reverse();
-        a[split..].reverse();
-        a[split..]
+        data[..split]
             .iter_mut()
-            .for_each(|x| modulus.reduce_neg_assign(x));
+            .zip(src[..split].iter().rev())
+            .for_each(|(x, &y)| {
+                x.write(y);
+            });
 
-        Lwe::new(a, b[index])
+        data[split..len]
+            .iter_mut()
+            .zip(src[split..len].iter().rev())
+            .for_each(|(x, &y)| {
+                x.write(modulus.reduce_neg(y));
+            });
+
+        data[len].write(src[len + index]);
+
+        Lwe::new(unsafe { std::mem::transmute::<_, Vec<T>>(data) })
     }
 
     /// Extract an LWE sample from RLWE.
@@ -229,16 +246,28 @@ where
 
     /// Extract an LWE sample from RLWE.
     #[inline]
-    pub fn extract_lwe<M>(&self, modulus: M) -> Lwe<T>
+    pub fn extract_lwe<M>(&self, modulus: M) -> Lwe<Vec<T>>
     where
         M: Copy + ReduceNeg<T, Output = T> + ReduceNegAssign<T>,
     {
-        let (a, b) = self.a_b_slices();
+        let len = self.0.len();
+        let src = self.0.as_ref();
+        let mut data: Vec<MaybeUninit<T>> = Vec::with_capacity(len + 1);
+        unsafe {
+            data.set_len(len + 1);
+        }
 
-        let mut a: Vec<_> = a.iter().map(|&x| modulus.reduce_neg(x)).collect();
-        a[1..].reverse();
-        modulus.reduce_neg_assign(&mut a[0]);
+        data[0].write(src[0]);
 
-        Lwe::new(a, b[0])
+        data[1..len]
+            .iter_mut()
+            .zip(src[1..len].iter().rev())
+            .for_each(|(x, &y)| {
+                x.write(modulus.reduce_neg(y));
+            });
+
+        data[len].write(src[len]);
+
+        Lwe::new(unsafe { std::mem::transmute::<_, Vec<T>>(data) })
     }
 }
