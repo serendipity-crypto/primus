@@ -7,6 +7,7 @@ use primus_poly::{
     Data, DataMut, NttPolynomial, NttPolynomialOwned, Polynomial, PolynomialOwned, RawData,
 };
 use primus_reduce::FieldContext;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::{NttRlweCiphertext, RlweParameters, decode};
 
@@ -14,18 +15,21 @@ use super::{LweSecretKey, LweSecretKeyType, RingSecretKeyType};
 
 /// Represents a secret key for the Ring Learning with Errors (RLWE) cryptographic scheme.
 #[derive(Clone)]
-pub struct RlweSecretKey<T>
-where
-    T: UnsignedInteger,
-{
+pub struct RlweSecretKey<T: UnsignedInteger> {
     key: PolynomialOwned<T>,
     distr: RingSecretKeyType,
 }
 
-impl<T> Deref for RlweSecretKey<T>
-where
-    T: UnsignedInteger,
-{
+impl<T: UnsignedInteger> Zeroize for RlweSecretKey<T> {
+    #[inline]
+    fn zeroize(&mut self) {
+        self.key.0.zeroize();
+    }
+}
+
+impl<T: UnsignedInteger> ZeroizeOnDrop for RlweSecretKey<T> {}
+
+impl<T: UnsignedInteger> Deref for RlweSecretKey<T> {
     type Target = PolynomialOwned<T>;
 
     #[inline]
@@ -34,10 +38,7 @@ where
     }
 }
 
-impl<T> RlweSecretKey<T>
-where
-    T: UnsignedInteger,
-{
+impl<T: UnsignedInteger> RlweSecretKey<T> {
     /// Creates a new [`RlweSecretKey<T>`].
     #[inline]
     pub fn new(key: PolynomialOwned<T>, distr: RingSecretKeyType) -> Self {
@@ -102,18 +103,21 @@ where
 
 /// Represents a secret key for the (NTT) Ring Learning with Errors (RLWE) cryptographic scheme.
 #[derive(Clone)]
-pub struct NttRlweSecretKey<T>
-where
-    T: UnsignedInteger,
-{
+pub struct NttRlweSecretKey<T: UnsignedInteger> {
     key: NttPolynomialOwned<T>,
     distr: RingSecretKeyType,
 }
 
-impl<T> Deref for NttRlweSecretKey<T>
-where
-    T: UnsignedInteger,
-{
+impl<T: UnsignedInteger> Zeroize for NttRlweSecretKey<T> {
+    #[inline]
+    fn zeroize(&mut self) {
+        self.key.0.zeroize();
+    }
+}
+
+impl<T: UnsignedInteger> ZeroizeOnDrop for NttRlweSecretKey<T> {}
+
+impl<T: UnsignedInteger> Deref for NttRlweSecretKey<T> {
     type Target = NttPolynomialOwned<T>;
 
     #[inline]
@@ -122,10 +126,7 @@ where
     }
 }
 
-impl<T> NttRlweSecretKey<T>
-where
-    T: UnsignedInteger,
-{
+impl<T: UnsignedInteger> NttRlweSecretKey<T> {
     /// Creates a new [`NttRlweSecretKey<T>`].
     #[inline]
     pub fn new(key: NttPolynomialOwned<T>, distr: RingSecretKeyType) -> Self {

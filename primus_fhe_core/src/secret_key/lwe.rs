@@ -1,6 +1,7 @@
 use primus_integer::{UnsignedInteger, size::Size};
 use primus_reduce::RingContext;
 use rand::distr::Distribution;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::{
     LweCiphertext, LweParameters, LweSecretKeyType, MultiMsgLweCiphertext, decode, encode,
@@ -8,13 +9,19 @@ use crate::{
 
 /// Represents a secret key for the Learning with Errors (LWE) cryptographic scheme.
 #[derive(Clone)]
-pub struct LweSecretKey<T>
-where
-    T: UnsignedInteger,
-{
+pub struct LweSecretKey<T: UnsignedInteger> {
     data: Vec<T>,
     distr: LweSecretKeyType,
 }
+
+impl<T: UnsignedInteger> Zeroize for LweSecretKey<T> {
+    #[inline]
+    fn zeroize(&mut self) {
+        self.data.zeroize();
+    }
+}
+
+impl<T: UnsignedInteger> ZeroizeOnDrop for LweSecretKey<T> {}
 
 impl<T: UnsignedInteger> AsRef<[T]> for LweSecretKey<T> {
     #[inline]

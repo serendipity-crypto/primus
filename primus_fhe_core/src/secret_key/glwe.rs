@@ -7,6 +7,7 @@ use primus_poly::{
     NttPolynomial, NttPolynomialIter, Polynomial, PolynomialOwned, RawData,
 };
 use primus_reduce::FieldContext;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::{
     CrtGlevParameters, CrtGlweParameters, DcrtGlweCiphertext, GlweParameters, NttGlweCiphertext,
@@ -22,6 +23,15 @@ pub struct GlweSecretKey<T: UnsignedInteger> {
     poly_length: usize,
     distr: RingSecretKeyType,
 }
+
+impl<T: UnsignedInteger> Zeroize for GlweSecretKey<T> {
+    #[inline]
+    fn zeroize(&mut self) {
+        self.key.zeroize();
+    }
+}
+
+impl<T: UnsignedInteger> ZeroizeOnDrop for GlweSecretKey<T> {}
 
 impl<T: UnsignedInteger> GlweSecretKey<T> {
     /// Creates a new [`GlweSecretKey<T>`].
@@ -100,6 +110,15 @@ pub struct NttGlweSecretKey<T: UnsignedInteger> {
     dimension: usize,
     distr: RingSecretKeyType,
 }
+
+impl<T: UnsignedInteger> Zeroize for NttGlweSecretKey<T> {
+    #[inline]
+    fn zeroize(&mut self) {
+        self.key.zeroize();
+    }
+}
+
+impl<T: UnsignedInteger> ZeroizeOnDrop for NttGlweSecretKey<T> {}
 
 impl<T: UnsignedInteger> NttGlweSecretKey<T> {
     /// Creates a new [`NttGlweSecretKey<T>`].
@@ -198,6 +217,15 @@ pub struct CrtGlweSecretKey<T: UnsignedInteger> {
     rns_poly_len: usize,
 }
 
+impl<T: UnsignedInteger> Zeroize for CrtGlweSecretKey<T> {
+    #[inline]
+    fn zeroize(&mut self) {
+        self.key.zeroize();
+    }
+}
+
+impl<T: UnsignedInteger> ZeroizeOnDrop for CrtGlweSecretKey<T> {}
+
 impl<T: UnsignedInteger> CrtGlweSecretKey<T> {
     /// Creates a new [`CrtGlweSecretKey<T>`].
     #[inline]
@@ -275,6 +303,15 @@ pub struct DcrtGlweSecretKey<T: UnsignedInteger> {
     distr: RingSecretKeyType,
     rns_poly_len: usize,
 }
+
+impl<T: UnsignedInteger> Zeroize for DcrtGlweSecretKey<T> {
+    #[inline]
+    fn zeroize(&mut self) {
+        self.key.zeroize();
+    }
+}
+
+impl<T: UnsignedInteger> ZeroizeOnDrop for DcrtGlweSecretKey<T> {}
 
 impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
     pub fn key(&self) -> &[T] {
