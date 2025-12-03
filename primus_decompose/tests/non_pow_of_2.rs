@@ -4,7 +4,7 @@ mod tests {
     use primus_decompose::primitive::ApproxSignedBasis;
     use primus_integer::izip;
     use primus_modulus::BarrettModulus;
-    use primus_reduce::ops::{ReduceMulAdd, ReduceSub};
+    use primus_reduce::ops::{ReduceAdd, ReduceMulAdd, ReduceSub};
     use rand::{Rng, distr::Uniform};
 
     type ValueT = u32;
@@ -14,7 +14,7 @@ mod tests {
     fn test_single_decompose() {
         let modulus_value: ValueT = 0b111_000_110;
         let modulus = <BarrettModulus<ValueT>>::new(modulus_value);
-        let basis = ApproxSignedBasis::new(Some(modulus_value), 2, None);
+        let basis = ApproxSignedBasis::new(Some(modulus_value), 3, Some(2));
         let modulus_bits = basis.value_bits() as usize;
 
         let difference_bound = basis.init_carry_mask().unwrap_or(0);
@@ -46,6 +46,8 @@ mod tests {
         show(value);
 
         let (value_d, mut carry) = basis.init_value_carry(value);
+
+        let init_carry = carry;
 
         println!("value_d");
         show(value_d);
@@ -91,6 +93,15 @@ mod tests {
         println!("difference_bound={}", difference_bound);
 
         assert!(difference <= difference_bound);
+
+        let drop_m = 1 << basis.drop_bits();
+        let mask = drop_m - 1;
+        let low_chunk = value_d & mask;
+        if init_carry {
+            assert_eq!(value, modulus.reduce_sub(result, drop_m - low_chunk),)
+        } else {
+            assert_eq!(value, modulus.reduce_add(result, low_chunk))
+        }
     }
 
     #[test]
@@ -112,6 +123,8 @@ mod tests {
             decv.clear();
 
             let (value_d, mut carry) = basis.init_value_carry(value);
+            let init_carry = carry;
+
             for b in basis.decompose_iter() {
                 let (di, ci) = b.decompose(value_d, carry);
                 decv.push(di);
@@ -162,6 +175,15 @@ mod tests {
                 println!("result={}", result);
                 println!("differ={}", difference);
                 panic!("basis={}", basis_value)
+            }
+
+            let drop_m = 1 << basis.drop_bits();
+            let mask = drop_m - 1;
+            let low_chunk = value_d & mask;
+            if init_carry {
+                assert_eq!(value, modulus.reduce_sub(result, drop_m - low_chunk),)
+            } else {
+                assert_eq!(value, modulus.reduce_add(result, low_chunk))
             }
         }
     }
