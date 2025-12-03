@@ -2,3 +2,4 @@
 
 pub mod big_integer;
 pub mod primitive;
+pub mod zama;

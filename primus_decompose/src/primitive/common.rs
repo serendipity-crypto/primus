@@ -54,7 +54,7 @@ impl<T: UnsignedInteger> ValueMask<T> {
     }
 
     #[inline]
-    fn get_value(&self, value: T) -> T {
+    pub fn get_value(&self, value: T) -> T {
         (value & self.mask) >> self.shr_bits
     }
 }
