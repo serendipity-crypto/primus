@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use primus_integer::{AsInto, Integer};
-use rand::distr::{Distribution, StandardUniform};
+use rand::distr::Distribution;
 use rug::{Float, az::Cast};
 
 const PRECISION: u32 = 512;
@@ -10,7 +10,7 @@ const PRECISION: u32 = 512;
 #[derive(Debug, Clone)]
 pub struct UnixCDTSampler<T: Integer> {
     std_dev: f64,
-    cdt: Vec<rug::Integer>,
+    cdt: Vec<[u64; 4]>,
     phantom: PhantomData<T>,
 }
 
@@ -58,11 +58,27 @@ impl<T: Integer> UnixCDTSampler<T> {
         assert_eq!(cdt.len(), length + 1);
 
         let scalar = rug::Integer::from(1) << 256;
-        let cdt: Vec<rug::Integer> = cdt
+        let cdt: Vec<[u64; 4]> = cdt
             .into_iter()
             .map(|f| {
-                let t: Float = f * &scalar;
-                t.cast()
+                if f == 1 {
+                    [u64::MAX; 4]
+                } else {
+                    let t: Float = f * &scalar;
+                    let temp: rug::Integer = t.cast();
+                    let digits: Vec<u64> = temp.to_digits(rug::integer::Order::Lsf);
+
+                    debug_assert!(
+                        digits.len() <= 4,
+                        "CDT value exceeds 256 bits: got {} u64 digits",
+                        digits.len()
+                    );
+
+                    let mut result = [0u64; 4];
+                    let len = digits.len().min(4);
+                    result[..len].copy_from_slice(&digits[..len]);
+                    result
+                }
             })
             .collect();
 
@@ -83,11 +99,11 @@ impl<T: Integer> UnixCDTSampler<T> {
 impl<T: Integer> Distribution<T> for UnixCDTSampler<T> {
     #[inline]
     fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> T {
-        let r: [u32; 8] = StandardUniform.sample(rng);
+        let mut r = [0u64; 4];
+        rng.fill(&mut r);
         let positive = (r[0] & 1) == 1;
-        let r = rug::Integer::from_digits(&r, rug::integer::Order::Lsf);
 
-        let idx = self.cdt.partition_point(|x| *x <= r) - 1;
+        let idx = self.cdt.partition_point(|x| cmp_u256(x, &r).is_le()) - 1;
         let v: T = idx.as_into();
 
         if v.is_zero() {
@@ -96,4 +112,15 @@ impl<T: Integer> Distribution<T> for UnixCDTSampler<T> {
 
         if positive { v } else { T::ZERO - v }
     }
+}
+
+#[inline(always)]
+fn cmp_u256(a: &[u64; 4], b: &[u64; 4]) -> std::cmp::Ordering {
+    for i in (0..4).rev() {
+        match a[i].cmp(&b[i]) {
+            std::cmp::Ordering::Equal => continue,
+            other => return other,
+        }
+    }
+    std::cmp::Ordering::Equal
 }

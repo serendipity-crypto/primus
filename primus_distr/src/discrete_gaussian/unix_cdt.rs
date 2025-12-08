@@ -65,6 +65,13 @@ impl<T: UnsignedInteger> UnixCDTSampler<T> {
                     let t: Float = f * &scalar;
                     let temp: rug::Integer = t.cast();
                     let digits: Vec<u64> = temp.to_digits(rug::integer::Order::Lsf);
+
+                    debug_assert!(
+                        digits.len() <= 4,
+                        "CDT value exceeds 256 bits: got {} u64 digits",
+                        digits.len()
+                    );
+
                     let mut result = [0u64; 4];
                     let len = digits.len().min(4);
                     result[..len].copy_from_slice(&digits[..len]);
