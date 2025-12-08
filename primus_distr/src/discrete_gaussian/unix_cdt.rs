@@ -59,12 +59,17 @@ impl<T: UnsignedInteger> UnixCDTSampler<T> {
         let cdt: Vec<[u64; 4]> = cdt
             .into_iter()
             .map(|f| {
-                let t: Float = f * &scalar;
-                let temp: rug::Integer = t.cast();
-                let mut res: Vec<u64> = temp.to_digits(rug::integer::Order::Lsf);
-                // assert!(res.len() <= 4);
-                res.resize(4, 0);
-                [res[0], res[1], res[2], res[3]]
+                if f == 1 {
+                    [u64::MAX; 4]
+                } else {
+                    let t: Float = f * &scalar;
+                    let temp: rug::Integer = t.cast();
+                    let digits: Vec<u64> = temp.to_digits(rug::integer::Order::Lsf);
+                    let mut result = [0u64; 4];
+                    let len = digits.len().min(4);
+                    result[..len].copy_from_slice(&digits[..len]);
+                    result
+                }
             })
             .collect();
 
@@ -85,15 +90,11 @@ impl<T: UnsignedInteger> UnixCDTSampler<T> {
 impl<T: UnsignedInteger> Distribution<T> for UnixCDTSampler<T> {
     #[inline]
     fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> T {
-        let r: [u64; 4] = [
-            rng.next_u64(),
-            rng.next_u64(),
-            rng.next_u64(),
-            rng.next_u64(),
-        ];
+        let mut r = [0u64; 4];
+        rng.fill(&mut r);
         let positive = (r[0] & 1) == 1;
 
-        let idx = self.cdt.partition_point(|x| cmp_u256(x, &r).is_lt()) - 1;
+        let idx = self.cdt.partition_point(|x| cmp_u256(x, &r).is_le()) - 1;
         let v: T = idx.as_into();
 
         if v.is_zero() {
@@ -108,6 +109,7 @@ impl<T: UnsignedInteger> Distribution<T> for UnixCDTSampler<T> {
     }
 }
 
+#[inline(always)]
 fn cmp_u256(a: &[u64; 4], b: &[u64; 4]) -> std::cmp::Ordering {
     for i in (0..4).rev() {
         match a[i].cmp(&b[i]) {
