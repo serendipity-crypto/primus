@@ -37,12 +37,12 @@ impl<T: UnsignedInteger> DiscreteGaussian<T> {
     /// -   standard deviation (`σ`, must be finite)
     #[inline]
     pub fn new(std_dev: f64, modulus_minus_one: T) -> Result<DiscreteGaussian<T>, DistrErr<T>> {
-        if std_dev < 3.0 {
+        if std_dev < 2.4 {
             #[cfg(target_os = "linux")]
             {
                 Ok(DiscreteGaussian::Unix(unix_cdt::UnixCDTSampler::new(
                     std_dev,
-                    6.0,
+                    12.0,
                     modulus_minus_one,
                 )))
             }
