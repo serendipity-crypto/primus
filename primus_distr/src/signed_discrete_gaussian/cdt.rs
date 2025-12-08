@@ -44,10 +44,10 @@ impl<T: Integer> CDTSampler<T> {
 
         let mut pre = minus_twice_variance_recip.exp();
         pdf[1] = pre.clone();
-        for i in 2..length {
+        for (i, item) in pdf.iter_mut().enumerate().skip(2) {
             let factor = BigDecimal::from_usize(2 * i - 1).unwrap() * &minus_twice_variance_recip;
-            pre = pre * factor.exp();
-            pdf[i] = pre.clone();
+            pre *= factor.exp();
+            *item = pre.clone();
         }
 
         let s = pdf.iter().fold(BigDecimal::zero(), |acc, v| acc + v);

@@ -17,9 +17,7 @@ fn main() {
 
     for (sigma, desc) in test_cases {
         print!("{:.<30} (σ={:>6}): ", desc, sigma);
-        match std::panic::catch_unwind(|| {
-            DiscreteZiggurat::<u64>::new(sigma, 12.0, u64::MAX)
-        }) {
+        match std::panic::catch_unwind(|| DiscreteZiggurat::<u64>::new(sigma, 12.0, u64::MAX)) {
             Ok(_) => println!("✓ Success"),
             Err(_) => println!("✗ Failed"),
         }

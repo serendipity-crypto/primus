@@ -109,7 +109,7 @@ impl<T: Integer> DiscreteZiggurat<T> {
                     s_min = s;
                     if s_max == x_m + 1.0 {
                         // Haven't found upper bound yet, try doubling
-                        s = s * 2.0;
+                        s *= 2.0;
                         if s > x_m + 1.0 {
                             s_max = x_m + 1.0;
                             s = (s_min + s_max) / 2.0;

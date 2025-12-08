@@ -44,10 +44,10 @@ impl<T: UnsignedInteger> CDTSampler<T> {
 
         let mut pre = minus_twice_variance_recip.exp();
         pdf[1] = pre.clone();
-        for i in 2..length {
+        for (i, item) in pdf.iter_mut().enumerate().skip(2) {
             let factor = BigDecimal::from_usize(2 * i - 1).unwrap() * &minus_twice_variance_recip;
-            pre = pre * factor.exp();
-            pdf[i] = pre.clone();
+            pre *= factor.exp();
+            *item = pre.clone();
         }
 
         let s = pdf.iter().fold(BigDecimal::zero(), |acc, v| acc + v);
@@ -71,14 +71,10 @@ impl<T: UnsignedInteger> CDTSampler<T> {
         let cdt: Vec<u128> = cdt
             .into_iter()
             .map(|f| {
-                if f.is_one() {
-                    u128::MAX
-                } else {
-                    (f * u128::MAX)
-                        .with_scale_round(0, RoundingMode::HalfUp)
-                        .to_u128()
-                        .unwrap()
-                }
+                (f * u128::MAX)
+                    .with_scale_round(0, RoundingMode::HalfUp)
+                    .to_u128()
+                    .unwrap()
             })
             .collect();
 
