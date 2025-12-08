@@ -1,9 +1,9 @@
-use std::{marker::PhantomData, num::NonZero, sync::LazyLock};
+use std::{marker::PhantomData, num::NonZero};
 
 use bigdecimal::{BigDecimal, Context, RoundingMode};
 use num_traits::{FromPrimitive, One, ToPrimitive, Zero};
 use primus_integer::{AsInto, Integer};
-use rand::distr::{Distribution, Uniform};
+use rand::distr::Distribution;
 
 /// cdt sampler
 #[derive(Debug, Clone)]
@@ -92,12 +92,10 @@ impl<T: Integer> CDTSampler<T> {
     }
 }
 
-static D: LazyLock<Uniform<u128>> = LazyLock::new(|| Uniform::new_inclusive(0, u128::MAX).unwrap());
-
 impl<T: Integer> Distribution<T> for CDTSampler<T> {
     #[inline]
     fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> T {
-        let r: u128 = D.sample(rng);
+        let r: u128 = rng.random();
 
         let positive = (r & 1) == 1;
 
