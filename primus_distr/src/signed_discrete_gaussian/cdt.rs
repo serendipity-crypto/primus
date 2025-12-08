@@ -5,13 +5,10 @@ use num_traits::{FromPrimitive, One, ToPrimitive, Zero};
 use primus_integer::{AsInto, Integer};
 use rand::distr::{Distribution, Uniform};
 
-const PRECISION: u64 = 256;
-
 /// cdt sampler
 #[derive(Debug, Clone)]
 pub struct CDTSampler<T: Integer> {
     std_dev: f64,
-    upper_bound: usize,
     cdt: Vec<u128>,
     phantom: PhantomData<T>,
 }
@@ -27,7 +24,15 @@ impl<T: Integer> CDTSampler<T> {
             length = 2;
         }
 
-        let context = Context::new(NonZero::new(PRECISION).unwrap(), RoundingMode::HalfUp);
+        let precision = if std_dev < 2.0 {
+            128
+        } else if std_dev < 5.0 {
+            192
+        } else {
+            256
+        };
+
+        let context = Context::new(NonZero::new(precision).unwrap(), RoundingMode::HalfUp);
 
         let std_dev_hp = BigDecimal::from_f64(std_dev).unwrap();
         let var_hp = std_dev_hp.square();
@@ -36,24 +41,26 @@ impl<T: Integer> CDTSampler<T> {
 
         let mut pdf = vec![BigDecimal::default(); length];
         pdf[0] = BigDecimal::one().half();
-        pdf[1] = minus_twice_variance_recip.exp();
 
-        pdf.iter_mut().enumerate().skip(2).for_each(|(i, v)| {
-            *v = (BigDecimal::from_usize(i * i).unwrap() * &minus_twice_variance_recip).exp();
-        });
+        let mut pre = minus_twice_variance_recip.exp();
+        pdf[1] = pre.clone();
+        for i in 2..length {
+            let factor = BigDecimal::from_usize(2 * i - 1).unwrap() * &minus_twice_variance_recip;
+            pre = pre * factor.exp();
+            pdf[i] = pre.clone();
+        }
 
         let s = pdf.iter().fold(BigDecimal::zero(), |acc, v| acc + v);
 
-        let pdf: Vec<BigDecimal> = pdf.into_iter().map(|v| v / &s).collect();
-
         let mut cdt = Vec::with_capacity(length + 1);
-        let mut pre = BigDecimal::zero();
+        let mut acc = BigDecimal::zero();
 
         cdt.push(BigDecimal::zero());
         for p in pdf.iter() {
-            pre += p;
-            if pre < BigDecimal::one() {
-                cdt.push(pre.clone());
+            acc += p;
+
+            if acc < s {
+                cdt.push(&acc / &s);
             } else {
                 cdt.push(BigDecimal::one());
                 break;
@@ -73,13 +80,13 @@ impl<T: Integer> CDTSampler<T> {
 
         Self {
             std_dev,
-            upper_bound: length,
             cdt,
             phantom: PhantomData::<T>,
         }
     }
 
     /// Returns the standard deviation of this [`CDTSampler<T>`].
+    #[inline]
     pub fn std_dev(&self) -> f64 {
         self.std_dev
     }
@@ -88,28 +95,20 @@ impl<T: Integer> CDTSampler<T> {
 static D: LazyLock<Uniform<u128>> = LazyLock::new(|| Uniform::new_inclusive(0, u128::MAX).unwrap());
 
 impl<T: Integer> Distribution<T> for CDTSampler<T> {
+    #[inline]
     fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> T {
         let r: u128 = D.sample(rng);
 
-        let mut min = 0;
-        let mut max = self.upper_bound;
-        while min < max {
-            let cur = (min + max) / 2;
-            if r < self.cdt[cur] {
-                max = cur;
-            } else {
-                min = cur + 1;
-            }
-        }
-        let idx = min - 1;
-        let v = idx.as_into();
+        let positive = (r & 1) == 1;
 
-        if rng.random() {
-            v
-        } else if v.is_zero() {
-            T::ZERO
-        } else {
-            T::ZERO - v
+        let idx = self.cdt.partition_point(|&x| x <= r) - 1;
+
+        let v: T = idx.as_into();
+
+        if v.is_zero() {
+            return T::ZERO;
         }
+
+        if positive { v } else { T::ZERO - v }
     }
 }

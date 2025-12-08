@@ -34,9 +34,9 @@ const QUALITY_GOOD: f64 = 1.0;
 const QUALITY_ACCEPTABLE: f64 = 2.0;
 
 // Probability difference thresholds for color coding
-const PROB_DIFF_RED_THRESHOLD: f64 = 0.01;      // 1% absolute difference
-const PROB_DIFF_YELLOW_THRESHOLD: f64 = 0.005;  // 0.5% absolute difference
-const PROB_DIFF_PCT_RED_THRESHOLD: f64 = 1.0;   // 1% relative difference
+const PROB_DIFF_RED_THRESHOLD: f64 = 0.01; // 1% absolute difference
+const PROB_DIFF_YELLOW_THRESHOLD: f64 = 0.005; // 0.5% absolute difference
+const PROB_DIFF_PCT_RED_THRESHOLD: f64 = 1.0; // 1% relative difference
 const PROB_DIFF_PCT_YELLOW_THRESHOLD: f64 = 0.5; // 0.5% relative difference
 
 fn main() {
@@ -107,7 +107,7 @@ fn check_standard_deviation() {
     let mut rng = rand::rng();
 
     // Test sigma values (including the previously problematic 3.19)
-    let sigmas: Vec<f64> = vec![1.9, 3.19, 5.0, 10.0];
+    let sigmas: Vec<f64> = vec![0.5, 0.6, 0.7, 0.8, 0.9, 1.0];
 
     println!("\n{}", "═".repeat(80));
     println!("Discrete Gaussian Sampler Validation");
@@ -118,7 +118,8 @@ fn check_standard_deviation() {
     let mut data: Vec<ValueT> = vec![ValueT::ZERO; N];
     for (idx, sigma) in sigmas.iter().enumerate() {
         println!("[{}/{}] Testing σ = {:.2}...", idx + 1, sigmas.len(), sigma);
-        let distr = <primus_distr::DiscreteZiggurat<ValueT>>::new(*sigma, TAIL_CUT, Q - 1);
+        // let distr = <primus_distr::DiscreteZiggurat<ValueT>>::new(*sigma, TAIL_CUT, Q - 1);
+        let distr = <primus_distr::CDTSampler<ValueT>>::new(*sigma, TAIL_CUT, Q - 1);
 
         // Sample data
         data.iter_mut()
@@ -128,7 +129,10 @@ fn check_standard_deviation() {
         check(&data, *sigma, "");
 
         // Test convolution property: sum of N(0, σ²) should be N(0, n*σ²)
-        println!("  Testing convolution property (sum of {} distributions)...", CHUNK_SIZE);
+        println!(
+            "  Testing convolution property (sum of {} distributions)...",
+            CHUNK_SIZE
+        );
         let datas: Vec<Vec<ValueT>> = (0..CHUNK_SIZE)
             .map(|_| distr.clone().sample_iter(&mut rng).take(N).collect())
             .collect();
@@ -143,7 +147,11 @@ fn check_standard_deviation() {
             })
             .expect("reduce should never fail with non-empty iterator");
 
-        check(&new_data, (CHUNK_SIZE as f64).sqrt() * sigma, "Convolution ");
+        check(
+            &new_data,
+            (CHUNK_SIZE as f64).sqrt() * sigma,
+            "Convolution ",
+        );
     }
 
     println!("\n{}", "═".repeat(80));
