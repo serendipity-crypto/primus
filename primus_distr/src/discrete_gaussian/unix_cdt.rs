@@ -72,13 +72,15 @@ impl<T: UnsignedInteger> UnixCDTSampler<T> {
         }
     }
 
-    /// Returns the std dev of this [`UnixCDTSampler<T>`].
+    /// Returns the standard deviation of this [`UnixCDTSampler<T>`].
+    #[inline]
     pub fn std_dev(&self) -> f64 {
         self.std_dev
     }
 }
 
 impl<T: UnsignedInteger> Distribution<T> for UnixCDTSampler<T> {
+    #[inline]
     fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> T {
         let r: [u32; 8] = StandardUniform.sample(rng);
         let r = rug::Integer::from_digits(&r, rug::integer::Order::Lsf);

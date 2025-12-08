@@ -118,8 +118,9 @@ fn check_standard_deviation() {
     let mut data: Vec<ValueT> = vec![ValueT::ZERO; N];
     for (idx, sigma) in sigmas.iter().enumerate() {
         println!("[{}/{}] Testing σ = {:.2}...", idx + 1, sigmas.len(), sigma);
-        // let distr = <primus_distr::DiscreteZiggurat<ValueT>>::new(*sigma, TAIL_CUT, Q - 1);
-        let distr = <primus_distr::CDTSampler<ValueT>>::new(*sigma, TAIL_CUT, Q - 1);
+        let distr = <primus_distr::DiscreteZiggurat<ValueT>>::new(*sigma, TAIL_CUT, Q - 1);
+        // let distr = <primus_distr::CDTSampler<ValueT>>::new(*sigma, TAIL_CUT, Q - 1);
+        // let distr = <primus_distr::UnixCDTSampler<ValueT>>::new(*sigma, TAIL_CUT, Q - 1);
 
         // Sample data
         data.iter_mut()

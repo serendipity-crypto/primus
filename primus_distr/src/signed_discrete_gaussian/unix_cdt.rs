@@ -74,7 +74,7 @@ impl<T: Integer> UnixCDTSampler<T> {
         }
     }
 
-    /// Returns the std dev of this [`UnixCDTSampler<T>`].
+    /// Returns the standard deviation of this [`UnixCDTSampler<T>`].
     pub fn std_dev(&self) -> f64 {
         self.std_dev
     }
