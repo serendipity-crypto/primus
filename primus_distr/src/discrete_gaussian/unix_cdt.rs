@@ -1,5 +1,5 @@
 use primus_integer::{AsInto, UnsignedInteger};
-use rand::distr::{Distribution, StandardUniform};
+use rand::distr::Distribution;
 use rug::{Float, az::Cast};
 
 const PRECISION: u32 = 512;
@@ -9,7 +9,7 @@ const PRECISION: u32 = 512;
 pub struct UnixCDTSampler<T: UnsignedInteger> {
     std_dev: f64,
     modulus_minus_one: T,
-    cdt: Vec<rug::Integer>,
+    cdt: Vec<[u64; 4]>,
 }
 
 impl<T: UnsignedInteger> UnixCDTSampler<T> {
@@ -56,11 +56,15 @@ impl<T: UnsignedInteger> UnixCDTSampler<T> {
         assert_eq!(cdt.len(), length + 1);
 
         let scalar = rug::Integer::from(1) << 256;
-        let cdt: Vec<rug::Integer> = cdt
+        let cdt: Vec<[u64; 4]> = cdt
             .into_iter()
             .map(|f| {
                 let t: Float = f * &scalar;
-                t.cast()
+                let temp: rug::Integer = t.cast();
+                let mut res: Vec<u64> = temp.to_digits(rug::integer::Order::Lsf);
+                // assert!(res.len() <= 4);
+                res.resize(4, 0);
+                [res[0], res[1], res[2], res[3]]
             })
             .collect();
 
@@ -81,11 +85,15 @@ impl<T: UnsignedInteger> UnixCDTSampler<T> {
 impl<T: UnsignedInteger> Distribution<T> for UnixCDTSampler<T> {
     #[inline]
     fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> T {
-        let r: [u32; 8] = StandardUniform.sample(rng);
+        let r: [u64; 4] = [
+            rng.next_u64(),
+            rng.next_u64(),
+            rng.next_u64(),
+            rng.next_u64(),
+        ];
         let positive = (r[0] & 1) == 1;
-        let r = rug::Integer::from_digits(&r, rug::integer::Order::Lsf);
 
-        let idx = self.cdt.partition_point(|x| *x <= r) - 1;
+        let idx = self.cdt.partition_point(|x| cmp_u256(x, &r).is_lt()) - 1;
         let v: T = idx.as_into();
 
         if v.is_zero() {
@@ -98,4 +106,14 @@ impl<T: UnsignedInteger> Distribution<T> for UnixCDTSampler<T> {
             self.modulus_minus_one - v + T::ONE
         }
     }
+}
+
+fn cmp_u256(a: &[u64; 4], b: &[u64; 4]) -> std::cmp::Ordering {
+    for i in (0..4).rev() {
+        match a[i].cmp(&b[i]) {
+            std::cmp::Ordering::Equal => continue,
+            other => return other,
+        }
+    }
+    std::cmp::Ordering::Equal
 }
