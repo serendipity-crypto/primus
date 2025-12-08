@@ -16,3 +16,7 @@ bigdecimal = { workspace = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 rug = "=1.28"
+
+[dev-dependencies]
+criterion = { workspace = true }
+comfy-table = "7.1"

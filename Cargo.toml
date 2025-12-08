@@ -32,7 +32,7 @@ bigdecimal = "0.4"
 
 pretty_assertions = "1.4"
 indicatif = { version = "0.18", features = ["rayon"] }
-criterion = "0.7"
+criterion = "0.8"
 
 [profile.dev]
 opt-level = 1

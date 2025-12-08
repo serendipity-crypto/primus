@@ -7,6 +7,7 @@ use rand::distr::{Distribution, Uniform};
 #[derive(Clone)]
 pub struct DiscreteZiggurat<T: UnsignedInteger> {
     std_dev: f64,
+    neg_two_std_dev_sq: f64,
     x: Vec<f64>,
     y: Vec<f64>,
     sample_m: Uniform<usize>,
@@ -18,9 +19,16 @@ impl<T: UnsignedInteger> DiscreteZiggurat<T> {
     /// Generate a [`DiscreteZiggurat<T>`]
     pub fn new(std_dev: f64, tail_cut: f64, modulus_minus_one: T) -> Self {
         let x_m = (tail_cut * std_dev).floor();
-        let sigma_square_mul_minus_two = std_dev * std_dev * (-2.0f64);
+        let neg_two_std_dev_sq = std_dev * std_dev * (-2.0f64);
 
-        let mut m = 3;
+        let mut m = if x_m < 20.0 {
+            32
+        } else if x_m < 100.0 {
+            64
+        } else {
+            128
+        };
+
         'outer: loop {
             let mut x = Vec::with_capacity(m + 1);
             let mut y = Vec::with_capacity(m + 1);
@@ -30,29 +38,107 @@ impl<T: UnsignedInteger> DiscreteZiggurat<T> {
 
             let initial_s = std_dev * FRAC_1_SQRT_2 * FRAC_2_SQRT_PI / (m as f64);
 
+            // Use binary search to find the right s value
+            let mut s_min = 0.0;
+            let mut s_max = x_m + 1.0;
             let mut s = initial_s;
-            loop {
+            let mut found = false;
+
+            // Try at most 100 iterations to find a valid s
+            for _iteration in 0..100 {
                 let mut pre_y = 0f64;
                 let mut pre_x = x_m;
-                for (y, x) in y.iter_mut().rev().zip(x.iter_mut().rev()) {
+                let mut valid = true;
+
+                for (idx, (y, x)) in y.iter_mut().rev().zip(x.iter_mut().rev()).enumerate() {
                     *y = s / (1.0f64 + pre_x) + pre_y;
-                    *x = ((*y).ln() * sigma_square_mul_minus_two).sqrt().floor();
+
+                    // For all y values except y[0], enforce strict y < 1.0
+                    // For y[0], we allow it to reach or slightly exceed 1.0 since it should equal pdf(0) = 1.0
+                    let is_y0 = idx == m - 1;
+                    if !is_y0 && *y >= 1.0 {
+                        // s is too large for intermediate values
+                        valid = false;
+                        break;
+                    }
+
+                    let arg = (*y).ln() * neg_two_std_dev_sq;
+                    if arg < 0.0 {
+                        // ln(y) * neg_two_std_dev_sq < 0 means y > 1.0 (since neg_two_std_dev_sq < 0)
+                        // This should only happen for y[0] in edge cases
+                        if !is_y0 {
+                            valid = false;
+                            break;
+                        }
+                        // For y[0] >= 1.0, set x[0] to 0 (will be overwritten below anyway)
+                        *x = 0.0;
+                    } else {
+                        *x = arg.sqrt().floor();
+                    }
+
                     pre_y = *y;
                     pre_x = *x;
                 }
-                x[0] = 0f64;
-                if y[0] > 1.0 {
-                    break;
-                }
-                s += initial_s;
-                if s > x_m + 1.0 {
-                    m += m.next_power_of_two();
-                    if m >= 512 {
-                        panic!("error");
+
+                if !valid {
+                    // s is too large
+                    s_max = s;
+                    s = (s_min + s_max) / 2.0;
+                    if s_max - s_min < 1e-10 {
+                        // Cannot find valid s, need more rectangles
+                        break;
                     }
-                    continue 'outer;
+                    continue;
+                }
+
+                x[0] = 0f64;
+
+                // Accept if y[0] >= 1.0 (ideal case) or very close to 1.0
+                // y[0] should equal pdf(0) = 1.0 for proper coverage of the distribution
+                if y[0] >= 1.0 {
+                    // Ideal case: found s such that y[0] >= 1.0 and all intermediate y < 1.0
+                    found = true;
+                    break;
+                } else if y[0] > 0.999 && (s_max - s_min < 1e-6 || _iteration > 20) {
+                    // Accept if very close to 1.0 and either:
+                    // - Search range is very narrow (binary search has converged)
+                    // - We've done many iterations (avoid infinite search)
+                    found = true;
+                    break;
+                } else {
+                    // s is too small, need to increase it
+                    s_min = s;
+                    if s_max == x_m + 1.0 {
+                        // Haven't found upper bound yet, try doubling
+                        s = s * 2.0;
+                        if s > x_m + 1.0 {
+                            s_max = x_m + 1.0;
+                            s = (s_min + s_max) / 2.0;
+                        }
+                    } else {
+                        // Binary search
+                        s = (s_min + s_max) / 2.0;
+                    }
+
+                    if s_max - s_min < 1e-10 {
+                        // Cannot find valid s, need more rectangles
+                        break;
+                    }
                 }
             }
+
+            if !found {
+                // Need more rectangles
+                m *= 2;
+                if m > 512 {
+                    panic!(
+                        "Cannot construct Ziggurat with m > 512 for std_dev={}, tail_cut={}",
+                        std_dev, tail_cut
+                    );
+                }
+                continue 'outer;
+            }
+
             x.push(x_m);
             y.push(0.0);
             let sample_x: Vec<Uniform<T>> = x
@@ -61,6 +147,7 @@ impl<T: UnsignedInteger> DiscreteZiggurat<T> {
                 .collect();
             break Self {
                 std_dev,
+                neg_two_std_dev_sq,
                 x,
                 y,
                 sample_m: Uniform::new_inclusive(1, m).unwrap(),
@@ -77,9 +164,11 @@ impl<T: UnsignedInteger> DiscreteZiggurat<T> {
     }
 }
 
+const MASK: f64 = 4294967296.0f64; // 2^{32}
+
 impl<T: UnsignedInteger> Distribution<T> for DiscreteZiggurat<T> {
     fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> T {
-        let pdf = |x: f64| ((x * x) / (-2.0 * self.std_dev * self.std_dev)).exp();
+        let pdf = |x: f64| ((x * x) / self.neg_two_std_dev_sq).exp();
         let combine = |sign: bool, x: T| {
             if sign {
                 x
@@ -104,21 +193,20 @@ impl<T: UnsignedInteger> Distribution<T> for DiscreteZiggurat<T> {
                     continue;
                 }
             } else {
-                let mask = 2.0f64.powi(32);
                 let y_prime = rng.next_u32();
                 let y = (self.y[i - 1] - self.y[i]) * y_prime as f64;
 
                 if self.x[i] + 1.0 <= self.std_dev {
-                    if y <= mask
+                    if y <= MASK
                         * s_line(i, self.x[i - 1], self.x[i], self.y[i - 1], self.y[i], x_f)
-                        || y <= mask * (pdf(x_f) - self.y[i])
+                        || y <= MASK * (pdf(x_f) - self.y[i])
                     {
                         return combine(sign, x);
                     } else {
                         continue;
                     }
                 } else if self.std_dev <= self.x[i - 1] {
-                    if y >= mask
+                    if y >= MASK
                         * s_line(
                             i,
                             self.x[i - 1],
@@ -127,13 +215,13 @@ impl<T: UnsignedInteger> Distribution<T> for DiscreteZiggurat<T> {
                             self.y[i],
                             x_f - 1.0,
                         )
-                        || y > mask * (pdf(x_f) - self.y[i])
+                        || y > MASK * (pdf(x_f) - self.y[i])
                     {
                         continue;
                     } else {
                         return combine(sign, x);
                     }
-                } else if y <= mask * (pdf(x_f) - self.y[i]) {
+                } else if y <= MASK * (pdf(x_f) - self.y[i]) {
                     return combine(sign, x);
                 } else {
                     continue;
@@ -143,6 +231,7 @@ impl<T: UnsignedInteger> Distribution<T> for DiscreteZiggurat<T> {
     }
 }
 
+#[inline(always)]
 fn s_line(i: usize, x_i_minus_one: f64, x_i: f64, y_i_minus_one: f64, y_i: f64, x: f64) -> f64 {
     if x_i == x_i_minus_one {
         return -1.0;
