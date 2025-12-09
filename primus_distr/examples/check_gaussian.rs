@@ -121,7 +121,7 @@ fn check_standard_deviation() {
         // let distr = <primus_distr::DiscreteZiggurat<ValueT>>::new(*sigma, TAIL_CUT, Q - 1);
         // let distr = <primus_distr::CDTSampler<ValueT>>::new(*sigma, TAIL_CUT, Q - 1);
         // let distr = <primus_distr::UnixCDTSampler<ValueT>>::new(*sigma, TAIL_CUT, Q - 1);
-        let distr = <primus_distr::CDTSamplerLogSpace<ValueT>>::new(*sigma, TAIL_CUT, Q - 1);
+        let distr = <primus_distr::CDTSampler<ValueT>>::new(*sigma, TAIL_CUT, Q - 1);
         // let distr = <primus_distr::CDTSamplerLogSpaceDD<ValueT>>::new(*sigma, TAIL_CUT, Q - 1); // Double-double precision (~106 bit)
 
         // Sample data

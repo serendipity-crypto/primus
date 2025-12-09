@@ -25,7 +25,7 @@ const TAIL_CUT: f64 = 12.0;
 const SIGMA_RANGES: [f64; 6] = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
 
 fn main() {
-    let sigmas: Vec<f64> = vec![0.8, 0.9, 1.0, 2.0, 3.19, 10.0];
+    let sigmas: Vec<f64> = vec![15.0, 16.0, 17.0];
 
     println!("\n{}", "═".repeat(100));
     println!("Discrete Gaussian Sampler Comparison");
@@ -81,8 +81,8 @@ fn compare_samplers_at_sigma(sigma: f64) {
 
     // Test CDTSamplerLogSpace (f64 precision)
     {
-        println!("\n[1/3] Testing CDTSamplerLogSpace (f64 precision)...");
-        let sampler = primus_distr::CDTSamplerLogSpace::<ValueT>::new(sigma, TAIL_CUT, Q - 1);
+        println!("\n[1/2] Testing CDTSamplerLogSpace ...");
+        let sampler = primus_distr::CDTSampler::<ValueT>::new(sigma, TAIL_CUT, Q - 1);
 
         let start = Instant::now();
         let data: Vec<ValueT> = sampler.sample_iter(&mut rng).take(N).collect();
@@ -92,33 +92,15 @@ fn compare_samplers_at_sigma(sigma: f64) {
         all_stats.push(stats);
     }
 
-    // Test CDTSamplerLogSpaceDD (double-double precision)
     {
-        println!("[2/3] Testing CDTSamplerLogSpaceDD (double-double ~106-bit)...");
-        let sampler = primus_distr::CDTSamplerLogSpaceDD::<ValueT>::new(sigma, TAIL_CUT, Q - 1);
+        println!("[2/2] Testing Discrete Ziggurat ...");
+        let sampler = primus_distr::DiscreteZiggurat::<ValueT>::new(sigma, TAIL_CUT, Q - 1);
 
         let start = Instant::now();
         let data: Vec<ValueT> = sampler.sample_iter(&mut rng).take(N).collect();
         let sample_time_ms = start.elapsed().as_secs_f64() * 1000.0;
 
-        let stats = compute_stats(
-            "CDTSamplerLogSpaceDD (~106-bit)",
-            &data,
-            sigma,
-            sample_time_ms,
-        );
-        all_stats.push(stats);
-    }
-
-    {
-        println!("[3/3] Testing CDTSampler (128-bit)...");
-        let sampler = primus_distr::CDTSampler::<ValueT>::new(sigma, TAIL_CUT, Q - 1);
-
-        let start = Instant::now();
-        let data: Vec<ValueT> = sampler.sample_iter(&mut rng).take(N).collect();
-        let sample_time_ms = start.elapsed().as_secs_f64() * 1000.0;
-
-        let stats = compute_stats("CDTSampler (~128-bit)", &data, sigma, sample_time_ms);
+        let stats = compute_stats("Discrete Ziggurat", &data, sigma, sample_time_ms);
         all_stats.push(stats);
     }
 
