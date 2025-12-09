@@ -19,5 +19,7 @@ pub use ternary::TernaryDistr;
 pub use discrete_gaussian::CDTSampler;
 #[cfg(target_os = "linux")]
 pub use discrete_gaussian::UnixCDTSampler;
-pub use discrete_gaussian::{DiscreteGaussian, DiscreteZiggurat};
+pub use discrete_gaussian::{
+    CDTSamplerLogSpace, CDTSamplerLogSpaceDD, DiscreteGaussian, DiscreteZiggurat,
+};
 pub use signed_discrete_gaussian::SignedDiscreteGaussian;

@@ -3,12 +3,16 @@ use rand::{Rng, distr::Distribution};
 
 #[cfg(not(target_os = "linux"))]
 mod cdt;
+mod cdt_logspace;
+mod cdt_logspace_dd;
 #[cfg(target_os = "linux")]
 mod unix_cdt;
 mod ziggurat;
 
 #[cfg(not(target_os = "linux"))]
 pub use cdt::CDTSampler;
+pub use cdt_logspace::CDTSamplerLogSpace;
+pub use cdt_logspace_dd::CDTSamplerLogSpaceDD;
 #[cfg(target_os = "linux")]
 pub use unix_cdt::UnixCDTSampler;
 pub use ziggurat::DiscreteZiggurat;
@@ -20,7 +24,7 @@ use crate::DistrErr;
 pub enum DiscreteGaussian<T: UnsignedInteger> {
     /// CDTSampler
     #[cfg(not(target_os = "linux"))]
-    Cdt(cdt::CDTSampler<T>),
+    Cdt(CDTSamplerLogSpace<T>),
     /// UnixCDTSampler
     #[cfg(target_os = "linux")]
     Unix(unix_cdt::UnixCDTSampler<T>),
@@ -48,7 +52,7 @@ impl<T: UnsignedInteger> DiscreteGaussian<T> {
             }
 
             #[cfg(not(target_os = "linux"))]
-            Ok(DiscreteGaussian::Cdt(cdt::CDTSampler::new(
+            Ok(DiscreteGaussian::Cdt(CDTSamplerLogSpace::new(
                 std_dev,
                 12.0,
                 modulus_minus_one,

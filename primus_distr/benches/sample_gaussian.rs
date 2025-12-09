@@ -98,6 +98,21 @@ fn bench_different_sampler(c: &mut Criterion) {
 
         #[cfg(not(target_os = "linux"))]
         {
+            use primus_distr::CDTSamplerLogSpace;
+
+            let mut rng = rand::rng();
+            let cdt = CDTSamplerLogSpace::new(std_dev, 12.0, MODULUS_MINUS_ONE);
+            group.bench_function(format!("CDTSamplerLogSpace_std={std_dev}"), |b| {
+                b.iter(|| {
+                    for _ in 0..N {
+                        cdt.sample(&mut rng);
+                    }
+                })
+            });
+        }
+
+        #[cfg(not(target_os = "linux"))]
+        {
             let mut rng = rand::rng();
             let cdt = CDTSampler::new(std_dev, 12.0, MODULUS_MINUS_ONE);
             group.bench_function(format!("CDTSampler_std={std_dev}"), |b| {

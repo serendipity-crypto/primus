@@ -106,7 +106,7 @@ fn colored_pct_cell(diff_pct: f64) -> Cell {
 fn check_standard_deviation() {
     let mut rng = rand::rng();
 
-    let sigmas: Vec<f64> = vec![0.7, 0.8, 0.9, 1.0, 3.19, 10.0, 1000.0];
+    let sigmas: Vec<f64> = vec![0.7, 0.8, 0.9, 1.0, 3.19, 10.0];
 
     println!("\n{}", "═".repeat(80));
     println!("Discrete Gaussian Sampler Validation");
@@ -117,10 +117,12 @@ fn check_standard_deviation() {
     let mut data: Vec<ValueT> = vec![ValueT::ZERO; N];
     for (idx, sigma) in sigmas.iter().enumerate() {
         println!("[{}/{}] Testing σ = {:.2}...", idx + 1, sigmas.len(), sigma);
-        let distr = <primus_distr::DiscreteGaussian<ValueT>>::new(*sigma, Q - 1).unwrap();
+        // let distr = <primus_distr::DiscreteGaussian<ValueT>>::new(*sigma, Q - 1).unwrap();
         // let distr = <primus_distr::DiscreteZiggurat<ValueT>>::new(*sigma, TAIL_CUT, Q - 1);
         // let distr = <primus_distr::CDTSampler<ValueT>>::new(*sigma, TAIL_CUT, Q - 1);
         // let distr = <primus_distr::UnixCDTSampler<ValueT>>::new(*sigma, TAIL_CUT, Q - 1);
+        let distr = <primus_distr::CDTSamplerLogSpace<ValueT>>::new(*sigma, TAIL_CUT, Q - 1);
+        // let distr = <primus_distr::CDTSamplerLogSpaceDD<ValueT>>::new(*sigma, TAIL_CUT, Q - 1); // Double-double precision (~106 bit)
 
         // Sample data
         data.iter_mut()
