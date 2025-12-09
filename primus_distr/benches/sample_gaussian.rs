@@ -36,7 +36,7 @@ fn bench_sample(c: &mut Criterion) {
             });
         }
 
-        #[cfg(target_os = "linux")]
+        #[cfg(all(target_os = "linux", feature = "high_precision"))]
         {
             let mut rng = rand::rng();
             let unix_cdt = primus_distr::UnixCDTSampler::new(sigma, 12.0, MODULUS_MINUS_ONE);

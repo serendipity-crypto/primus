@@ -4,7 +4,7 @@ use rand::distr::Distribution;
 use crate::DistrErr;
 
 mod cdt;
-#[cfg(target_os = "linux")]
+#[cfg(all(target_os = "linux", feature = "high_precision"))]
 mod unix_cdt;
 mod ziggurat;
 

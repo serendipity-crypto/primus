@@ -172,7 +172,6 @@ fn check(data: &[ValueT], sigma: f64, info: &str) {
         .expect("SIGMA_RANGES should have exactly 6 elements");
 
     // Single-pass computation: mean, cumulative counts
-    // Using f64 for mean/variance is 100-1000x faster than BigDecimal
     let mut sum = 0i128; // Use i128 to avoid overflow
     let mut counts = [0usize; 6]; // Counts for each sigma range
 
@@ -189,7 +188,7 @@ fn check(data: &[ValueT], sigma: f64, info: &str) {
         }
     }
 
-    // Calculate mean using f64 (much faster than BigDecimal)
+    // Calculate mean using f64
     let mean_f64 = sum as f64 / N as f64;
 
     // Calculate variance in second pass

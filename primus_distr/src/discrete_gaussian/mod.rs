@@ -2,12 +2,12 @@ use primus_integer::UnsignedInteger;
 use rand::{Rng, distr::Distribution};
 
 mod cdt;
-#[cfg(target_os = "linux")]
+#[cfg(all(target_os = "linux", feature = "high_precision"))]
 mod unix_cdt;
 mod ziggurat;
 
 pub use cdt::CDTSampler;
-#[cfg(target_os = "linux")]
+#[cfg(all(target_os = "linux", feature = "high_precision"))]
 pub use unix_cdt::UnixCDTSampler;
 pub use ziggurat::DiscreteZiggurat;
 

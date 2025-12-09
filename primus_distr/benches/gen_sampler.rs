@@ -27,7 +27,7 @@ fn bench_different_sampler(c: &mut Criterion) {
             });
         }
 
-        #[cfg(target_os = "linux")]
+        #[cfg(all(target_os = "linux", feature = "high_precision"))]
         {
             use primus_distr::UnixCDTSampler;
             group.bench_function(format!("UnixCDTSampler({sigma})"), |b| {

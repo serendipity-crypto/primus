@@ -35,7 +35,7 @@ fn log_sum_exp(log_values: &[f64]) -> f64 {
 }
 
 impl<T: Integer> CDTSampler<T> {
-    /// Generate a CDT sampler using log-space arithmetic (no BigDecimal)
+    /// Generate a CDT sampler using log-space arithmetic
     pub fn new(std_dev: f64, tail_cut: f64) -> Self {
         let max_std_dev = std_dev * tail_cut;
         let mut length = max_std_dev.floor() as usize + 1;
