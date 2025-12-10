@@ -18,4 +18,8 @@ pub use ternary::TernaryDistr;
 #[cfg(all(target_os = "linux", feature = "high_precision"))]
 pub use discrete_gaussian::UnixCDTSampler;
 pub use discrete_gaussian::{CDTSampler, DiscreteGaussian, DiscreteZiggurat};
-pub use signed_discrete_gaussian::SignedDiscreteGaussian;
+#[cfg(all(target_os = "linux", feature = "high_precision"))]
+pub use signed_discrete_gaussian::SignedUnixCDTSampler;
+pub use signed_discrete_gaussian::{
+    SignedCDTSampler, SignedDiscreteGaussian, SignedDiscreteZiggurat,
+};

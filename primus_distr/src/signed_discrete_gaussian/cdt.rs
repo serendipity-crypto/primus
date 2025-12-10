@@ -5,7 +5,7 @@ use rand::distr::Distribution;
 
 /// CDT sampler using log-space computation
 #[derive(Debug, Clone)]
-pub struct CDTSampler<T: Integer> {
+pub struct SignedCDTSampler<T: Integer> {
     std_dev: f64,
     cdt: Vec<u64>,
     phantom: PhantomData<T>,
@@ -34,7 +34,7 @@ fn log_sum_exp(log_values: &[f64]) -> f64 {
     max_log + sum_exp.ln()
 }
 
-impl<T: Integer> CDTSampler<T> {
+impl<T: Integer> SignedCDTSampler<T> {
     /// Generate a CDT sampler using log-space arithmetic
     pub fn new(std_dev: f64, tail_cut: f64) -> Self {
         let max_std_dev = std_dev * tail_cut;
@@ -121,7 +121,7 @@ impl<T: Integer> CDTSampler<T> {
     }
 }
 
-impl<T: Integer> Distribution<T> for CDTSampler<T> {
+impl<T: Integer> Distribution<T> for SignedCDTSampler<T> {
     #[inline]
     fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> T {
         let r: u64 = rng.next_u64();
@@ -147,7 +147,7 @@ mod tests {
 
     #[test]
     fn test_sampler_creation() {
-        let sampler = CDTSampler::<i64>::new(3.19, 12.0);
+        let sampler = SignedCDTSampler::<i64>::new(3.19, 12.0);
 
         // First value should be 0
         assert_eq!(sampler.cdt[0], 0);

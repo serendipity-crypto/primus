@@ -5,7 +5,7 @@ use rand::distr::{Distribution, Uniform};
 
 /// Discrete Ziggurat
 #[derive(Clone)]
-pub struct DiscreteZiggurat<T: Integer> {
+pub struct SignedDiscreteZiggurat<T: Integer> {
     std_dev: f64,
     neg_two_std_dev_sq: f64,
     x: Vec<f64>,
@@ -14,7 +14,7 @@ pub struct DiscreteZiggurat<T: Integer> {
     sample_x: Vec<Uniform<T>>,
 }
 
-impl<T: Integer> DiscreteZiggurat<T> {
+impl<T: Integer> SignedDiscreteZiggurat<T> {
     /// Generate a [`DiscreteZiggurat<T>`]
     pub fn new(std_dev: f64, tail_cut: f64) -> Self {
         let x_m = (tail_cut * std_dev).floor();
@@ -164,7 +164,7 @@ impl<T: Integer> DiscreteZiggurat<T> {
 
 const MASK: f64 = 4294967296.0f64; // 2^{32}
 
-impl<T: Integer> Distribution<T> for DiscreteZiggurat<T> {
+impl<T: Integer> Distribution<T> for SignedDiscreteZiggurat<T> {
     fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> T {
         let pdf = |x: f64| ((x * x) / self.neg_two_std_dev_sq).exp();
         let combine = |sign: bool, x: T| {

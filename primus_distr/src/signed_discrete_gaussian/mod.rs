@@ -8,13 +8,18 @@ mod cdt;
 mod unix_cdt;
 mod ziggurat;
 
+pub use cdt::SignedCDTSampler;
+#[cfg(all(target_os = "linux", feature = "high_precision"))]
+pub use unix_cdt::SignedUnixCDTSampler;
+pub use ziggurat::SignedDiscreteZiggurat;
+
 /// The gaussian distribution `N(mean, std_dev**2)`.
 #[derive(Clone)]
 pub enum SignedDiscreteGaussian<T: Integer> {
     /// CDTSampler
-    Cdt(cdt::CDTSampler<T>),
+    Cdt(SignedCDTSampler<T>),
     /// DiscreteZiggurat
-    Ziggurat(ziggurat::DiscreteZiggurat<T>),
+    Ziggurat(SignedDiscreteZiggurat<T>),
 }
 
 impl<T: Integer> SignedDiscreteGaussian<T> {
@@ -26,13 +31,13 @@ impl<T: Integer> SignedDiscreteGaussian<T> {
     /// -   standard deviation (`σ`, must be finite)
     #[inline]
     pub fn new(std_dev: f64) -> Result<SignedDiscreteGaussian<T>, DistrErr<T>> {
-        if std_dev < 16.0 {
-            Ok(SignedDiscreteGaussian::Cdt(cdt::CDTSampler::new(
+        if std_dev <= 16.0 {
+            Ok(SignedDiscreteGaussian::Cdt(SignedCDTSampler::new(
                 std_dev, 12.0,
             )))
         } else {
             Ok(SignedDiscreteGaussian::Ziggurat(
-                ziggurat::DiscreteZiggurat::new(std_dev, 12.0),
+                SignedDiscreteZiggurat::new(std_dev, 12.0),
             ))
         }
     }

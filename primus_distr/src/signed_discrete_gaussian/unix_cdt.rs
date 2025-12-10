@@ -8,13 +8,13 @@ const PRECISION: u32 = 512;
 
 /// UnixCDTSampler
 #[derive(Debug, Clone)]
-pub struct UnixCDTSampler<T: Integer> {
+pub struct SignedUnixCDTSampler<T: Integer> {
     std_dev: f64,
     cdt: Vec<[u64; 4]>,
     phantom: PhantomData<T>,
 }
 
-impl<T: Integer> UnixCDTSampler<T> {
+impl<T: Integer> SignedUnixCDTSampler<T> {
     /// Generate UnixCDTSampler
     pub fn new(std_dev: f64, tail_cut: f64) -> Self {
         let mut length = (std_dev * tail_cut).floor() as usize + 1;
@@ -96,7 +96,7 @@ impl<T: Integer> UnixCDTSampler<T> {
     }
 }
 
-impl<T: Integer> Distribution<T> for UnixCDTSampler<T> {
+impl<T: Integer> Distribution<T> for SignedUnixCDTSampler<T> {
     #[inline]
     fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> T {
         let mut r = [0u64; 4];

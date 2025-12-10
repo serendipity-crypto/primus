@@ -19,7 +19,7 @@ pub enum DiscreteGaussian<T: UnsignedInteger> {
     /// CDTSampler
     Cdt(CDTSampler<T>),
     /// DiscreteZiggurat
-    Ziggurat(ziggurat::DiscreteZiggurat<T>),
+    Ziggurat(DiscreteZiggurat<T>),
 }
 
 impl<T: UnsignedInteger> DiscreteGaussian<T> {
@@ -36,14 +36,14 @@ impl<T: UnsignedInteger> DiscreteGaussian<T> {
                 std_dev,
                 modulus_minus_one,
             })
-        } else if std_dev < 16.0 {
+        } else if std_dev <= 16.0 {
             Ok(DiscreteGaussian::Cdt(CDTSampler::new(
                 std_dev,
                 12.0,
                 modulus_minus_one,
             )))
         } else {
-            Ok(DiscreteGaussian::Ziggurat(ziggurat::DiscreteZiggurat::new(
+            Ok(DiscreteGaussian::Ziggurat(DiscreteZiggurat::new(
                 std_dev,
                 12.0,
                 modulus_minus_one,

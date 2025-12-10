@@ -25,7 +25,7 @@ const TAIL_CUT: f64 = 12.0;
 const SIGMA_RANGES: [f64; 6] = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
 
 fn main() {
-    let sigmas: Vec<f64> = vec![15.0, 16.0, 17.0];
+    let sigmas: Vec<f64> = vec![0.8, 1.5, 3.19, 9.0, 13.0, 15.0, 16.0, 17.0];
 
     println!("\n{}", "═".repeat(100));
     println!("Discrete Gaussian Sampler Comparison");
@@ -79,21 +79,25 @@ fn compare_samplers_at_sigma(sigma: f64) {
     let mut rng = rand::rng();
     let mut all_stats = Vec::new();
 
-    // Test CDTSamplerLogSpace (f64 precision)
+    let mut i = 1;
+
+    // Test CDTSampler (f64 precision)
     {
-        println!("\n[1/2] Testing CDTSamplerLogSpace ...");
+        println!("\n[{i}] Testing CDTSampler ...");
         let sampler = primus_distr::CDTSampler::<ValueT>::new(sigma, TAIL_CUT, Q - 1);
 
         let start = Instant::now();
         let data: Vec<ValueT> = sampler.sample_iter(&mut rng).take(N).collect();
         let sample_time_ms = start.elapsed().as_secs_f64() * 1000.0;
 
-        let stats = compute_stats("CDTSamplerLogSpace (f64)", &data, sigma, sample_time_ms);
+        let stats = compute_stats("CDTSampler (f64)", &data, sigma, sample_time_ms);
         all_stats.push(stats);
+        i += 1;
     }
 
+    #[allow(unused_assignments)]
     {
-        println!("[2/2] Testing Discrete Ziggurat ...");
+        println!("[{i}] Testing Discrete Ziggurat ...");
         let sampler = primus_distr::DiscreteZiggurat::<ValueT>::new(sigma, TAIL_CUT, Q - 1);
 
         let start = Instant::now();
@@ -101,6 +105,20 @@ fn compare_samplers_at_sigma(sigma: f64) {
         let sample_time_ms = start.elapsed().as_secs_f64() * 1000.0;
 
         let stats = compute_stats("Discrete Ziggurat", &data, sigma, sample_time_ms);
+        all_stats.push(stats);
+        i += 1;
+    }
+
+    #[cfg(all(target_os = "linux", feature = "high_precision"))]
+    {
+        println!("[{i}] Testing UnixCDTSampler ...");
+        let sampler = primus_distr::UnixCDTSampler::<ValueT>::new(sigma, TAIL_CUT, Q - 1);
+
+        let start = Instant::now();
+        let data: Vec<ValueT> = sampler.sample_iter(&mut rng).take(N).collect();
+        let sample_time_ms = start.elapsed().as_secs_f64() * 1000.0;
+
+        let stats = compute_stats("UnixCDTSampler", &data, sigma, sample_time_ms);
         all_stats.push(stats);
     }
 
