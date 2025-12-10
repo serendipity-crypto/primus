@@ -2,7 +2,6 @@
 
 use criterion::{Criterion, criterion_group, criterion_main};
 
-use primus_distr::DiscreteZiggurat;
 use rand::distr::Distribution;
 
 const N: usize = 100_000;
@@ -11,8 +10,10 @@ const MODULUS_MINUS_ONE: u64 = 1125899906826241 - 1;
 fn bench_sample(c: &mut Criterion) {
     let mut group = c.benchmark_group("Sample");
 
-    for sigma in [3.19, 10.0, 16.0, 17.0, 20.0, 25.0] {
+    for sigma in [3.19, 10.0, 16.0, 20.0, 25.0] {
         if sigma >= 10.0 {
+            use primus_distr::DiscreteZiggurat;
+
             let mut rng = rand::rng();
             let ziggurat = DiscreteZiggurat::new(sigma, 12.0, MODULUS_MINUS_ONE);
             group.bench_function(format!("DiscreteZiggurat({sigma})"), |b| {

@@ -12,7 +12,7 @@ const TAIL_CUT: f64 = 12.0;
 fn bench_different_sampler(c: &mut Criterion) {
     let mut group = c.benchmark_group("GenSampler");
 
-    for sigma in [0.8, 1.0, 1.5, 2.0, 2.5, 3.0, 10.0, 15.0, 20.0, 25.0] {
+    for sigma in [1.0, 3.0, 10.0, 15.0, 20.0, 25.0] {
         if sigma >= 10.0 {
             group.bench_function(format!("DiscreteZiggurat({sigma})"), |b| {
                 b.iter(|| {
