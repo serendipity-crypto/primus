@@ -2,6 +2,490 @@ use core::cmp::Ordering;
 
 use crate::{UnsignedInteger, izip};
 
+mod digits;
+
+pub use digits::{Digits, DigitsMut};
+
+#[repr(transparent)]
+pub struct BigUint<S, T = <S as Digits>::Limb>(pub S)
+where
+    S: Digits<Limb = T>,
+    T: UnsignedInteger;
+
+impl<S, A, T> PartialEq<BigUint<A, T>> for BigUint<S, T>
+where
+    S: Digits<Limb = T>,
+    A: Digits<Limb = T>,
+    T: UnsignedInteger,
+{
+    #[inline]
+    fn eq(&self, other: &BigUint<A, T>) -> bool {
+        debug_assert_eq!(self.len(), other.len());
+        self.iter().zip(other.iter()).all(|(&a, &b)| a == b)
+    }
+}
+
+impl<S, T> BigUint<S, T>
+where
+    S: Digits<Limb = T>,
+    T: UnsignedInteger,
+{
+    #[inline(always)]
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    #[inline(always)]
+    pub fn digits(&self) -> &[T] {
+        self.0.digits()
+    }
+
+    #[inline(always)]
+    pub fn iter<'a>(&'a self) -> std::slice::Iter<'a, T> {
+        self.0.iter()
+    }
+
+    #[inline]
+    pub fn is_zero(&self) -> bool {
+        self.iter().all(T::is_zero)
+    }
+
+    /// Gets the bits count of the big unsigned integer.
+    #[must_use]
+    #[inline]
+    pub fn bits_count(&self) -> u32 {
+        self.iter()
+            .enumerate()
+            .rev()
+            .find(|(_, v)| !v.is_zero())
+            .map_or(0, |(i, v)| T::BITS * (i as u32 + 1) - v.leading_zeros())
+    }
+
+    /// Adds a value to the big integer, returning true if there was a carry.
+    #[inline]
+    pub fn add_value_inplace<A>(&self, value: T, result: &mut BigUint<A>) -> bool
+    where
+        A: DigitsMut<Limb = T>,
+    {
+        debug_assert_eq!(self.len(), result.len());
+
+        let mut carry;
+
+        let mut a_iter = self.iter();
+        let mut b_iter = result.iter_mut();
+
+        let a_first = a_iter.next().unwrap();
+        let b_first = b_iter.next().unwrap();
+
+        (*b_first, carry) = a_first.overflowing_add(value);
+
+        while carry {
+            if let Some(a_next) = a_iter.next()
+                && let Some(b_next) = b_iter.next()
+            {
+                (*b_next, carry) = a_next.overflowing_add(T::ONE);
+            } else {
+                return carry;
+            }
+        }
+
+        for (a, b) in a_iter.zip(b_iter) {
+            *b = *a;
+        }
+
+        carry
+    }
+
+    /// Subtracts a value to the big integer, returning true if there was a borrow.
+    #[inline]
+    pub fn sub_value_inplace<A>(&self, value: T, result: &mut BigUint<A>) -> bool
+    where
+        A: DigitsMut<Limb = T>,
+    {
+        debug_assert_eq!(self.len(), result.len());
+
+        let mut borrow;
+
+        let mut a_iter = self.iter();
+        let mut b_iter = result.iter_mut();
+
+        let a_first = a_iter.next().unwrap();
+        let b_first = b_iter.next().unwrap();
+
+        (*b_first, borrow) = a_first.overflowing_sub(value);
+
+        while borrow {
+            if let Some(a_next) = a_iter.next()
+                && let Some(b_next) = b_iter.next()
+            {
+                (*b_next, borrow) = a_next.overflowing_sub(T::ONE);
+            } else {
+                return borrow;
+            }
+        }
+
+        for (a, b) in a_iter.zip(b_iter) {
+            *b = *a;
+        }
+
+        borrow
+    }
+
+    /// Multiplies the big integer by a value, storing the result in another big integer.
+    #[inline]
+    pub fn mul_value_inplace<A>(&self, value: T, result: &mut BigUint<A>) -> T
+    where
+        A: DigitsMut<Limb = T>,
+    {
+        debug_assert_eq!(result.len(), self.len());
+
+        if value.is_zero() {
+            result.set_zero();
+            return T::ZERO;
+        }
+
+        let mut carry = T::ZERO;
+        for (ele, res) in self.iter().zip(result.iter_mut()) {
+            (*res, carry) = value.carrying_mul(*ele, carry);
+        }
+
+        carry
+    }
+
+    /// Multiplies the big integer by a value, then add to another big integer.
+    #[inline]
+    pub fn mul_value_add_inplace<A>(&self, value: T, result: &mut BigUint<A>) -> T
+    where
+        A: DigitsMut<Limb = T>,
+    {
+        debug_assert_eq!(result.len(), self.len());
+
+        if value.is_zero() {
+            return T::ZERO;
+        }
+
+        let mut carry = T::ZERO;
+        for (ele, res) in self.iter().zip(result.iter_mut()) {
+            (*res, carry) = value.carrying_mul_add(*ele, *res, carry);
+        }
+
+        carry
+    }
+
+    /// Adds two big integers to the result, returning true if there was a carry.
+    #[inline]
+    pub fn add_inplace<A, B>(&self, other: &BigUint<A>, result: &mut BigUint<B>) -> bool
+    where
+        A: Digits<Limb = T>,
+        B: DigitsMut<Limb = T>,
+    {
+        debug_assert_eq!(self.len(), other.len());
+        debug_assert_eq!(self.len(), result.len());
+
+        let mut carry = false;
+        for (xs, ys, zs) in izip!(self.iter(), other.iter(), result.iter_mut()) {
+            (*zs, carry) = xs.carrying_add(*ys, carry);
+        }
+
+        carry
+    }
+
+    /// Subtracts another big integer from this one, returning true if there was a borrow.
+    #[inline]
+    pub fn sub_inplace<A, B>(&self, other: &BigUint<A>, result: &mut BigUint<B>) -> bool
+    where
+        A: Digits<Limb = T>,
+        B: DigitsMut<Limb = T>,
+    {
+        debug_assert_eq!(self.len(), other.len());
+        debug_assert_eq!(self.len(), result.len());
+
+        let mut borrow = false;
+        for (xs, ys, zs) in izip!(self.iter(), other.iter(), result.iter_mut()) {
+            (*zs, borrow) = xs.borrowing_sub(*ys, borrow);
+        }
+
+        borrow
+    }
+
+    /// Compares this big integer with another, returning an [`Ordering`].
+    #[inline]
+    pub fn cmp<A>(&self, other: &BigUint<A>) -> Ordering
+    where
+        A: Digits<Limb = T>,
+    {
+        debug_assert_eq!(self.len(), other.len());
+
+        for (a, b) in self.iter().rev().zip(other.iter().rev()) {
+            match a.cmp(b) {
+                Ordering::Equal => continue,
+                neq => return neq,
+            }
+        }
+
+        Ordering::Equal
+    }
+
+    /// Adds two big integers to the result modulo a given modulus.
+    #[inline]
+    pub fn add_modulo_inplace<A, B, C>(
+        &self,
+        other: &BigUint<A>,
+        result: &mut BigUint<B>,
+        modulus: &BigUint<C>,
+    ) where
+        A: Digits<Limb = T>,
+        B: DigitsMut<Limb = T>,
+        C: Digits<Limb = T>,
+    {
+        debug_assert!(
+            self.len() == other.len() && self.len() == result.len() && self.len() == modulus.len()
+        );
+        debug_assert!(self.cmp(modulus).is_lt());
+        debug_assert!(other.cmp(modulus).is_lt());
+
+        let carry = self.add_inplace(other, result);
+        if carry || result.cmp(modulus).is_ge() {
+            let _ = result.sub_assign(modulus);
+        }
+    }
+
+    /// Subs another big integer to this one modulo a given modulus.
+    #[inline]
+    pub fn sub_modulo_inplace<A, B, C>(
+        &self,
+        other: &BigUint<A>,
+        result: &mut BigUint<B>,
+        modulus: &BigUint<C>,
+    ) where
+        A: Digits<Limb = T>,
+        B: DigitsMut<Limb = T>,
+        C: Digits<Limb = T>,
+    {
+        debug_assert!(
+            self.len() == other.len() && self.len() == result.len() && self.len() == modulus.len()
+        );
+        debug_assert!(self.cmp(modulus).is_lt());
+        debug_assert!(other.cmp(modulus).is_lt());
+
+        if self.sub_inplace(other, result) {
+            let _ = result.add_assign(modulus);
+        }
+    }
+
+    /// Negates the big integer modulo a given modulus.
+    #[inline]
+    pub fn neg_modulo_inplace<A, B>(&self, result: &mut BigUint<A>, modulus: &BigUint<B>)
+    where
+        A: DigitsMut<Limb = T>,
+        B: Digits<Limb = T>,
+    {
+        debug_assert!(self.len() == result.len() && self.len() == modulus.len());
+        debug_assert!(self.cmp(modulus).is_lt());
+
+        if self.is_zero() {
+            result.set_zero();
+        } else {
+            let mut borrow = false;
+            for (xs, ys, zs) in izip!(self.iter(), modulus.iter(), result.iter_mut()) {
+                (*zs, borrow) = ys.borrowing_sub(*xs, borrow);
+            }
+        }
+    }
+}
+
+impl<S, T> BigUint<S, T>
+where
+    S: DigitsMut<Limb = T>,
+    T: UnsignedInteger,
+{
+    #[inline(always)]
+    pub fn digits_mut(&mut self) -> &mut [T] {
+        self.0.digits_mut()
+    }
+
+    #[inline(always)]
+    pub fn iter_mut<'a>(&'a mut self) -> std::slice::IterMut<'a, T> {
+        self.0.iter_mut()
+    }
+
+    #[inline(always)]
+    pub fn set_zero(&mut self) {
+        self.0.fill(T::ZERO);
+    }
+
+    /// Left shifts the big integer.
+    #[inline]
+    pub fn left_shift_assign(&mut self, bits: u32) -> T {
+        if bits != 0 {
+            let mut pre = T::ZERO;
+            let mut temp = T::ZERO;
+            let right_shift_bits = T::BITS - bits;
+            self.iter_mut().for_each(|value| {
+                temp = *value;
+                *value = *value << bits | pre >> right_shift_bits;
+                pre = temp;
+            });
+            pre >> right_shift_bits
+        } else {
+            T::ZERO
+        }
+    }
+
+    /// Right shifts the big integer.
+    #[inline]
+    pub fn right_shift_assign(&mut self, bits: u32) {
+        if bits != 0 {
+            let mut pre = T::ZERO;
+            let mut temp = T::ZERO;
+            let left_shift_bits = T::BITS - bits;
+            self.iter_mut().rev().for_each(|value| {
+                temp = *value;
+                *value = pre << left_shift_bits | *value >> bits;
+                pre = temp;
+            });
+        }
+    }
+
+    /// Adds a value to the big integer, returning true if there was a carry.
+    #[inline]
+    pub fn add_value_assign(&mut self, value: T) -> bool {
+        let mut carry;
+        match self.digits_mut() {
+            [first, other @ ..] => {
+                (*first, carry) = first.overflowing_add(value);
+                for v in other.iter_mut() {
+                    if !carry {
+                        return false;
+                    }
+                    (*v, carry) = (*v).overflowing_add(T::ONE);
+                }
+                carry
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    /// Subtracts a value from the big integer, returning true if there was a borrow.
+    #[inline]
+    pub fn sub_value_assign(&mut self, value: T) -> bool {
+        let mut borrow;
+        match self.digits_mut() {
+            [first, other @ ..] => {
+                (*first, borrow) = first.overflowing_sub(value);
+                for v in other.iter_mut() {
+                    if !borrow {
+                        return false;
+                    }
+                    (*v, borrow) = (*v).overflowing_sub(T::ONE);
+                }
+                borrow
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    /// Multiplies the big integer by a value, returning any carry that results.
+    #[inline]
+    pub fn mul_value_assign(&mut self, value: T) -> T {
+        if value.is_zero() {
+            self.set_zero();
+            return T::ZERO;
+        }
+
+        let mut carry = T::ZERO;
+        for ele in self.iter_mut() {
+            (*ele, carry) = value.carrying_mul(*ele, carry);
+        }
+
+        carry
+    }
+
+    /// Adds another big integer to this one, returning true if there was a carry.
+    #[inline]
+    pub fn add_assign<A>(&mut self, other: &BigUint<A>) -> bool
+    where
+        A: Digits<Limb = T>,
+    {
+        debug_assert_eq!(self.len(), other.len());
+
+        let mut carry = false;
+
+        for (xs, ys) in self.iter_mut().zip(other.iter()) {
+            (*xs, carry) = xs.carrying_add(*ys, carry);
+        }
+
+        carry
+    }
+
+    /// Subtracts another big integer from this one, returning true if there was a borrow.
+    #[inline]
+    pub fn sub_assign<A>(&mut self, other: &BigUint<A>) -> bool
+    where
+        A: Digits<Limb = T>,
+    {
+        debug_assert_eq!(self.len(), other.len());
+
+        let mut borrow = false;
+
+        for (xs, ys) in self.iter_mut().zip(other.iter()) {
+            (*xs, borrow) = xs.borrowing_sub(*ys, borrow);
+        }
+
+        borrow
+    }
+
+    /// Adds another big integer to this one modulo a given modulus.
+    #[inline]
+    pub fn add_modulo_assign<A, B>(&mut self, other: &BigUint<A>, modulus: &BigUint<B>)
+    where
+        A: Digits<Limb = T>,
+        B: Digits<Limb = T>,
+    {
+        debug_assert!(self.len() == other.len() && self.len() == modulus.len());
+        debug_assert!(self.cmp(modulus).is_lt());
+        debug_assert!(other.cmp(modulus).is_lt());
+
+        let carry = self.add_assign(other);
+        if carry || self.cmp(modulus).is_ge() {
+            let _ = self.sub_assign(modulus);
+        }
+    }
+
+    /// Subs another big integer from this one modulo a given modulus.
+    #[inline]
+    pub fn sub_modulo_assign<A, B>(&mut self, other: &BigUint<A>, modulus: &BigUint<B>)
+    where
+        A: Digits<Limb = T>,
+        B: Digits<Limb = T>,
+    {
+        debug_assert!(self.len() == other.len() && self.len() == modulus.len());
+        debug_assert!(self.cmp(modulus).is_lt());
+        debug_assert!(other.cmp(modulus).is_lt());
+
+        if self.sub_assign(other) {
+            let _ = self.add_assign(modulus);
+        }
+    }
+
+    /// Negates the big integer modulo a given modulus.
+    #[inline]
+    pub fn neg_modulo_assign<A>(&mut self, modulus: &BigUint<A>)
+    where
+        A: Digits<Limb = T>,
+    {
+        debug_assert!(self.len() == modulus.len());
+        debug_assert!(self.cmp(modulus).is_lt());
+
+        if !self.is_zero() {
+            let mut borrow = false;
+            for (xs, ys) in self.iter_mut().zip(modulus.iter()) {
+                (*xs, borrow) = ys.borrowing_sub(*xs, borrow);
+            }
+        }
+    }
+}
+
 /// A trait for big integer types represented as slices of smaller unsigned integer types.
 pub trait BigInteger: AsRef<[Self::ValueT]> + AsMut<[Self::ValueT]> {
     /// The underlying unsigned integer type used in the slice representation.
