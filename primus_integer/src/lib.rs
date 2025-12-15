@@ -9,6 +9,8 @@ mod unsigned_integer;
 
 mod big_integer;
 
+mod data;
+
 #[cfg(all(feature = "nightly", feature = "simd"))]
 mod simd;
 
@@ -20,6 +22,8 @@ pub use integer::Integer;
 pub use unsigned_integer::UnsignedInteger;
 
 pub use big_integer::*;
+
+pub use data::{Data, DataMut, RawData};
 
 #[cfg(all(feature = "nightly", feature = "simd"))]
 pub use simd::{SimdArray, SimdMaskArray, SimdUnsignedInteger};

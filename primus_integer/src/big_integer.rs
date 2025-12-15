@@ -1,33 +1,47 @@
 use core::cmp::Ordering;
 
-use crate::{UnsignedInteger, izip};
-
-mod digits;
-
-pub use digits::{Digits, DigitsMut};
+use crate::{Data, DataMut, RawData, UnsignedInteger, izip};
 
 #[repr(transparent)]
-pub struct BigUint<S, T = <S as Digits>::Limb>(pub S)
+pub struct BigUint<S>(pub S)
 where
-    S: Digits<Limb = T>,
-    T: UnsignedInteger;
+    S: RawData,
+    <S as RawData>::Elem: UnsignedInteger;
 
-impl<S, A, T> PartialEq<BigUint<A, T>> for BigUint<S, T>
+impl<S> Clone for BigUint<S>
 where
-    S: Digits<Limb = T>,
-    A: Digits<Limb = T>,
+    S: RawData + Clone,
+    <S as RawData>::Elem: UnsignedInteger,
+{
+    #[inline(always)]
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
+impl<S> Copy for BigUint<S>
+where
+    S: RawData + Copy,
+    <S as RawData>::Elem: UnsignedInteger,
+{
+}
+
+impl<S, A, T> PartialEq<BigUint<A>> for BigUint<S>
+where
+    S: Data<Elem = T>,
+    A: Data<Elem = T>,
     T: UnsignedInteger,
 {
     #[inline]
-    fn eq(&self, other: &BigUint<A, T>) -> bool {
-        debug_assert_eq!(self.len(), other.len());
+    fn eq(&self, other: &BigUint<A>) -> bool {
+        assert_eq!(self.len(), other.len());
         self.iter().zip(other.iter()).all(|(&a, &b)| a == b)
     }
 }
 
-impl<S, T> BigUint<S, T>
+impl<S, T> BigUint<S>
 where
-    S: Digits<Limb = T>,
+    S: Data<Elem = T>,
     T: UnsignedInteger,
 {
     #[inline(always)]
@@ -37,7 +51,7 @@ where
 
     #[inline(always)]
     pub fn digits(&self) -> &[T] {
-        self.0.digits()
+        self.0.as_slice()
     }
 
     #[inline(always)]
@@ -65,7 +79,7 @@ where
     #[inline]
     pub fn add_value_inplace<A>(&self, value: T, result: &mut BigUint<A>) -> bool
     where
-        A: DigitsMut<Limb = T>,
+        A: DataMut<Elem = T>,
     {
         debug_assert_eq!(self.len(), result.len());
 
@@ -100,7 +114,7 @@ where
     #[inline]
     pub fn sub_value_inplace<A>(&self, value: T, result: &mut BigUint<A>) -> bool
     where
-        A: DigitsMut<Limb = T>,
+        A: DataMut<Elem = T>,
     {
         debug_assert_eq!(self.len(), result.len());
 
@@ -135,7 +149,7 @@ where
     #[inline]
     pub fn mul_value_inplace<A>(&self, value: T, result: &mut BigUint<A>) -> T
     where
-        A: DigitsMut<Limb = T>,
+        A: DataMut<Elem = T>,
     {
         debug_assert_eq!(result.len(), self.len());
 
@@ -156,7 +170,7 @@ where
     #[inline]
     pub fn mul_value_add_inplace<A>(&self, value: T, result: &mut BigUint<A>) -> T
     where
-        A: DigitsMut<Limb = T>,
+        A: DataMut<Elem = T>,
     {
         debug_assert_eq!(result.len(), self.len());
 
@@ -176,8 +190,8 @@ where
     #[inline]
     pub fn add_inplace<A, B>(&self, other: &BigUint<A>, result: &mut BigUint<B>) -> bool
     where
-        A: Digits<Limb = T>,
-        B: DigitsMut<Limb = T>,
+        A: Data<Elem = T>,
+        B: DataMut<Elem = T>,
     {
         debug_assert_eq!(self.len(), other.len());
         debug_assert_eq!(self.len(), result.len());
@@ -194,8 +208,8 @@ where
     #[inline]
     pub fn sub_inplace<A, B>(&self, other: &BigUint<A>, result: &mut BigUint<B>) -> bool
     where
-        A: Digits<Limb = T>,
-        B: DigitsMut<Limb = T>,
+        A: Data<Elem = T>,
+        B: DataMut<Elem = T>,
     {
         debug_assert_eq!(self.len(), other.len());
         debug_assert_eq!(self.len(), result.len());
@@ -212,7 +226,7 @@ where
     #[inline]
     pub fn cmp<A>(&self, other: &BigUint<A>) -> Ordering
     where
-        A: Digits<Limb = T>,
+        A: Data<Elem = T>,
     {
         debug_assert_eq!(self.len(), other.len());
 
@@ -234,9 +248,9 @@ where
         result: &mut BigUint<B>,
         modulus: &BigUint<C>,
     ) where
-        A: Digits<Limb = T>,
-        B: DigitsMut<Limb = T>,
-        C: Digits<Limb = T>,
+        A: Data<Elem = T>,
+        B: DataMut<Elem = T>,
+        C: Data<Elem = T>,
     {
         debug_assert!(
             self.len() == other.len() && self.len() == result.len() && self.len() == modulus.len()
@@ -258,9 +272,9 @@ where
         result: &mut BigUint<B>,
         modulus: &BigUint<C>,
     ) where
-        A: Digits<Limb = T>,
-        B: DigitsMut<Limb = T>,
-        C: Digits<Limb = T>,
+        A: Data<Elem = T>,
+        B: DataMut<Elem = T>,
+        C: Data<Elem = T>,
     {
         debug_assert!(
             self.len() == other.len() && self.len() == result.len() && self.len() == modulus.len()
@@ -277,8 +291,8 @@ where
     #[inline]
     pub fn neg_modulo_inplace<A, B>(&self, result: &mut BigUint<A>, modulus: &BigUint<B>)
     where
-        A: DigitsMut<Limb = T>,
-        B: Digits<Limb = T>,
+        A: DataMut<Elem = T>,
+        B: Data<Elem = T>,
     {
         debug_assert!(self.len() == result.len() && self.len() == modulus.len());
         debug_assert!(self.cmp(modulus).is_lt());
@@ -294,14 +308,14 @@ where
     }
 }
 
-impl<S, T> BigUint<S, T>
+impl<S, T> BigUint<S>
 where
-    S: DigitsMut<Limb = T>,
+    S: DataMut<Elem = T>,
     T: UnsignedInteger,
 {
     #[inline(always)]
     pub fn digits_mut(&mut self) -> &mut [T] {
-        self.0.digits_mut()
+        self.0.as_mut_slice()
     }
 
     #[inline(always)]
@@ -405,7 +419,7 @@ where
     #[inline]
     pub fn add_assign<A>(&mut self, other: &BigUint<A>) -> bool
     where
-        A: Digits<Limb = T>,
+        A: Data<Elem = T>,
     {
         debug_assert_eq!(self.len(), other.len());
 
@@ -422,7 +436,7 @@ where
     #[inline]
     pub fn sub_assign<A>(&mut self, other: &BigUint<A>) -> bool
     where
-        A: Digits<Limb = T>,
+        A: Data<Elem = T>,
     {
         debug_assert_eq!(self.len(), other.len());
 
@@ -439,8 +453,8 @@ where
     #[inline]
     pub fn add_modulo_assign<A, B>(&mut self, other: &BigUint<A>, modulus: &BigUint<B>)
     where
-        A: Digits<Limb = T>,
-        B: Digits<Limb = T>,
+        A: Data<Elem = T>,
+        B: Data<Elem = T>,
     {
         debug_assert!(self.len() == other.len() && self.len() == modulus.len());
         debug_assert!(self.cmp(modulus).is_lt());
@@ -456,8 +470,8 @@ where
     #[inline]
     pub fn sub_modulo_assign<A, B>(&mut self, other: &BigUint<A>, modulus: &BigUint<B>)
     where
-        A: Digits<Limb = T>,
-        B: Digits<Limb = T>,
+        A: Data<Elem = T>,
+        B: Data<Elem = T>,
     {
         debug_assert!(self.len() == other.len() && self.len() == modulus.len());
         debug_assert!(self.cmp(modulus).is_lt());
@@ -472,7 +486,7 @@ where
     #[inline]
     pub fn neg_modulo_assign<A>(&mut self, modulus: &BigUint<A>)
     where
-        A: Digits<Limb = T>,
+        A: Data<Elem = T>,
     {
         debug_assert!(self.len() == modulus.len());
         debug_assert!(self.cmp(modulus).is_lt());
