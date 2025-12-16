@@ -1,12 +1,14 @@
 use core::cmp::Ordering;
 
-use crate::{Data, DataMut, RawData, UnsignedInteger, izip};
+use crate::{Data, DataMut, RawData, UnsignedInteger, impl_iters, izip};
 
 #[repr(transparent)]
 pub struct BigUint<S>(pub S)
 where
     S: RawData,
     <S as RawData>::Elem: UnsignedInteger;
+
+impl_iters!(BigUint, bit_uint);
 
 impl<S> Clone for BigUint<S>
 where
@@ -935,35 +937,35 @@ impl<T: UnsignedInteger> BigIntegerOps for [T] {
 
 /// Multiplies many values together, returning the result as a big integer slice.
 pub fn multiply_many_values<T: UnsignedInteger>(values: &[T]) -> Vec<T> {
-    let mut result = Vec::with_capacity(values.len());
-    result.push(values[0]);
+    let mut result = BigUint(Vec::with_capacity(values.len()));
+    result.0.push(values[0]);
     for &v in values.iter().skip(1) {
-        let carry = result.slice_mul_value_assign(v);
+        let carry = result.mul_value_assign(v);
         if !carry.is_zero() {
-            result.push(carry);
+            result.0.push(carry);
         }
     }
-    result.shrink_to_fit();
-    result
+    result.0.shrink_to_fit();
+    result.0
 }
 
 /// Multiplies many values together, except for one specified by index, returning the result as a big integer slice.
 pub fn multiply_many_values_except<T: UnsignedInteger>(values: &[T], except: usize) -> Vec<T> {
-    let mut result = Vec::with_capacity(values.len() - 1);
-    result.push(T::ONE);
+    let mut result = BigUint(Vec::with_capacity(values.len() - 1));
+    result.0.push(T::ONE);
 
     for (i, &v) in values.iter().enumerate() {
         if i == except {
             continue;
         }
-        let carry = result.as_mut_slice().slice_mul_value_assign(v);
+        let carry = result.mul_value_assign(v);
         if !carry.is_zero() {
-            result.push(carry);
+            result.0.push(carry);
         }
     }
 
-    result.shrink_to_fit();
-    result
+    result.0.shrink_to_fit();
+    result.0
 }
 
 /// Multiplies many values together, except for one specified by index, returning the result as a big integer slice.
@@ -977,7 +979,7 @@ pub fn multiply_many_values_except_inplace<T: UnsignedInteger>(
     let mut len = 1;
 
     for (_, &v) in values.iter().enumerate().filter(|(i, _)| *i != except) {
-        let carry = result[0..len].slice_mul_value_assign(v);
+        let carry = BigUint(&mut result[0..len]).mul_value_assign(v);
         if !carry.is_zero() {
             result[len] = carry;
             len += 1;
@@ -1089,91 +1091,5 @@ mod tests {
         a.sub_modulo_assign(&b, &modulus);
         let r = (a_raw + m_raw - b_raw) % m_raw;
         assert_eq!(r, compose(a.digits()))
-    }
-
-    #[test]
-    fn test_big_integer_ops() {
-        let mut rng = rand::rng();
-        let moduli: [ValueT; 3] = [134215681, 134176769, 132120577];
-        let composed_modulus = multiply_many_values(&moduli);
-        let m = compose(&composed_modulus);
-
-        let bits_count = composed_modulus.bits_count();
-        assert_eq!(bits_count, 128 - m.leading_zeros());
-
-        let distrs = moduli.map(|m| Uniform::new(0, m).unwrap());
-
-        let a_residues = distrs.map(|distr| distr.sample(&mut rng));
-        let mut a_vec = multiply_many_values(&a_residues);
-        let mut a = compose(&a_vec);
-
-        a_vec.slice_right_shift_assign(3);
-        a >>= 3;
-        assert_eq!(a, compose(&a_vec));
-
-        let carry = a_vec.slice_left_shift_assign(3);
-        assert_eq!(carry, 0);
-        a <<= 3;
-        assert_eq!(a, compose(&a_vec));
-
-        let v: ValueT = rng.random();
-        let _r = a_vec.slice_add_value_assign(v);
-        a += v as u128;
-        assert_eq!(a, compose(&a_vec));
-
-        let _r = a_vec.slice_sub_value_assign(v);
-        a -= v as u128;
-        assert_eq!(a, compose(&a_vec));
-
-        let r = a_vec.slice_mul_value_assign(v);
-        let mut a_vecp = a_vec.clone();
-        a_vecp.push(r);
-        a *= v as u128;
-        assert_eq!(a, compose(&a_vecp));
-
-        let mut result = vec![0; a_vec.len()];
-        a = compose(&a_vec);
-        let _carry = a_vec.slice_add_value_inplace(v, &mut result);
-        assert_eq!(a + v as u128, compose(&result));
-
-        let _borrow = a_vec.slice_sub_value_inplace(v, &mut result);
-        assert_eq!(a - v as u128, compose(&result));
-
-        let r = a_vec.slice_mul_value_inplace(v, &mut result);
-        result.push(r);
-        assert_eq!(a * v as u128, compose(&result));
-
-        let a_residues = distrs.map(|distr| distr.sample(&mut rng));
-        let b_residues = distrs.map(|distr| distr.sample(&mut rng));
-        let mut a_vec = multiply_many_values(&a_residues);
-        let b_vec = multiply_many_values(&b_residues);
-        let a = compose(&a_vec);
-        let b = compose(&b_vec);
-
-        let mut result = b_vec.clone();
-        let carry = a_vec.slice_mul_value_add_inplace(v, &mut result);
-        result.push(carry);
-        assert_eq!(a * v as u128 + b, compose(&result));
-
-        let _r = a_vec.slice_add_assign(&b_vec);
-        assert_eq!(a + b, compose(&a_vec));
-
-        let _r = a_vec.slice_sub_assign(&b_vec);
-        assert_eq!(a, compose(&a_vec));
-
-        a_vec.slice_add_modulo_assign(&b_vec, &composed_modulus);
-        let r = (a + b) % m;
-        assert_eq!(r, compose(&a_vec));
-
-        let a_residues = distrs.map(|distr| distr.sample(&mut rng));
-        let b_residues = distrs.map(|distr| distr.sample(&mut rng));
-        let mut a_vec = multiply_many_values(&a_residues);
-        let b_vec = multiply_many_values(&b_residues);
-        let a = compose(&a_vec);
-        let b = compose(&b_vec);
-
-        a_vec.slice_sub_modulo_assign(&b_vec, &composed_modulus);
-        let r = (a + m - b) % m;
-        assert_eq!(r, compose(&a_vec))
     }
 }
