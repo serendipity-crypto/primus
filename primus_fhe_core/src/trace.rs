@@ -1,9 +1,8 @@
 use std::sync::Arc;
 
 use primus_factor::ShoupFactor;
-use primus_integer::{AsInto, UnsignedInteger};
+use primus_integer::{AsInto, Data, DataMut, RawData, UnsignedInteger};
 use primus_ntt::DcrtTable;
-use primus_poly::{Data, DataMut, RawData};
 use primus_reduce::FieldContext;
 use primus_rns::RNSBase;
 

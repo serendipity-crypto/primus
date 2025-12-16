@@ -2,12 +2,9 @@ use std::mem::MaybeUninit;
 
 use primus_distr::DiscreteGaussian;
 use primus_factor::ShoupFactor;
-use primus_integer::UnsignedInteger;
+use primus_integer::{Data, DataMut, DataOwned, RawData, UnsignedInteger};
 use primus_ntt::NttTable;
-use primus_poly::{
-    ArrayBase, Data, DataMut, DataOwned, NttPolynomial, Polynomial, PolynomialIter,
-    PolynomialIterMut, RawData,
-};
+use primus_poly::{ArrayBase, NttPolynomial, Polynomial, PolynomialIter, PolynomialIterMut};
 use primus_reduce::{
     FieldContext,
     ops::{ReduceNeg, ReduceNegAssign},
@@ -200,7 +197,7 @@ where
 
         assert!(index < poly_len);
 
-        let src = self.0.as_ref();
+        let src = self.0.as_slice();
         let split = index + 1;
 
         let mut data: Vec<MaybeUninit<T>> = Vec::with_capacity(poly_len + 1);
@@ -234,7 +231,7 @@ where
         M: Copy + ReduceNeg<T, Output = T> + ReduceNegAssign<T>,
     {
         let poly_len = self.0.len() / 2;
-        let src = self.0.as_ref();
+        let src = self.0.as_slice();
 
         let mut data: Vec<MaybeUninit<T>> = Vec::with_capacity(poly_len + count);
         unsafe {
@@ -267,7 +264,7 @@ where
         M: Copy + ReduceNeg<T, Output = T> + ReduceNegAssign<T>,
     {
         let poly_len = self.0.len() / 2;
-        let src = self.0.as_ref();
+        let src = self.0.as_slice();
 
         let mut data: Vec<MaybeUninit<T>> = Vec::with_capacity(poly_len + 1);
         unsafe {

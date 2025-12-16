@@ -1,11 +1,9 @@
-use primus_integer::UnsignedInteger;
+use primus_integer::{Data, DataMut, RawData, UnsignedInteger};
 use primus_reduce::ops::{ReduceNeg, ReduceNegAssign};
-
-use crate::{Data, DataMut, RawData};
 
 use super::Polynomial;
 
-impl<S, T> Polynomial<S, T>
+impl<S, T> Polynomial<S>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
@@ -30,14 +28,14 @@ where
     }
 }
 
-impl<S, T> Polynomial<S, T>
+impl<S, T> Polynomial<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
 {
     /// Performs the unary `-` operation.
     #[inline]
-    pub fn neg_inplace<M, A>(&self, result: &mut Polynomial<A, T>, modulus: M)
+    pub fn neg_inplace<M, A>(&self, result: &mut Polynomial<A>, modulus: M)
     where
         M: Copy + ReduceNeg<T, Output = T>,
         A: RawData<Elem = T> + DataMut,

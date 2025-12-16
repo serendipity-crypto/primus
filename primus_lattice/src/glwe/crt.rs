@@ -1,10 +1,9 @@
 use primus_decompose::big_integer::BigUintApproxSignedBasis;
 use primus_factor::ShoupFactor;
-use primus_integer::{UnsignedInteger, izip};
+use primus_integer::{Data, DataMut, DataOwned, RawData, UnsignedInteger, izip};
 use primus_ntt::DcrtTable;
 use primus_poly::{
-    ArrayBase, CrtPolynomial, CrtPolynomialIter, CrtPolynomialIterMut, Data, DataMut, DataOwned,
-    DcrtPolynomial, RawData,
+    ArrayBase, CrtPolynomial, CrtPolynomialIter, CrtPolynomialIterMut, DcrtPolynomial,
 };
 use primus_reduce::FieldContext;
 use primus_rns::RNSBase;
@@ -50,7 +49,7 @@ where
     pub fn a_b_mut(
         &mut self,
         mid: usize,
-    ) -> (CrtPolynomialIterMut<'_, T>, CrtPolynomial<&mut [T], T>) {
+    ) -> (CrtPolynomialIterMut<'_, T>, CrtPolynomial<&mut [T]>) {
         let (a, b) = self.0.split_at_mut(mid);
         (CrtPolynomialIterMut::new(a, b.len()), CrtPolynomial(b))
     }
@@ -129,7 +128,7 @@ where
 
     /// Extracts slice of `a` and `b` of this [`CrtGlwe<S>`].
     #[inline]
-    pub fn a_b(&self, mid: usize) -> (CrtPolynomialIter<'_, T>, CrtPolynomial<&[T], T>) {
+    pub fn a_b(&self, mid: usize) -> (CrtPolynomialIter<'_, T>, CrtPolynomial<&[T]>) {
         let (a, b) = self.0.split_at(mid);
         (CrtPolynomialIter::new(a, b.len()), CrtPolynomial(b))
     }

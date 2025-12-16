@@ -3,13 +3,11 @@ use core::{
     slice::SliceIndex,
 };
 
-use primus_integer::UnsignedInteger;
-
-use crate::{Data, DataMut, RawData};
+use primus_integer::{Data, DataMut, RawData, UnsignedInteger};
 
 use super::Polynomial;
 
-impl<S, T, I: SliceIndex<[T]>> Index<I> for Polynomial<S, T>
+impl<S, T, I: SliceIndex<[T]>> Index<I> for Polynomial<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
@@ -22,7 +20,7 @@ where
     }
 }
 
-impl<S, T, I: SliceIndex<[T]>> IndexMut<I> for Polynomial<S, T>
+impl<S, T, I: SliceIndex<[T]>> IndexMut<I> for Polynomial<S>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
@@ -33,24 +31,24 @@ where
     }
 }
 
-impl<S, T> AsRef<[T]> for Polynomial<S, T>
+impl<S, T> AsRef<[T]> for Polynomial<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
 {
     #[inline]
     fn as_ref(&self) -> &[T] {
-        self.0.as_ref()
+        self.0.as_slice()
     }
 }
 
-impl<S, T> AsMut<[T]> for Polynomial<S, T>
+impl<S, T> AsMut<[T]> for Polynomial<S>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
 {
     #[inline]
     fn as_mut(&mut self) -> &mut [T] {
-        self.0.as_mut()
+        self.0.as_mut_slice()
     }
 }

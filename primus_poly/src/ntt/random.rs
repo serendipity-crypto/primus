@@ -1,12 +1,10 @@
-use primus_integer::UnsignedInteger;
+use primus_integer::{DataMut, DataOwned, RawData, UnsignedInteger};
 use primus_reduce::Modulus;
 use rand::distr::Distribution;
 
-use crate::{DataMut, DataOwned, RawData};
-
 use super::NttPolynomial;
 
-impl<S, T> NttPolynomial<S, T>
+impl<S, T> NttPolynomial<S>
 where
     S: RawData<Elem = T> + DataOwned,
     T: UnsignedInteger,
@@ -38,12 +36,12 @@ where
     }
 }
 
-impl<S, T> NttPolynomial<S, T>
+impl<S, T> NttPolynomial<S>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
 {
-    /// Generate a random [`NttPolynomial<S, T>`].
+    /// Generate a random [`NttPolynomial<S>`].
     #[inline]
     pub fn random_assign<M, R>(&mut self, modulus: M, rng: &mut R)
     where

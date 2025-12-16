@@ -1,18 +1,18 @@
-use primus_integer::{UnsignedInteger, izip};
+use primus_integer::{Data, DataMut, RawData, UnsignedInteger, izip};
 use primus_reduce::ops::{ReduceAdd, ReduceAddAssign};
 
-use crate::{ArrayBase, Data, DataMut, RawData};
+use crate::ArrayBase;
 
 use super::CrtPolynomial;
 
-impl<S, T> CrtPolynomial<S, T>
+impl<S, T> CrtPolynomial<S>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
 {
     /// Performs `self + rhs` according to `moduli`.
     #[inline]
-    pub fn add<M, A>(mut self, rhs: &CrtPolynomial<A, T>, poly_length: usize, moduli: &[M]) -> Self
+    pub fn add<M, A>(mut self, rhs: &CrtPolynomial<A>, poly_length: usize, moduli: &[M]) -> Self
     where
         M: Copy + ReduceAddAssign<T>,
         A: RawData<Elem = T> + Data,
@@ -23,7 +23,7 @@ where
 
     /// Performs `self += rhs` according to `moduli`.
     #[inline]
-    pub fn add_assign<M, A>(&mut self, rhs: &CrtPolynomial<A, T>, poly_length: usize, moduli: &[M])
+    pub fn add_assign<M, A>(&mut self, rhs: &CrtPolynomial<A>, poly_length: usize, moduli: &[M])
     where
         M: Copy + ReduceAddAssign<T>,
         A: RawData<Elem = T> + Data,
@@ -39,7 +39,7 @@ where
     }
 }
 
-impl<S, T> CrtPolynomial<S, T>
+impl<S, T> CrtPolynomial<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
@@ -48,8 +48,8 @@ where
     #[inline]
     pub fn add_inplace<M, A, B>(
         &self,
-        rhs: &CrtPolynomial<A, T>,
-        result: &mut CrtPolynomial<B, T>,
+        rhs: &CrtPolynomial<A>,
+        result: &mut CrtPolynomial<B>,
         poly_length: usize,
         moduli: &[M],
     ) where

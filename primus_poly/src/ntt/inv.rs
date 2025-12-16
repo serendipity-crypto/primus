@@ -1,12 +1,10 @@
 use num_traits::Zero;
-use primus_integer::UnsignedInteger;
+use primus_integer::{DataMut, RawData, UnsignedInteger};
 use primus_reduce::ops::ReduceInvAssign;
-
-use crate::{DataMut, RawData};
 
 use super::NttPolynomial;
 
-impl<S, T> NttPolynomial<S, T>
+impl<S, T> NttPolynomial<S>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,

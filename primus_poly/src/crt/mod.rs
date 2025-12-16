@@ -1,6 +1,5 @@
-use primus_integer::{UnsignedInteger, size::Size};
-
-use crate::{Data, DataMut, DataOwned, RawData};
+use num_traits::Zero;
+use primus_integer::{ByteCount, Data, DataMut, DataOwned, RawData, UnsignedInteger, size::Size};
 
 mod add;
 mod mul;
@@ -17,14 +16,14 @@ mod sub;
 /// several polynomials with relatively small coefficients can be obtained,
 /// and the latter has better performance in addition and subtraction computation.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CrtPolynomial<S, T = <S as RawData>::Elem>(pub S)
+pub struct CrtPolynomial<S>(pub S)
 where
-    S: RawData<Elem = T>,
-    T: UnsignedInteger;
+    S: RawData,
+    <S as RawData>::Elem: UnsignedInteger;
 
 impl_iters!(CrtPolynomial, crt_poly);
 
-impl<S, T> CrtPolynomial<S, T>
+impl<S, T> CrtPolynomial<S>
 where
     S: RawData<Elem = T>,
     T: UnsignedInteger,
@@ -36,7 +35,7 @@ where
     }
 }
 
-impl<S, T> CrtPolynomial<S, T>
+impl<S, T> CrtPolynomial<S>
 where
     S: RawData<Elem = T> + DataOwned,
     T: UnsignedInteger,
@@ -44,7 +43,7 @@ where
     /// Creates a [`CrtPolynomial<T>`] with all coefficients equal to zero.
     #[inline]
     pub fn zero(crt_poly_len: usize) -> Self {
-        Self(S::zero(crt_poly_len))
+        Self(S::from_vec(vec![T::ZERO; crt_poly_len]))
     }
 
     #[inline]
@@ -53,7 +52,7 @@ where
     }
 }
 
-impl<S, T> CrtPolynomial<S, T>
+impl<S, T> CrtPolynomial<S>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
@@ -70,20 +69,20 @@ where
     /// Sets `self` to `0`.
     #[inline]
     pub fn set_zero(&mut self) {
-        self.0.set_zero();
+        self.0.fill(T::ZERO);
     }
 
     /// Copy the coefficients from another slice.
     #[inline]
-    pub fn copy_from<A>(&mut self, src: &CrtPolynomial<A, T>)
+    pub fn copy_from<A>(&mut self, src: &CrtPolynomial<A>)
     where
         A: RawData<Elem = T> + Data,
     {
-        self.0.copy_from_slice(src.0.as_ref());
+        self.0.copy_from_slice(src.0.as_slice());
     }
 }
 
-impl<S, T> CrtPolynomial<S, T>
+impl<S, T> CrtPolynomial<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
@@ -97,7 +96,7 @@ where
     /// Returns `true` if `self` is equal to `0`.
     #[inline]
     pub fn is_zero(&self) -> bool {
-        self.0.is_zero()
+        self.0.iter().all(Zero::is_zero)
     }
 
     #[inline]
@@ -106,35 +105,35 @@ where
     }
 }
 
-impl<S, T> Size for CrtPolynomial<S, T>
+impl<S, T> Size for CrtPolynomial<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
 {
     #[inline]
     fn byte_count(&self) -> usize {
-        self.0.byte_count()
+        self.0.len() * <T as ByteCount>::BYTES
     }
 }
 
-impl<S, T> AsRef<[T]> for CrtPolynomial<S, T>
+impl<S, T> AsRef<[T]> for CrtPolynomial<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
 {
     #[inline]
     fn as_ref(&self) -> &[T] {
-        self.0.as_ref()
+        self.0.as_slice()
     }
 }
 
-impl<S, T> AsMut<[T]> for CrtPolynomial<S, T>
+impl<S, T> AsMut<[T]> for CrtPolynomial<S>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
 {
     #[inline]
     fn as_mut(&mut self) -> &mut [T] {
-        self.0.as_mut()
+        self.0.as_mut_slice()
     }
 }

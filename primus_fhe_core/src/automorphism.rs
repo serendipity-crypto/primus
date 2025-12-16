@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
-use primus_integer::{UnsignedInteger, izip};
+use primus_integer::{Data, DataMut, RawData, UnsignedInteger, izip};
 use primus_lattice::glev::DcrtGlevIter;
 use primus_lattice::{context::DcrtGlevContext, glev::DcrtGlevIterMut};
 use primus_modulus::PowOf2Modulus;
 use primus_ntt::DcrtTable;
-use primus_poly::{CrtPolynomial, Data, DataMut, DcrtPolynomial, RawData};
+use primus_poly::{CrtPolynomial, DcrtPolynomial};
 use primus_reduce::FieldContext;
 use primus_reduce::ops::ReduceMul;
 use primus_rns::RNSBase;

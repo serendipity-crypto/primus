@@ -1,12 +1,12 @@
 use primus_factor::ShoupFactor;
-use primus_integer::{UnsignedInteger, izip};
+use primus_integer::{Data, DataMut, RawData, UnsignedInteger, izip};
 use primus_reduce::ops::*;
 
-use crate::{ArrayBase, Data, DataMut, RawData};
+use crate::ArrayBase;
 
 use super::CrtPolynomial;
 
-impl<S, T> CrtPolynomial<S, T>
+impl<S, T> CrtPolynomial<S>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
@@ -113,7 +113,7 @@ where
     }
 }
 
-impl<S, T> CrtPolynomial<S, T>
+impl<S, T> CrtPolynomial<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,

@@ -19,7 +19,7 @@ macro_rules! impl_common {
         {
             #[inline(always)]
             fn as_ref(&self)->&[$t]{
-                self.0.as_ref()
+                self.0.as_slice()
             }
 
         }
@@ -31,7 +31,7 @@ macro_rules! impl_common {
         {
             #[inline(always)]
             fn as_mut(&mut self)->&mut [$t]{
-                self.0.as_mut()
+                self.0.as_mut_slice()
             }
 
         }
@@ -92,7 +92,7 @@ macro_rules! impl_bytes_conversion {
             /// Returns the bytes count.
             #[inline]
             pub fn byte_count(&self) -> usize {
-                self.0.byte_count()
+                self.0.len() * T::BYTES
             }
         }
     };
@@ -109,7 +109,7 @@ macro_rules! impl_zero {
                 #[doc = concat!(r" Creates a new [`",stringify!($cipher),"<",stringify!($s),", ",stringify!($t),">`] with all values or coefficients equal to zero.")]
                 #[inline]
                 pub fn zero([<$cipher:snake _len>]: usize) -> Self {
-                    Self(<$s>::zero([<$cipher:snake _len>]))
+                    Self(<$s>::from_vec(vec![T::ZERO; [<$cipher:snake _len>]]))
                 }
             }
         }
@@ -122,7 +122,7 @@ macro_rules! impl_zero {
             /// Set all values or coefficients equal to zero.
             #[inline]
             pub fn set_zero(&mut self) {
-                self.0.set_zero();
+                self.0.fill(T::ZERO);
             }
         }
     };

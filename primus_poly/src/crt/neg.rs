@@ -1,11 +1,11 @@
-use primus_integer::{UnsignedInteger, izip};
+use primus_integer::{Data, DataMut, RawData, UnsignedInteger, izip};
 use primus_reduce::ops::{ReduceNeg, ReduceNegAssign};
 
-use crate::{ArrayBase, Data, DataMut, RawData};
+use crate::ArrayBase;
 
 use super::CrtPolynomial;
 
-impl<S, T> CrtPolynomial<S, T>
+impl<S, T> CrtPolynomial<S>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
@@ -32,19 +32,15 @@ where
     }
 }
 
-impl<S, T> CrtPolynomial<S, T>
+impl<S, T> CrtPolynomial<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
 {
     /// Performs the unary `-` operation.
     #[inline]
-    pub fn neg_inplace<M, A>(
-        &self,
-        result: &mut CrtPolynomial<A, T>,
-        poly_length: usize,
-        moduli: &[M],
-    ) where
+    pub fn neg_inplace<M, A>(&self, result: &mut CrtPolynomial<A>, poly_length: usize, moduli: &[M])
+    where
         M: Copy + ReduceNeg<T, Output = T>,
         A: RawData<Elem = T> + DataMut,
     {

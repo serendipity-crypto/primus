@@ -1,4 +1,5 @@
-use primus_poly::{DataMut, NttPolynomial, Polynomial, RawData};
+use primus_integer::{DataMut, RawData};
+use primus_poly::{NttPolynomial, Polynomial};
 use primus_reduce::FieldContext;
 
 use crate::{NttError, root::PrimitiveRoot};
@@ -35,8 +36,8 @@ pub trait NttTable: Sized {
     /// * `poly` - inputs in normal order, outputs in bit-reversed order
     fn transform_inplace<S: RawData<Elem = Self::ValueT> + DataMut>(
         &self,
-        poly: Polynomial<S, Self::ValueT>,
-    ) -> NttPolynomial<S, Self::ValueT>;
+        poly: Polynomial<S>,
+    ) -> NttPolynomial<S>;
 
     /// Perform a fast inverse number theory transform in place.
     ///
@@ -47,8 +48,8 @@ pub trait NttTable: Sized {
     /// * `values` - inputs in bit-reversed order, outputs in normal order
     fn inverse_transform_inplace<S: RawData<Elem = Self::ValueT> + DataMut>(
         &self,
-        values: NttPolynomial<S, Self::ValueT>,
-    ) -> Polynomial<S, Self::ValueT>;
+        values: NttPolynomial<S>,
+    ) -> Polynomial<S>;
 
     /// Perform a fast number theory transform in place.
     ///

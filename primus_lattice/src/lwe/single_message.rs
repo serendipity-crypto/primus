@@ -1,9 +1,8 @@
 use std::mem::MaybeUninit;
 
 use primus_distr::DiscreteGaussian;
-use primus_integer::{UnsignedInteger, size::Size};
+use primus_integer::{Data, DataMut, DataOwned, RawData, UnsignedInteger, size::Size};
 use primus_modulo::ops::*;
-use primus_poly::{Data, DataMut, DataOwned, RawData};
 use primus_reduce::{Modulus, ops::*};
 use rand::distr::{Distribution, Uniform};
 use serde::{Deserialize, Serialize};
@@ -53,14 +52,14 @@ where
     /// Converts [`Lwe<S, T>`] into bytes.
     #[inline]
     pub fn to_bytes(&self) -> Vec<u8> {
-        let data: &[u8] = bytemuck::cast_slice(self.0.as_ref());
+        let data: &[u8] = bytemuck::cast_slice(self.0.as_slice());
         data.to_vec()
     }
 
     /// Converts [`Lwe<S, T>`] into bytes, stored in `data`.
     #[inline]
     pub fn to_bytes_inplace(&self, data: &mut [u8]) {
-        let src: &[u8] = bytemuck::cast_slice(self.0.as_ref());
+        let src: &[u8] = bytemuck::cast_slice(self.0.as_slice());
 
         assert_eq!(data.len(), src.len());
 
@@ -88,7 +87,7 @@ where
     /// Generates a [`Lwe<S, T>`] with all values are `0`.
     #[inline]
     pub fn zero(dimension: usize) -> Self {
-        Self(S::zero(dimension + 1))
+        Self(S::from_vec(vec![T::ZERO; dimension + 1]))
     }
 }
 
@@ -140,19 +139,19 @@ where
     /// Returns a mutable reference to the `a` of this [`Lwe<S, T>`].
     #[inline]
     pub fn a_mut(&mut self) -> &mut [T] {
-        self.0.as_mut().split_last_mut().unwrap().1
+        self.0.as_mut_slice().split_last_mut().unwrap().1
     }
 
     /// Returns a mutable reference to the `b` of this [`Lwe<S, T>`].
     #[inline]
     pub fn b_mut(&mut self) -> &mut T {
-        self.0.as_mut().last_mut().unwrap()
+        self.0.as_mut_slice().last_mut().unwrap()
     }
 
     /// Returns mutable references to `a` and `b` of this [`Lwe<S, T>`].
     #[inline]
     pub fn a_b_mut(&mut self) -> (&mut [T], &mut T) {
-        let (b, a) = self.0.as_mut().split_last_mut().unwrap();
+        let (b, a) = self.0.as_mut_slice().split_last_mut().unwrap();
         (a, b)
     }
 
@@ -171,17 +170,17 @@ where
     /// Returns a reference to the `a` of this [`Lwe<S, T>`].
     #[inline]
     pub fn a(&self) -> &[T] {
-        self.0.as_ref().split_last().unwrap().1
+        self.0.as_slice().split_last().unwrap().1
     }
 
     /// Returns the `b` of this [`Lwe<S, T>`].
     #[inline]
     pub fn b(&self) -> T {
-        *self.0.as_ref().last().unwrap()
+        *self.0.as_slice().last().unwrap()
     }
 
     pub fn a_b(&self) -> (&[T], T) {
-        let (b, a) = self.0.as_ref().split_last().unwrap();
+        let (b, a) = self.0.as_slice().split_last().unwrap();
         (a, *b)
     }
 

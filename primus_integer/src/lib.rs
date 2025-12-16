@@ -23,7 +23,7 @@ pub use unsigned_integer::UnsignedInteger;
 
 pub use big_integer::*;
 
-pub use data::{Data, DataMut, RawData};
+pub use data::{Data, DataMut, DataOwned, RawData};
 
 #[cfg(all(feature = "nightly", feature = "simd"))]
 pub use simd::{SimdArray, SimdMaskArray, SimdUnsignedInteger};

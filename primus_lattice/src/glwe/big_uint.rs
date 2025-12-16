@@ -1,7 +1,5 @@
-use primus_integer::UnsignedInteger;
-use primus_poly::{
-    BigUintPolynomialIter, BigUintPolynomialIterMut, Data, DataMut, DataOwned, RawData,
-};
+use primus_integer::{Data, DataMut, DataOwned, RawData, UnsignedInteger};
+use primus_poly::{BigUintPolynomialIter, BigUintPolynomialIterMut};
 use primus_reduce::FieldContext;
 use primus_rns::RNSBase;
 

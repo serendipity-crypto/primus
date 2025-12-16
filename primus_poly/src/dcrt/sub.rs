@@ -1,11 +1,11 @@
-use primus_integer::{UnsignedInteger, izip};
+use primus_integer::{Data, DataMut, RawData, UnsignedInteger, izip};
 use primus_reduce::ops::{ReduceSub, ReduceSubAssign};
 
-use crate::{ArrayBase, Data, DataMut, RawData};
+use crate::ArrayBase;
 
 use super::DcrtPolynomial;
 
-impl<S, T> DcrtPolynomial<S, T>
+impl<S, T> DcrtPolynomial<S>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
@@ -23,7 +23,7 @@ where
 
     /// Performs `self -= rhs` according to `moduli`.
     #[inline]
-    pub fn sub_assign<M, A>(&mut self, rhs: &DcrtPolynomial<A, T>, poly_length: usize, moduli: &[M])
+    pub fn sub_assign<M, A>(&mut self, rhs: &DcrtPolynomial<A>, poly_length: usize, moduli: &[M])
     where
         M: Copy + ReduceSubAssign<T>,
         A: RawData<Elem = T> + Data,
@@ -39,7 +39,7 @@ where
     }
 }
 
-impl<S, T> DcrtPolynomial<S, T>
+impl<S, T> DcrtPolynomial<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
@@ -48,8 +48,8 @@ where
     #[inline]
     pub fn sub_inplace<M, A, B>(
         &self,
-        rhs: &DcrtPolynomial<A, T>,
-        result: &mut DcrtPolynomial<B, T>,
+        rhs: &DcrtPolynomial<A>,
+        result: &mut DcrtPolynomial<B>,
         poly_length: usize,
         moduli: &[M],
     ) where
@@ -70,12 +70,8 @@ where
 
     /// Performs `rhs = self - rhs` according to `moduli`.
     #[inline]
-    pub fn sub_to_right<M, A>(
-        &self,
-        rhs: &mut DcrtPolynomial<A, T>,
-        poly_length: usize,
-        moduli: &[M],
-    ) where
+    pub fn sub_to_right<M, A>(&self, rhs: &mut DcrtPolynomial<A>, poly_length: usize, moduli: &[M])
+    where
         M: Copy + ReduceSub<T, Output = T>,
         A: RawData<Elem = T> + DataMut,
     {

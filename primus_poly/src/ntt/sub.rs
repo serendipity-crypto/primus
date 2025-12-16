@@ -1,18 +1,16 @@
-use primus_integer::UnsignedInteger;
+use primus_integer::{Data, DataMut, RawData, UnsignedInteger};
 use primus_reduce::ops::{ReduceSub, ReduceSubAssign};
-
-use crate::{Data, DataMut, RawData};
 
 use super::NttPolynomial;
 
-impl<S, T> NttPolynomial<S, T>
+impl<S, T> NttPolynomial<S>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
 {
     /// Performs `self - rhs` according to `modulus`.
     #[inline]
-    pub fn sub<M, A>(mut self, rhs: &NttPolynomial<A, T>, modulus: M) -> Self
+    pub fn sub<M, A>(mut self, rhs: &NttPolynomial<A>, modulus: M) -> Self
     where
         M: Copy + ReduceSubAssign<T>,
         A: RawData<Elem = T> + Data,
@@ -23,7 +21,7 @@ where
 
     /// Performs `self -= rhs` according to `modulus`.
     #[inline]
-    pub fn sub_assign<M, A>(&mut self, rhs: &NttPolynomial<A, T>, modulus: M)
+    pub fn sub_assign<M, A>(&mut self, rhs: &NttPolynomial<A>, modulus: M)
     where
         M: Copy + ReduceSubAssign<T>,
         A: RawData<Elem = T> + Data,
@@ -35,14 +33,14 @@ where
     }
 }
 
-impl<S, T> NttPolynomial<S, T>
+impl<S, T> NttPolynomial<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
 {
     /// Performs `rhs = self - rhs` according to `moduli`.
     #[inline]
-    pub fn sub_to_right<M, A>(&self, rhs: &mut NttPolynomial<A, T>, modulus: M)
+    pub fn sub_to_right<M, A>(&self, rhs: &mut NttPolynomial<A>, modulus: M)
     where
         M: Copy + ReduceSub<T, Output = T>,
         A: RawData<Elem = T> + DataMut,
@@ -58,8 +56,8 @@ where
     #[inline]
     pub fn sub_inplace<M, A, B>(
         &self,
-        rhs: &NttPolynomial<A, T>,
-        result: &mut NttPolynomial<B, T>,
+        rhs: &NttPolynomial<A>,
+        result: &mut NttPolynomial<B>,
         modulus: M,
     ) where
         M: Copy + ReduceSub<T, Output = T>,

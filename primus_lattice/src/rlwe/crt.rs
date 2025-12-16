@@ -1,9 +1,6 @@
-use primus_integer::{UnsignedInteger, izip};
+use primus_integer::{Data, DataMut, DataOwned, RawData, UnsignedInteger, izip};
 use primus_ntt::DcrtTable;
-use primus_poly::{
-    ArrayBase, CrtPolynomialIter, CrtPolynomialIterMut, Data, DataMut, DataOwned, DcrtPolynomial,
-    RawData,
-};
+use primus_poly::{ArrayBase, CrtPolynomialIter, CrtPolynomialIterMut, DcrtPolynomial};
 use primus_reduce::FieldContext;
 
 use super::DcrtRlwe;

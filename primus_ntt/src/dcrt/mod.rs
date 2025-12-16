@@ -1,4 +1,5 @@
-use primus_poly::{CrtPolynomial, DataMut, DcrtPolynomial, RawData};
+use primus_integer::{DataMut, RawData};
+use primus_poly::{CrtPolynomial, DcrtPolynomial};
 use primus_reduce::FieldContext;
 
 use crate::{NttError, NttTable, PrimitiveRoot};
@@ -45,8 +46,8 @@ pub trait DcrtTable: Sized {
     /// * `crt_poly` - inputs in normal order, outputs in bit-reversed order
     fn transform_inplace<S: RawData<Elem = Self::ValueT> + DataMut>(
         &self,
-        crt_poly: CrtPolynomial<S, Self::ValueT>,
-    ) -> DcrtPolynomial<S, Self::ValueT>;
+        crt_poly: CrtPolynomial<S>,
+    ) -> DcrtPolynomial<S>;
 
     /// Perform a fast inverse number theory transform in place.
     ///
@@ -57,8 +58,8 @@ pub trait DcrtTable: Sized {
     /// * `dcrt_poly` - inputs in bit-reversed order, outputs in normal order
     fn inverse_transform_inplace<S: RawData<Elem = Self::ValueT> + DataMut>(
         &self,
-        dcrt_poly: DcrtPolynomial<S, Self::ValueT>,
-    ) -> CrtPolynomial<S, Self::ValueT>;
+        dcrt_poly: DcrtPolynomial<S>,
+    ) -> CrtPolynomial<S>;
 
     /// Perform a fast number theory transform in place.
     ///

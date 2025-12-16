@@ -1,7 +1,7 @@
 use primus_distr::DiscreteGaussian;
-use primus_integer::UnsignedInteger;
+use primus_integer::{Data, DataMut, DataOwned, RawData, UnsignedInteger};
 use primus_ntt::NttTable;
-use primus_poly::{ArrayBase, Data, DataMut, DataOwned, NttPolynomial, Polynomial, RawData};
+use primus_poly::{ArrayBase, NttPolynomial, Polynomial};
 use primus_reduce::{FieldContext, ops::ReduceNegAssign};
 use rand::distr::Uniform;
 

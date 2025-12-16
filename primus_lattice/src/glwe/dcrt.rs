@@ -1,9 +1,9 @@
 use primus_decompose::big_integer::BigUintApproxSignedBasis;
-use primus_integer::{UnsignedInteger, izip};
+use primus_integer::{Data, DataMut, DataOwned, RawData, UnsignedInteger, izip};
 use primus_ntt::DcrtTable;
 use primus_poly::{
-    ArrayBase, BigUintPolynomial, CrtPolynomial, Data, DataMut, DataOwned, DcrtPolynomial,
-    DcrtPolynomialIter, DcrtPolynomialIterMut, RawData,
+    ArrayBase, BigUintPolynomial, CrtPolynomial, DcrtPolynomial, DcrtPolynomialIter,
+    DcrtPolynomialIterMut,
 };
 use primus_reduce::FieldContext;
 use primus_rns::RNSBase;
@@ -259,7 +259,7 @@ where
 
     /// Extracts `a` and `b` of this [`DcrtGlwe<S, T>`].
     #[inline]
-    pub fn a_b(&self, mid: usize) -> (DcrtPolynomialIter<'_, T>, DcrtPolynomial<&[T], T>) {
+    pub fn a_b(&self, mid: usize) -> (DcrtPolynomialIter<'_, T>, DcrtPolynomial<&[T]>) {
         let (a, b) = self.0.split_at(mid);
         (DcrtPolynomialIter::new(a, b.len()), DcrtPolynomial(b))
     }

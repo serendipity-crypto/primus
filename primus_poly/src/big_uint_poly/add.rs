@@ -1,10 +1,8 @@
-use primus_integer::{BigIntegerOps, UnsignedInteger, izip};
-
-use crate::{Data, DataMut, RawData};
+use primus_integer::{BigIntegerOps, Data, DataMut, RawData, UnsignedInteger, izip};
 
 use super::BigUintPolynomial;
 
-impl<S, T> BigUintPolynomial<S, T>
+impl<S, T> BigUintPolynomial<S>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
@@ -35,7 +33,7 @@ where
     }
 }
 
-impl<S, T> BigUintPolynomial<S, T>
+impl<S, T> BigUintPolynomial<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,

@@ -1,12 +1,10 @@
 use primus_distr::SignedDiscreteGaussian;
-use primus_integer::UnsignedInteger;
+use primus_integer::{DataMut, RawData, UnsignedInteger};
 use rand::distr::Uniform;
-
-use crate::{DataMut, RawData};
 
 use super::CrtPolynomial;
 
-impl<T: UnsignedInteger> CrtPolynomial<Vec<T>, T> {
+impl<T: UnsignedInteger> CrtPolynomial<Vec<T>> {
     /// Generate a random binary [`CrtPolynomial<Vec<T>, T>`].
     #[inline]
     pub fn random_binary<R>(poly_length: usize, moduli_count: usize, rng: &mut R) -> Self
@@ -66,7 +64,7 @@ impl<T: UnsignedInteger> CrtPolynomial<Vec<T>, T> {
     }
 }
 
-impl<S, T> CrtPolynomial<S, T>
+impl<S, T> CrtPolynomial<S>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,

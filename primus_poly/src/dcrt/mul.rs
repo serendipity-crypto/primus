@@ -1,12 +1,12 @@
 use primus_factor::ShoupFactor;
-use primus_integer::{UnsignedInteger, izip};
+use primus_integer::{Data, DataMut, RawData, UnsignedInteger, izip};
 use primus_reduce::ops::{ReduceMul, ReduceMulAdd, ReduceMulAssign};
 
-use crate::{ArrayBase, Data, DataMut, RawData};
+use crate::ArrayBase;
 
 use super::DcrtPolynomial;
 
-impl<S, T> DcrtPolynomial<S, T>
+impl<S, T> DcrtPolynomial<S>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
@@ -36,7 +36,7 @@ where
     #[inline]
     pub fn add_mul_scalar_assign<M, A>(
         &mut self,
-        rhs: &DcrtPolynomial<A, T>,
+        rhs: &DcrtPolynomial<A>,
         scalar: &[T],
         poly_length: usize,
         moduli: &[M],
@@ -82,7 +82,7 @@ where
 
     /// Performs `self * rhs` according to `moduli`.
     #[inline]
-    pub fn mul<M, A>(mut self, rhs: &DcrtPolynomial<A, T>, poly_length: usize, moduli: &[M]) -> Self
+    pub fn mul<M, A>(mut self, rhs: &DcrtPolynomial<A>, poly_length: usize, moduli: &[M]) -> Self
     where
         M: Copy + ReduceMulAssign<T>,
         A: RawData<Elem = T> + Data,
@@ -93,7 +93,7 @@ where
 
     /// Performs `self *= rhs` according to `moduli`.
     #[inline]
-    pub fn mul_assign<M, A>(&mut self, rhs: &DcrtPolynomial<A, T>, poly_length: usize, moduli: &[M])
+    pub fn mul_assign<M, A>(&mut self, rhs: &DcrtPolynomial<A>, poly_length: usize, moduli: &[M])
     where
         M: Copy + ReduceMulAssign<T>,
         A: RawData<Elem = T> + Data,
@@ -109,7 +109,7 @@ where
     }
 }
 
-impl<S, T> DcrtPolynomial<S, T>
+impl<S, T> DcrtPolynomial<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
@@ -118,8 +118,8 @@ where
     #[inline]
     pub fn mul_inplace<M, A, B>(
         &self,
-        rhs: &DcrtPolynomial<A, T>,
-        result: &mut DcrtPolynomial<B, T>,
+        rhs: &DcrtPolynomial<A>,
+        result: &mut DcrtPolynomial<B>,
         poly_length: usize,
         moduli: &[M],
     ) where

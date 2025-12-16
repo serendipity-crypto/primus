@@ -1,11 +1,9 @@
 use std::ops::Deref;
 
-use primus_integer::UnsignedInteger;
+use primus_integer::{Data, DataMut, RawData, UnsignedInteger};
 use primus_lattice::rlwe::TruncatedRlwe;
 use primus_ntt::NttTable;
-use primus_poly::{
-    Data, DataMut, NttPolynomial, NttPolynomialOwned, Polynomial, PolynomialOwned, RawData,
-};
+use primus_poly::{NttPolynomial, NttPolynomialOwned, Polynomial, PolynomialOwned};
 use primus_reduce::FieldContext;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 

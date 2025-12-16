@@ -1,7 +1,8 @@
-use primus_integer::{UnsignedInteger, izip, size::Size};
+use num_traits::Zero;
+use primus_integer::{
+    ByteCount, Data, DataMut, DataOwned, RawData, UnsignedInteger, izip, size::Size,
+};
 use primus_reduce::{lazy_ops::LazyReduceMulAdd, ops::ReduceMulAdd};
-
-use crate::{Data, DataMut, DataOwned, RawData};
 
 mod basic;
 mod random;
@@ -12,21 +13,21 @@ mod mul;
 mod neg;
 mod sub;
 
-pub type NttPolynomialOwned<T> = NttPolynomial<Vec<T>, T>;
-pub type NttPolynomialRef<'a, T> = NttPolynomial<&'a [T], T>;
-pub type NttPolynomialMut<'a, T> = NttPolynomial<&'a mut [T], T>;
+pub type NttPolynomialOwned<T> = NttPolynomial<Vec<T>>;
+pub type NttPolynomialRef<'a, T> = NttPolynomial<&'a [T]>;
+pub type NttPolynomialMut<'a, T> = NttPolynomial<&'a mut [T]>;
 
 /// Represents a ntt polynomial where values are elements of a specified numeric `T`.
 /// It stores the values of the polynomial at some particular points.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct NttPolynomial<S, T = <S as RawData>::Elem>(pub S)
+pub struct NttPolynomial<S>(pub S)
 where
-    S: RawData<Elem = T>,
-    T: UnsignedInteger;
+    S: RawData,
+    <S as RawData>::Elem: UnsignedInteger;
 
 impl_iters!(NttPolynomial, ntt_poly);
 
-impl<S, T> NttPolynomial<S, T>
+impl<S, T> NttPolynomial<S>
 where
     S: RawData<Elem = T>,
     T: UnsignedInteger,
@@ -38,7 +39,7 @@ where
     }
 }
 
-impl<S, T> NttPolynomial<S, T>
+impl<S, T> NttPolynomial<S>
 where
     S: RawData<Elem = T> + DataOwned,
     T: UnsignedInteger,
@@ -46,7 +47,7 @@ where
     /// Creates a [`NttPolynomial<T>`] with all coefficients equal to zero.
     #[inline]
     pub fn zero(poly_length: usize) -> Self {
-        Self(S::zero(poly_length))
+        Self(S::from_vec(vec![T::ZERO; poly_length]))
     }
 
     /// Drop self, and return the data.
@@ -62,7 +63,7 @@ where
     }
 }
 
-impl<S, T> NttPolynomial<S, T>
+impl<S, T> NttPolynomial<S>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
@@ -72,7 +73,7 @@ where
     /// Equivalent to `&mut s[..]`.
     #[inline]
     pub fn as_mut_slice(&mut self) -> &mut [T] {
-        self.0.as_mut()
+        self.0.as_mut_slice()
     }
 
     /// Returns an iterator that allows modifying each value or coefficient of the polynomial.
@@ -90,15 +91,15 @@ where
     /// Sets `self` to `0`.
     #[inline]
     pub fn set_zero(&mut self) {
-        self.0.set_zero();
+        self.0.fill(T::ZERO);
     }
 
     /// Performs `self = self + (a * b)`.
     #[inline]
     pub fn add_mul_assign<M, A, B>(
         &mut self,
-        a: &NttPolynomial<A, T>,
-        b: &NttPolynomial<B, T>,
+        a: &NttPolynomial<A>,
+        b: &NttPolynomial<B>,
         modulus: M,
     ) where
         M: Copy + ReduceMulAdd<T, Output = T>,
@@ -113,8 +114,8 @@ where
     #[inline]
     pub fn add_mul_assign_fast<M, A>(
         &mut self,
-        a: &NttPolynomial<A, T>,
-        b: &NttPolynomial<A, T>,
+        a: &NttPolynomial<A>,
+        b: &NttPolynomial<A>,
         modulus: M,
     ) where
         M: Copy + LazyReduceMulAdd<T, Output = T>,
@@ -125,7 +126,7 @@ where
     }
 }
 
-impl<S, T> NttPolynomial<S, T>
+impl<S, T> NttPolynomial<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
@@ -135,7 +136,7 @@ where
     /// Equivalent to `&s[..]`.
     #[inline]
     pub fn as_slice(&self) -> &[T] {
-        self.0.as_ref()
+        self.0.as_slice()
     }
 
     /// Get the `coefficient counts`/`polynomial length` of polynomial.
@@ -159,7 +160,7 @@ where
     /// Returns `true` if `self` is equal to `0`.
     #[inline]
     pub fn is_zero(&self) -> bool {
-        self.0.is_zero()
+        self.0.iter().all(Zero::is_zero)
     }
 
     /// Performs `result = self * b + c`.
@@ -168,7 +169,7 @@ where
         &self,
         b: &Self,
         c: &Self,
-        result: &mut NttPolynomial<A, T>,
+        result: &mut NttPolynomial<A>,
         modulus: M,
     ) where
         M: Copy + ReduceMulAdd<T, Output = T>,
@@ -184,7 +185,7 @@ where
         &self,
         b: &Self,
         c: &Self,
-        result: &mut NttPolynomial<A, T>,
+        result: &mut NttPolynomial<A>,
         modulus: M,
     ) where
         M: Copy + LazyReduceMulAdd<T, Output = T>,
@@ -195,13 +196,13 @@ where
     }
 }
 
-impl<S, T> Size for NttPolynomial<S, T>
+impl<S, T> Size for NttPolynomial<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
 {
     #[inline]
     fn byte_count(&self) -> usize {
-        self.0.byte_count()
+        self.0.len() * <T as ByteCount>::BYTES
     }
 }

@@ -1,11 +1,11 @@
 use primus_factor::{FactorMul, ShoupFactor};
-use primus_integer::{UnsignedInteger, izip};
+use primus_integer::{Data, DataMut, RawData, UnsignedInteger, izip};
 use primus_modulus::UintModulus;
 use primus_reduce::ops::*;
 
-use super::{ArrayBase, Data, DataMut, RawData};
+use super::ArrayBase;
 
-impl<S, T> ArrayBase<S, T>
+impl<S, T> ArrayBase<S>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
@@ -69,7 +69,7 @@ where
     }
 }
 
-impl<S, T> ArrayBase<S, T>
+impl<S, T> ArrayBase<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,

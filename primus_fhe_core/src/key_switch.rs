@@ -1,11 +1,11 @@
 use primus_decompose::big_integer::BigUintApproxSignedBasis;
-use primus_integer::UnsignedInteger;
+use primus_integer::{Data, DataMut, RawData, UnsignedInteger};
 use primus_lattice::{
     context::DcrtGlevContext,
     glev::{DcrtGlevIter, DcrtGlevIterMut},
 };
 use primus_ntt::DcrtTable;
-use primus_poly::{BigUintPolynomial, CrtPolynomial, Data, DataMut, DcrtPolynomial, RawData};
+use primus_poly::{BigUintPolynomial, CrtPolynomial, DcrtPolynomial};
 use primus_reduce::FieldContext;
 use primus_rns::RNSBase;
 
@@ -138,8 +138,8 @@ impl<T: UnsignedInteger> CrtGlweKeySwitchingContext<T> {
     pub fn as_mut(
         &mut self,
     ) -> (
-        &mut BigUintPolynomial<Vec<T>, T>,
-        &mut CrtPolynomial<Vec<T>, T>,
+        &mut BigUintPolynomial<Vec<T>>,
+        &mut CrtPolynomial<Vec<T>>,
         &mut DcrtGlevContext<T>,
     ) {
         (

@@ -1,5 +1,5 @@
-use primus_integer::UnsignedInteger;
-use primus_poly::{CrtPolynomial, DataMut, DcrtPolynomial, RawData};
+use primus_integer::{DataMut, RawData, UnsignedInteger};
+use primus_poly::{CrtPolynomial, DcrtPolynomial};
 use primus_reduce::FieldContext;
 
 use crate::{NttError, NttTable, UintNttTable};
@@ -72,8 +72,8 @@ impl<T: UnsignedInteger> DcrtTable for UintCrtNttTable<T> {
     #[inline]
     fn transform_inplace<S: RawData<Elem = Self::ValueT> + DataMut>(
         &self,
-        mut crt_poly: CrtPolynomial<S, T>,
-    ) -> DcrtPolynomial<S, T> {
+        mut crt_poly: CrtPolynomial<S>,
+    ) -> DcrtPolynomial<S> {
         let poly_length = self.poly_length();
 
         debug_assert_eq!(poly_length * self.moduli_count, crt_poly.crt_poly_length());
@@ -88,8 +88,8 @@ impl<T: UnsignedInteger> DcrtTable for UintCrtNttTable<T> {
     #[inline]
     fn inverse_transform_inplace<S: RawData<Elem = Self::ValueT> + DataMut>(
         &self,
-        mut dcrt_poly: DcrtPolynomial<S, T>,
-    ) -> CrtPolynomial<S, T> {
+        mut dcrt_poly: DcrtPolynomial<S>,
+    ) -> CrtPolynomial<S> {
         let poly_length = self.poly_length();
 
         debug_assert_eq!(poly_length * self.moduli_count, dcrt_poly.dcrt_poly_len());

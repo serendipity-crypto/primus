@@ -1,11 +1,9 @@
-use primus_integer::UnsignedInteger;
+use primus_integer::{DataMut, RawData, UnsignedInteger};
 use rand::distr::Uniform;
-
-use crate::{DataMut, RawData};
 
 use super::DcrtPolynomial;
 
-impl<T: UnsignedInteger> DcrtPolynomial<Vec<T>, T> {
+impl<T: UnsignedInteger> DcrtPolynomial<Vec<T>> {
     /// Generate a random uniform [`DcrtPolynomial<Vec<T>, T>`].
     #[inline]
     pub fn random_uniform<R>(length: usize, uniform_distrs: &[Uniform<T>], rng: &mut R) -> Self
@@ -20,7 +18,7 @@ impl<T: UnsignedInteger> DcrtPolynomial<Vec<T>, T> {
     }
 }
 
-impl<S, T> DcrtPolynomial<S, T>
+impl<S, T> DcrtPolynomial<S>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,

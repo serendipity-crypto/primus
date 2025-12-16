@@ -1,5 +1,4 @@
-use primus_integer::{UnsignedInteger, size::Size};
-use primus_poly::{Data, DataMut, DataOwned, RawData};
+use primus_integer::{Data, DataMut, DataOwned, RawData, UnsignedInteger, size::Size};
 use primus_reduce::ops::*;
 use serde::{Deserialize, Serialize};
 
@@ -36,7 +35,7 @@ where
     /// Generates a [`MultiMsgLwe<S, T>`] with all values are `0`.
     #[inline]
     pub fn zero(dimension: usize, msg_count: usize) -> Self {
-        Self(S::zero(dimension + msg_count))
+        Self(S::from_vec(vec![T::ZERO; dimension + msg_count]))
     }
 }
 
@@ -163,7 +162,7 @@ where
     /// Converts [`MultiMsgLwe<S, T>`] into bytes.
     #[inline]
     pub fn to_bytes(&self) -> Vec<u8> {
-        let data: &[u8] = bytemuck::cast_slice(self.0.as_ref());
+        let data: &[u8] = bytemuck::cast_slice(self.0.as_slice());
 
         data.to_vec()
     }
@@ -171,7 +170,7 @@ where
     /// Converts [`MultiMsgLwe<S, T>`] into bytes, stored in `data`.
     #[inline]
     pub fn to_bytes_inplace(&self, data: &mut [u8]) {
-        let src: &[u8] = bytemuck::cast_slice(self.0.as_ref());
+        let src: &[u8] = bytemuck::cast_slice(self.0.as_slice());
 
         assert_eq!(data.len(), src.len());
 

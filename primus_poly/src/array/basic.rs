@@ -4,11 +4,11 @@ use core::{
 };
 
 use num_traits::{ConstZero, Zero};
-use primus_integer::{ByteCount, UnsignedInteger, size::Size};
+use primus_integer::{ByteCount, Data, DataMut, DataOwned, RawData, UnsignedInteger, size::Size};
 
-use super::{ArrayBase, Data, DataMut, DataOwned, RawData};
+use super::ArrayBase;
 
-impl<S, T> ArrayBase<S, T>
+impl<S, T> ArrayBase<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
@@ -25,7 +25,7 @@ where
     }
 }
 
-impl<S, T> ArrayBase<S, T>
+impl<S, T> ArrayBase<S>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
@@ -42,18 +42,18 @@ where
     }
 }
 
-impl<S, T> ArrayBase<S, T>
+impl<S, T> ArrayBase<S>
 where
     S: RawData<Elem = T> + DataOwned,
     T: UnsignedInteger,
 {
     #[inline]
     pub fn zero(len: usize) -> Self {
-        Self(S::zero(len))
+        Self(S::from_vec(vec![T::ZERO; len]))
     }
 }
 
-impl<S, T> Size for ArrayBase<S, T>
+impl<S, T> Size for ArrayBase<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
@@ -64,7 +64,7 @@ where
     }
 }
 
-impl<S, T, I: SliceIndex<[T]>> Index<I> for ArrayBase<S, T>
+impl<S, T, I: SliceIndex<[T]>> Index<I> for ArrayBase<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
@@ -72,44 +72,44 @@ where
     type Output = I::Output;
 
     fn index(&self, index: I) -> &Self::Output {
-        Index::index(self.0.as_ref(), index)
+        Index::index(self.0.as_slice(), index)
     }
 }
 
-impl<S, T, I: SliceIndex<[T]>> IndexMut<I> for ArrayBase<S, T>
+impl<S, T, I: SliceIndex<[T]>> IndexMut<I> for ArrayBase<S>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
 {
     #[inline]
     fn index_mut(&mut self, index: I) -> &mut Self::Output {
-        IndexMut::index_mut(self.0.as_mut(), index)
+        IndexMut::index_mut(self.0.as_mut_slice(), index)
     }
 }
 
-impl<S, T> AsRef<[T]> for ArrayBase<S, T>
+impl<S, T> AsRef<[T]> for ArrayBase<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
 {
     #[inline]
     fn as_ref(&self) -> &[T] {
-        self.0.as_ref()
+        self.0.as_slice()
     }
 }
 
-impl<S, T> AsMut<[T]> for ArrayBase<S, T>
+impl<S, T> AsMut<[T]> for ArrayBase<S>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
 {
     #[inline]
     fn as_mut(&mut self) -> &mut [T] {
-        self.0.as_mut()
+        self.0.as_mut_slice()
     }
 }
 
-impl<'t, S, T> IntoIterator for &'t ArrayBase<S, T>
+impl<'t, S, T> IntoIterator for &'t ArrayBase<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
@@ -124,7 +124,7 @@ where
     }
 }
 
-impl<'t, S, T> IntoIterator for &'t mut ArrayBase<S, T>
+impl<'t, S, T> IntoIterator for &'t mut ArrayBase<S>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
@@ -139,7 +139,7 @@ where
     }
 }
 
-impl<S, T> IntoIterator for ArrayBase<S, T>
+impl<S, T> IntoIterator for ArrayBase<S>
 where
     S: RawData<Elem = T> + DataOwned,
     T: UnsignedInteger,

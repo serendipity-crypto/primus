@@ -1,8 +1,6 @@
-use primus_integer::UnsignedInteger;
+use primus_integer::{Data, DataMut, DataOwned, RawData, UnsignedInteger};
 use primus_ntt::NttTable;
-use primus_poly::{
-    ArrayBase, Data, DataMut, DataOwned, NttPolynomial, PolynomialIter, PolynomialIterMut, RawData,
-};
+use primus_poly::{ArrayBase, NttPolynomial, PolynomialIter, PolynomialIterMut};
 use primus_reduce::FieldContext;
 
 use super::NttGlwe;

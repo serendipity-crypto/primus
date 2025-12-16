@@ -1,7 +1,7 @@
-use primus_integer::UnsignedInteger;
+use primus_integer::{Data, DataMut, DataOwned, RawData, UnsignedInteger};
 use primus_lattice::rlwe::NttRlwe;
 use primus_ntt::NttTable;
-use primus_poly::{Data, DataMut, DataOwned, NttPolynomial, Polynomial, RawData};
+use primus_poly::{NttPolynomial, Polynomial};
 use primus_reduce::FieldContext;
 
 use crate::{NttRlweCiphertext, NttRlweSecretKey, RlweParameters};

@@ -1,10 +1,10 @@
 use primus_factor::FactorMul;
-use primus_integer::{UnsignedInteger, izip};
+use primus_integer::{Data, DataMut, RawData, UnsignedInteger, izip};
 use primus_lattice::glev::DcrtGlev;
 use primus_ntt::{DcrtTable, NttTable};
 use primus_poly::{
-    CrtPolynomial, CrtPolynomialIter, Data, DataMut, DcrtPolynomial, DcrtPolynomialIter,
-    NttPolynomial, NttPolynomialIter, Polynomial, PolynomialOwned, RawData,
+    CrtPolynomial, CrtPolynomialIter, DcrtPolynomial, DcrtPolynomialIter, NttPolynomial,
+    NttPolynomialIter, Polynomial, PolynomialOwned,
 };
 use primus_reduce::FieldContext;
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -611,12 +611,7 @@ impl<T: UnsignedInteger> DcrtGlweDecryptContext<T> {
     }
 
     #[inline]
-    pub fn as_mut(
-        &mut self,
-    ) -> (
-        &mut DcrtPolynomial<Vec<T>, T>,
-        &mut CrtPolynomial<Vec<T>, T>,
-    ) {
+    pub fn as_mut(&mut self) -> (&mut DcrtPolynomial<Vec<T>>, &mut CrtPolynomial<Vec<T>>) {
         (&mut self.msg_mod_q, &mut self.msg_mod_t_gamma)
     }
 }

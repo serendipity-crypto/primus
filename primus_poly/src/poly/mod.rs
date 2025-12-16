@@ -1,8 +1,6 @@
-use num_traits::ConstZero;
-use primus_integer::{UnsignedInteger, size::Size};
+use num_traits::{ConstZero, Zero};
+use primus_integer::{ByteCount, Data, DataMut, DataOwned, RawData, UnsignedInteger, size::Size};
 use primus_reduce::ops::ReduceMulAdd;
-
-use crate::{Data, DataMut, DataOwned, RawData};
 
 mod basic;
 mod random;
@@ -12,20 +10,20 @@ mod mul;
 mod neg;
 mod sub;
 
-pub type PolynomialOwned<T> = Polynomial<Vec<T>, T>;
-pub type PolynomialRef<'a, T> = Polynomial<&'a [T], T>;
-pub type PolynomialMut<'a, T> = Polynomial<&'a mut [T], T>;
+pub type PolynomialOwned<T> = Polynomial<Vec<T>>;
+pub type PolynomialRef<'a, T> = Polynomial<&'a [T]>;
+pub type PolynomialMut<'a, T> = Polynomial<&'a mut [T]>;
 
 /// Represents a polynomial where coefficients are elements of a specified unsigned integer `T`.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Polynomial<S, T = <S as RawData>::Elem>(pub S)
+pub struct Polynomial<S>(pub S)
 where
-    S: RawData<Elem = T>,
-    T: UnsignedInteger;
+    S: RawData,
+    <S as RawData>::Elem: UnsignedInteger;
 
 impl_iters!(Polynomial, poly);
 
-impl<S, T> Polynomial<S, T>
+impl<S, T> Polynomial<S>
 where
     S: RawData<Elem = T>,
     T: UnsignedInteger,
@@ -37,7 +35,7 @@ where
     }
 }
 
-impl<S, T> Polynomial<S, T>
+impl<S, T> Polynomial<S>
 where
     S: RawData<Elem = T> + DataOwned,
     T: UnsignedInteger,
@@ -45,7 +43,7 @@ where
     /// Creates a [`Polynomial<T>`] with all coefficients equal to zero.
     #[inline]
     pub fn zero(poly_length: usize) -> Self {
-        Self(S::zero(poly_length))
+        Self(S::from_vec(vec![T::ZERO; poly_length]))
     }
 
     /// Drop self, and return the vector.
@@ -61,7 +59,7 @@ where
     }
 }
 
-impl<S, T> Polynomial<S, T>
+impl<S, T> Polynomial<S>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
@@ -71,7 +69,7 @@ where
     /// Equivalent to `&mut s[..]`.
     #[inline]
     pub fn as_mut_slice(&mut self) -> &mut [T] {
-        self.0.as_mut()
+        self.0.as_mut_slice()
     }
 
     /// Returns an iterator that allows modifying each value or coefficient of the polynomial.
@@ -89,11 +87,11 @@ where
     /// Sets `self` to `0`.
     #[inline]
     pub fn set_zero(&mut self) {
-        self.0.set_zero();
+        self.0.fill(T::ZERO);
     }
 }
 
-impl<S, T> Polynomial<S, T>
+impl<S, T> Polynomial<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
@@ -109,7 +107,7 @@ where
     /// Equivalent to `&s[..]`.
     #[inline]
     pub fn as_slice(&self) -> &[T] {
-        self.0.as_ref()
+        self.0.as_slice()
     }
 
     /// Returns an iterator that allows reading each value or coefficient of the polynomial.
@@ -127,7 +125,7 @@ where
     /// Returns `true` if `self` is equal to `0`.
     #[inline]
     pub fn is_zero(&self) -> bool {
-        self.0.is_zero()
+        self.0.iter().all(Zero::is_zero)
     }
 
     /// Evaluate the polynomial with the value `x`.
@@ -142,13 +140,13 @@ where
     }
 }
 
-impl<S, T> Size for Polynomial<S, T>
+impl<S, T> Size for Polynomial<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
 {
     #[inline]
     fn byte_count(&self) -> usize {
-        self.0.byte_count()
+        self.0.len() * <T as ByteCount>::BYTES
     }
 }

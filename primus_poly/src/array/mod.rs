@@ -1,7 +1,6 @@
 use std::ops::{Deref, DerefMut};
 
-use num_traits::{ConstZero, Zero};
-use primus_integer::{ByteCount, UnsignedInteger};
+use primus_integer::{Data, DataMut, DataOwned, RawData, UnsignedInteger};
 
 mod basic;
 mod random;
@@ -18,24 +17,24 @@ pub type ArrayRef<'a, T> = ArrayBase<&'a [T]>;
 pub type ArrayMut<'a, T> = ArrayBase<&'a mut [T]>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ArrayBase<S, T = <S as RawData>::Elem>(pub S)
+pub struct ArrayBase<S>(pub S)
 where
-    S: RawData<Elem = T>,
-    T: UnsignedInteger;
+    S: RawData,
+    <S as RawData>::Elem: UnsignedInteger;
 
-impl<S, T> ArrayBase<S, T>
+impl<S> ArrayBase<S>
 where
-    S: RawData<Elem = T>,
-    T: UnsignedInteger,
+    S: RawData,
+    <S as RawData>::Elem: UnsignedInteger,
 {
-    /// Creates a new [`ArrayBase<S, T>`].
+    /// Creates a new [`ArrayBase<S>`].
     #[inline]
     pub fn new(data: S) -> Self {
         Self(data)
     }
 }
 
-impl<S, T> ArrayBase<S, T>
+impl<S, T> ArrayBase<S>
 where
     S: RawData<Elem = T> + DataOwned,
     T: UnsignedInteger,
@@ -49,14 +48,9 @@ where
     pub fn from_vec(data: Vec<T>) -> Self {
         Self(S::from_vec(data))
     }
-
-    #[inline]
-    pub fn to_ref(&self) -> ArrayBase<&[T], T> {
-        ArrayBase(self.0.to_ref())
-    }
 }
 
-impl<S, T> ArrayBase<S, T>
+impl<S, T> ArrayBase<S>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
@@ -71,7 +65,7 @@ where
         DataMut::chunks_exact_mut(&mut self.0, chunk_size)
     }
 }
-impl<S, T> ArrayBase<S, T>
+impl<S, T> ArrayBase<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
@@ -95,7 +89,7 @@ where
     }
 }
 
-impl<S, T> FromIterator<T> for ArrayBase<S, T>
+impl<S, T> FromIterator<T> for ArrayBase<S>
 where
     S: RawData<Elem = T> + DataOwned,
     T: UnsignedInteger,
@@ -106,7 +100,7 @@ where
     }
 }
 
-impl<S, T> Deref for ArrayBase<S, T>
+impl<S, T> Deref for ArrayBase<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
@@ -119,7 +113,7 @@ where
     }
 }
 
-impl<S, T> DerefMut for ArrayBase<S, T>
+impl<S, T> DerefMut for ArrayBase<S>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
@@ -127,360 +121,5 @@ where
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
-    }
-}
-
-pub trait RawData: Sized {
-    type Elem: UnsignedInteger;
-}
-
-impl<T: UnsignedInteger> RawData for &[T] {
-    type Elem = T;
-}
-
-impl<T: UnsignedInteger> RawData for &mut [T] {
-    type Elem = T;
-}
-
-impl<T: UnsignedInteger> RawData for Vec<T> {
-    type Elem = T;
-}
-
-pub trait Data: RawData + AsRef<[<Self as RawData>::Elem]> {
-    /// Returns the number of elements.
-    fn len(&self) -> usize;
-
-    /// Returns `true` if `self` has a length of 0.
-    fn is_empty(&self) -> bool;
-
-    #[inline]
-    fn is_zero(&self) -> bool {
-        self.iter().all(<<Self as RawData>::Elem as Zero>::is_zero)
-    }
-
-    fn byte_count(&self) -> usize {
-        self.len() * <<Self as RawData>::Elem as ByteCount>::BYTES
-    }
-
-    /// Returns an iterator.
-    ///
-    /// The iterator yields all items from start to end.
-    fn iter<'a>(&'a self) -> core::slice::Iter<'a, <Self as RawData>::Elem>;
-
-    fn chunks_exact<'a>(
-        &'a self,
-        chunk_size: usize,
-    ) -> std::slice::ChunksExact<'a, <Self as RawData>::Elem>;
-
-    /// Divides one slice into two at an index.
-    ///
-    /// The first will contain all indices from `[0, mid)` (excluding
-    /// the index `mid` itself) and the second will contain all
-    /// indices from `[mid, len)` (excluding the index `len` itself).
-    ///
-    /// # Panics
-    ///
-    /// Panics if `mid > len`.
-    fn split_at(&self, mid: usize) -> (&[<Self as RawData>::Elem], &[<Self as RawData>::Elem]);
-
-    /// Divides one slice into two at an index, without doing bounds checking.
-    ///
-    /// The first will contain all indices from `[0, mid)` (excluding the index `mid` itself)
-    /// and the second will contain all indices from `[mid, len)` (excluding the index len itself).
-    unsafe fn split_at_unchecked(
-        &self,
-        mid: usize,
-    ) -> (&[<Self as RawData>::Elem], &[<Self as RawData>::Elem]);
-}
-
-impl<T: UnsignedInteger> Data for &[T] {
-    #[inline]
-    fn len(&self) -> usize {
-        <[T]>::len(self)
-    }
-
-    #[inline]
-    fn is_empty(&self) -> bool {
-        <[T]>::is_empty(self)
-    }
-
-    #[inline]
-    fn iter<'a>(&'a self) -> core::slice::Iter<'a, <Self as RawData>::Elem> {
-        <[T]>::iter(self)
-    }
-
-    #[inline]
-    fn chunks_exact<'a>(
-        &'a self,
-        chunk_size: usize,
-    ) -> std::slice::ChunksExact<'a, <Self as RawData>::Elem> {
-        <[T]>::chunks_exact(self, chunk_size)
-    }
-
-    #[inline]
-    fn split_at(&self, mid: usize) -> (&[<Self as RawData>::Elem], &[<Self as RawData>::Elem]) {
-        <[T]>::split_at(self, mid)
-    }
-
-    #[inline]
-    unsafe fn split_at_unchecked(
-        &self,
-        mid: usize,
-    ) -> (&[<Self as RawData>::Elem], &[<Self as RawData>::Elem]) {
-        unsafe { <[T]>::split_at_unchecked(self, mid) }
-    }
-}
-
-impl<T: UnsignedInteger> Data for &mut [T] {
-    #[inline]
-    fn len(&self) -> usize {
-        <[T]>::len(self)
-    }
-
-    #[inline]
-    fn is_empty(&self) -> bool {
-        <[T]>::is_empty(self)
-    }
-
-    #[inline]
-    fn iter<'a>(&'a self) -> core::slice::Iter<'a, <Self as RawData>::Elem> {
-        <[T]>::iter(self)
-    }
-
-    #[inline]
-    fn chunks_exact<'a>(
-        &'a self,
-        chunk_size: usize,
-    ) -> std::slice::ChunksExact<'a, <Self as RawData>::Elem> {
-        <[T]>::chunks_exact(self, chunk_size)
-    }
-
-    #[inline]
-    fn split_at(&self, mid: usize) -> (&[<Self as RawData>::Elem], &[<Self as RawData>::Elem]) {
-        <[T]>::split_at(self, mid)
-    }
-
-    #[inline]
-    unsafe fn split_at_unchecked(
-        &self,
-        mid: usize,
-    ) -> (&[<Self as RawData>::Elem], &[<Self as RawData>::Elem]) {
-        unsafe { <[T]>::split_at_unchecked(self, mid) }
-    }
-}
-
-impl<T: UnsignedInteger> Data for Vec<T> {
-    #[inline]
-    fn len(&self) -> usize {
-        <Vec<T>>::len(self)
-    }
-
-    #[inline]
-    fn is_empty(&self) -> bool {
-        Vec::is_empty(self)
-    }
-
-    #[inline]
-    fn iter<'a>(&'a self) -> core::slice::Iter<'a, <Self as RawData>::Elem> {
-        <[T]>::iter(self)
-    }
-
-    #[inline]
-    fn chunks_exact<'a>(
-        &'a self,
-        chunk_size: usize,
-    ) -> std::slice::ChunksExact<'a, <Self as RawData>::Elem> {
-        <[T]>::chunks_exact(self, chunk_size)
-    }
-
-    #[inline]
-    fn split_at(&self, mid: usize) -> (&[<Self as RawData>::Elem], &[<Self as RawData>::Elem]) {
-        <[T]>::split_at(self, mid)
-    }
-
-    #[inline]
-    unsafe fn split_at_unchecked(
-        &self,
-        mid: usize,
-    ) -> (&[<Self as RawData>::Elem], &[<Self as RawData>::Elem]) {
-        unsafe { <[T]>::split_at_unchecked(self, mid) }
-    }
-}
-
-pub trait DataMut: Data + AsMut<[<Self as RawData>::Elem]> {
-    /// Returns an iterator that allows modifying each value.
-    ///
-    /// The iterator yields all items from start to end.
-    fn iter_mut<'a>(&'a mut self) -> core::slice::IterMut<'a, <Self as RawData>::Elem>;
-
-    fn chunks_exact_mut<'a>(
-        &'a mut self,
-        chunk_size: usize,
-    ) -> std::slice::ChunksExactMut<'a, <Self as RawData>::Elem>;
-
-    /// Fills `self` with elements by cloning `value`.
-    fn fill(&mut self, value: <Self as RawData>::Elem);
-
-    /// Copies all elements from `src` into `self`, using a memcpy.
-    ///
-    /// The length of `src` must be the same as `self`.
-    fn copy_from_slice(&mut self, src: &[<Self as RawData>::Elem]);
-
-    fn split_at_mut(
-        &mut self,
-        mid: usize,
-    ) -> (
-        &mut [<Self as RawData>::Elem],
-        &mut [<Self as RawData>::Elem],
-    );
-
-    /// Divides one mutable slice into two at an index, without doing bounds checking.
-    ///
-    /// The first will contain all indices from `[0, mid)` (excluding the index `mid` itself)
-    /// and the second will contain all indices from `[mid, len)` (excluding the index len itself).
-    unsafe fn split_at_mut_unchecked(
-        &mut self,
-        mid: usize,
-    ) -> (
-        &mut [<Self as RawData>::Elem],
-        &mut [<Self as RawData>::Elem],
-    );
-
-    fn set_zero(&mut self) {
-        self.fill(<<Self as RawData>::Elem as ConstZero>::ZERO);
-    }
-}
-
-impl<T: UnsignedInteger> DataMut for &mut [T] {
-    #[inline]
-    fn iter_mut<'a>(&'a mut self) -> core::slice::IterMut<'a, <Self as RawData>::Elem> {
-        <[T]>::iter_mut(self)
-    }
-
-    #[inline]
-    fn fill(&mut self, value: T) {
-        <[T]>::fill(self, value);
-    }
-
-    #[inline]
-    fn copy_from_slice(&mut self, src: &[<Self as RawData>::Elem]) {
-        <[T]>::copy_from_slice(self, src);
-    }
-
-    #[inline]
-    fn chunks_exact_mut<'a>(
-        &'a mut self,
-        chunk_size: usize,
-    ) -> std::slice::ChunksExactMut<'a, <Self as RawData>::Elem> {
-        <[T]>::chunks_exact_mut(self, chunk_size)
-    }
-
-    #[inline]
-    fn split_at_mut(
-        &mut self,
-        mid: usize,
-    ) -> (
-        &mut [<Self as RawData>::Elem],
-        &mut [<Self as RawData>::Elem],
-    ) {
-        <[T]>::split_at_mut(self, mid)
-    }
-
-    #[inline(always)]
-    unsafe fn split_at_mut_unchecked(
-        &mut self,
-        mid: usize,
-    ) -> (
-        &mut [<Self as RawData>::Elem],
-        &mut [<Self as RawData>::Elem],
-    ) {
-        unsafe { <[T]>::split_at_mut_unchecked(self, mid) }
-    }
-}
-
-impl<T: UnsignedInteger> DataMut for Vec<T> {
-    #[inline]
-    fn iter_mut<'a>(&'a mut self) -> core::slice::IterMut<'a, <Self as RawData>::Elem> {
-        <[T]>::iter_mut(self)
-    }
-
-    #[inline]
-    fn fill(&mut self, value: T) {
-        <[T]>::fill(self, value);
-    }
-
-    #[inline]
-    fn copy_from_slice(&mut self, src: &[<Self as RawData>::Elem]) {
-        <[T]>::copy_from_slice(self, src);
-    }
-
-    #[inline]
-    fn chunks_exact_mut<'a>(
-        &'a mut self,
-        chunk_size: usize,
-    ) -> std::slice::ChunksExactMut<'a, <Self as RawData>::Elem> {
-        <[T]>::chunks_exact_mut(self, chunk_size)
-    }
-
-    #[inline]
-    fn split_at_mut(
-        &mut self,
-        mid: usize,
-    ) -> (
-        &mut [<Self as RawData>::Elem],
-        &mut [<Self as RawData>::Elem],
-    ) {
-        <[T]>::split_at_mut(self, mid)
-    }
-
-    #[inline(always)]
-    unsafe fn split_at_mut_unchecked(
-        &mut self,
-        mid: usize,
-    ) -> (
-        &mut [<Self as RawData>::Elem],
-        &mut [<Self as RawData>::Elem],
-    ) {
-        unsafe { <[T]>::split_at_mut_unchecked(self, mid) }
-    }
-}
-
-pub trait DataOwned: Data + FromIterator<<Self as RawData>::Elem> {
-    fn zero(len: usize) -> Self;
-
-    fn from_slice(data: &[<Self as RawData>::Elem]) -> Self;
-
-    fn from_vec(data: Vec<<Self as RawData>::Elem>) -> Self;
-
-    /// Creates a consuming iterator, that is, one that moves each value out of the vector (from start to end).
-    fn into_iter(self) -> std::vec::IntoIter<<Self as RawData>::Elem>;
-
-    fn to_ref(&self) -> &[<Self as RawData>::Elem];
-}
-
-impl<T: UnsignedInteger> DataOwned for Vec<T> {
-    #[inline(always)]
-    fn zero(len: usize) -> Self {
-        vec![T::ZERO; len]
-    }
-
-    #[inline]
-    fn from_slice(data: &[<Self as RawData>::Elem]) -> Self {
-        data.to_vec()
-    }
-
-    #[inline(always)]
-    fn from_vec(data: Vec<<Self as RawData>::Elem>) -> Self {
-        data
-    }
-
-    #[inline]
-    fn into_iter(self) -> std::vec::IntoIter<<Self as RawData>::Elem> {
-        <Vec<T> as IntoIterator>::into_iter(self)
-    }
-
-    #[inline]
-    fn to_ref(&self) -> &[<Self as RawData>::Elem] {
-        self
     }
 }

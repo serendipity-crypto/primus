@@ -1,13 +1,11 @@
 use primus_factor::{FactorMul, ShoupFactor};
-use primus_integer::UnsignedInteger;
+use primus_integer::{Data, DataMut, RawData, UnsignedInteger};
 use primus_modulus::UintModulus;
 use primus_reduce::ops::*;
 
-use crate::{Data, DataMut, RawData};
-
 use super::NttPolynomial;
 
-impl<S, T> NttPolynomial<S, T>
+impl<S, T> NttPolynomial<S>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
@@ -52,7 +50,7 @@ where
 
     /// Performs `self += scalar * rhs` according to `modulus`.
     #[inline]
-    pub fn add_mul_scalar_assign<M, A>(&mut self, rhs: &NttPolynomial<A, T>, scalar: T, modulus: M)
+    pub fn add_mul_scalar_assign<M, A>(&mut self, rhs: &NttPolynomial<A>, scalar: T, modulus: M)
     where
         M: Copy + ReduceMulAdd<T, Output = T>,
         A: RawData<Elem = T> + Data,
@@ -73,7 +71,7 @@ where
     #[inline]
     pub fn add_mul_factor_assign<A>(
         &mut self,
-        rhs: &NttPolynomial<A, T>,
+        rhs: &NttPolynomial<A>,
         scalar: ShoupFactor<T>,
         modulus: T,
     ) where
@@ -86,7 +84,7 @@ where
 
     /// Performs `self *= rhs` according to `modulus`.
     #[inline]
-    pub fn mul_assign<M, A>(&mut self, rhs: &NttPolynomial<A, T>, modulus: M)
+    pub fn mul_assign<M, A>(&mut self, rhs: &NttPolynomial<A>, modulus: M)
     where
         M: Copy + ReduceMulAssign<T>,
         A: RawData<Elem = T> + Data,
@@ -97,7 +95,7 @@ where
     }
 }
 
-impl<S, T> NttPolynomial<S, T>
+impl<S, T> NttPolynomial<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
@@ -106,8 +104,8 @@ where
     #[inline]
     pub fn mul_inplace<M, A, B>(
         &self,
-        rhs: &NttPolynomial<A, T>,
-        result: &mut NttPolynomial<B, T>,
+        rhs: &NttPolynomial<A>,
+        result: &mut NttPolynomial<B>,
         modulus: M,
     ) where
         M: Copy + ReduceMul<T, Output = T>,

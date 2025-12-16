@@ -1,13 +1,11 @@
 use primus_factor::{FactorMul, ShoupFactor};
-use primus_integer::UnsignedInteger;
+use primus_integer::{Data, DataMut, RawData, UnsignedInteger};
 use primus_modulus::UintModulus;
 use primus_reduce::ops::*;
 
-use crate::{Data, DataMut, RawData};
-
 use super::Polynomial;
 
-impl<S, T> Polynomial<S, T>
+impl<S, T> Polynomial<S>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
@@ -41,7 +39,7 @@ where
 
     /// Performs `self += scalar * rhs` according to `modulus`.
     #[inline]
-    pub fn add_mul_scalar_assign<M, A>(&mut self, rhs: &Polynomial<A, T>, scalar: T, modulus: M)
+    pub fn add_mul_scalar_assign<M, A>(&mut self, rhs: &Polynomial<A>, scalar: T, modulus: M)
     where
         M: Copy + ReduceMulAdd<T, Output = T>,
         A: RawData<Elem = T> + Data,
@@ -62,7 +60,7 @@ where
     #[inline]
     pub fn add_mul_factor_assign<A>(
         &mut self,
-        rhs: &Polynomial<A, T>,
+        rhs: &Polynomial<A>,
         scalar: ShoupFactor<T>,
         modulus: T,
     ) where
@@ -104,7 +102,7 @@ where
     }
 }
 
-impl<S, T> Polynomial<S, T>
+impl<S, T> Polynomial<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
@@ -112,8 +110,8 @@ where
     /// A naive multiplication over polynomial.
     pub fn naive_mul_inplace<M, A, B>(
         &self,
-        rhs: &Polynomial<A, T>,
-        result: &mut Polynomial<B, T>,
+        rhs: &Polynomial<A>,
+        result: &mut Polynomial<B>,
         modulus: M,
     ) where
         M: Copy + ReduceSubAssign<T> + ReduceMul<T, Output = T> + ReduceMulAdd<T, Output = T>,

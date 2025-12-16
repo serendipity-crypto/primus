@@ -18,7 +18,7 @@ macro_rules! impl_iters {
             }
 
             impl<'a, T: UnsignedInteger> Iterator for [<$poly Iter>]<'a, T> {
-                type Item = $poly<&'a [T], T>;
+                type Item = $poly<&'a [T]>;
 
                 #[inline]
                 fn next(&mut self) -> Option<Self::Item> {
@@ -47,7 +47,7 @@ macro_rules! impl_iters {
             }
 
             impl<'a, T: UnsignedInteger> Iterator for [<$poly IterMut>]<'a, T> {
-                type Item = $poly<&'a mut [T], T>;
+                type Item = $poly<&'a mut [T]>;
 
                 #[inline]
                 fn next(&mut self) -> Option<Self::Item> {

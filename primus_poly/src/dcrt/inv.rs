@@ -1,12 +1,10 @@
 use num_traits::Zero;
-use primus_integer::UnsignedInteger;
+use primus_integer::{DataMut, DataOwned, RawData, UnsignedInteger};
 use primus_reduce::ops::ReduceInvAssign;
-
-use crate::{DataMut, DataOwned, RawData};
 
 use super::DcrtPolynomial;
 
-impl<S, T> DcrtPolynomial<S, T>
+impl<S, T> DcrtPolynomial<S>
 where
     S: RawData<Elem = T> + DataOwned + DataMut,
     T: UnsignedInteger,

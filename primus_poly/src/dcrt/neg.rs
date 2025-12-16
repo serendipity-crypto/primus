@@ -1,11 +1,11 @@
-use primus_integer::{UnsignedInteger, izip};
+use primus_integer::{Data, DataMut, RawData, UnsignedInteger, izip};
 use primus_reduce::ops::{ReduceNeg, ReduceNegAssign};
 
-use crate::{ArrayBase, Data, DataMut, RawData};
+use crate::ArrayBase;
 
 use super::DcrtPolynomial;
 
-impl<S, T> DcrtPolynomial<S, T>
+impl<S, T> DcrtPolynomial<S>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
@@ -32,7 +32,7 @@ where
     }
 }
 
-impl<S, T> DcrtPolynomial<S, T>
+impl<S, T> DcrtPolynomial<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
@@ -41,7 +41,7 @@ where
     #[inline]
     pub fn neg_inplace<M, A>(
         &self,
-        result: &mut DcrtPolynomial<A, T>,
+        result: &mut DcrtPolynomial<A>,
         poly_length: usize,
         moduli: &[M],
     ) where

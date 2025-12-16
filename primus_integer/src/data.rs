@@ -18,6 +18,44 @@ pub trait Data: RawData {
     ///
     /// The iterator yields all items from start to end.
     fn iter<'a>(&'a self) -> Iter<'a, Self::Elem>;
+
+    /// Returns an iterator over `chunk_size` elements of the slice at a time, starting at the
+    /// beginning of the slice.
+    ///
+    /// The chunks are slices and do not overlap. If `chunk_size` does not divide the length of the
+    /// slice, then the last up to `chunk_size-1` elements will be omitted and can be retrieved
+    /// from the `remainder` function of the iterator.
+    ///
+    /// Due to each chunk having exactly `chunk_size` elements, the compiler can often optimize the
+    /// resulting code better than in the case of [`chunks`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if `chunk_size` is zero.
+    fn chunks_exact<'a>(
+        &'a self,
+        chunk_size: usize,
+    ) -> std::slice::ChunksExact<'a, <Self as RawData>::Elem>;
+
+    /// Divides one slice into two at an index.
+    ///
+    /// The first will contain all indices from `[0, mid)` (excluding
+    /// the index `mid` itself) and the second will contain all
+    /// indices from `[mid, len)` (excluding the index `len` itself).
+    ///
+    /// # Panics
+    ///
+    /// Panics if `mid > len`.
+    fn split_at(&self, mid: usize) -> (&[<Self as RawData>::Elem], &[<Self as RawData>::Elem]);
+
+    /// Divides one slice into two at an index, without doing bounds checking.
+    ///
+    /// The first will contain all indices from `[0, mid)` (excluding the index `mid` itself)
+    /// and the second will contain all indices from `[mid, len)` (excluding the index len itself).
+    unsafe fn split_at_unchecked(
+        &self,
+        mid: usize,
+    ) -> (&[<Self as RawData>::Elem], &[<Self as RawData>::Elem]);
 }
 
 pub trait DataMut: Data {
@@ -33,6 +71,49 @@ pub trait DataMut: Data {
     fn fill(&mut self, value: <Self as RawData>::Elem)
     where
         <Self as RawData>::Elem: Clone;
+
+    /// Copies all elements from `src` into `self`, using a memcpy.
+    ///
+    /// The length of `src` must be the same as `self`.
+    fn copy_from_slice(&mut self, src: &[<Self as RawData>::Elem])
+    where
+        <Self as RawData>::Elem: Copy;
+
+    fn chunks_exact_mut<'a>(
+        &'a mut self,
+        chunk_size: usize,
+    ) -> std::slice::ChunksExactMut<'a, <Self as RawData>::Elem>;
+
+    fn split_at_mut(
+        &mut self,
+        mid: usize,
+    ) -> (
+        &mut [<Self as RawData>::Elem],
+        &mut [<Self as RawData>::Elem],
+    );
+
+    /// Divides one mutable slice into two at an index, without doing bounds checking.
+    ///
+    /// The first will contain all indices from `[0, mid)` (excluding the index `mid` itself)
+    /// and the second will contain all indices from `[mid, len)` (excluding the index len itself).
+    unsafe fn split_at_mut_unchecked(
+        &mut self,
+        mid: usize,
+    ) -> (
+        &mut [<Self as RawData>::Elem],
+        &mut [<Self as RawData>::Elem],
+    );
+}
+
+pub trait DataOwned: Data + FromIterator<<Self as RawData>::Elem> {
+    fn from_slice(data: &[<Self as RawData>::Elem]) -> Self
+    where
+        <Self as RawData>::Elem: Clone;
+
+    fn from_vec(data: Vec<<Self as RawData>::Elem>) -> Self;
+
+    /// Creates a consuming iterator, that is, one that moves each value out of the vector (from start to end).
+    fn into_iter(self) -> std::vec::IntoIter<<Self as RawData>::Elem>;
 }
 
 impl<T> RawData for &[T] {
@@ -58,6 +139,21 @@ impl<T> Data for &[T] {
     #[inline(always)]
     fn iter<'a>(&'a self) -> Iter<'a, T> {
         <[T]>::iter(self)
+    }
+
+    #[inline(always)]
+    fn chunks_exact<'a>(&'a self, chunk_size: usize) -> std::slice::ChunksExact<'a, T> {
+        <[T]>::chunks_exact(self, chunk_size)
+    }
+
+    #[inline(always)]
+    fn split_at(&self, mid: usize) -> (&[T], &[T]) {
+        <[T]>::split_at(self, mid)
+    }
+
+    #[inline(always)]
+    unsafe fn split_at_unchecked(&self, mid: usize) -> (&[T], &[T]) {
+        unsafe { <[T]>::split_at_unchecked(self, mid) }
     }
 }
 
@@ -85,6 +181,21 @@ impl<T> Data for &mut [T] {
     fn iter<'a>(&'a self) -> Iter<'a, T> {
         <[T]>::iter(self)
     }
+
+    #[inline(always)]
+    fn chunks_exact<'a>(&'a self, chunk_size: usize) -> std::slice::ChunksExact<'a, T> {
+        <[T]>::chunks_exact(self, chunk_size)
+    }
+
+    #[inline(always)]
+    fn split_at(&self, mid: usize) -> (&[T], &[T]) {
+        <[T]>::split_at(self, mid)
+    }
+
+    #[inline(always)]
+    unsafe fn split_at_unchecked(&self, mid: usize) -> (&[T], &[T]) {
+        unsafe { <[T]>::split_at_unchecked(self, mid) }
+    }
 }
 
 impl<T> DataMut for &mut [T] {
@@ -104,6 +215,29 @@ impl<T> DataMut for &mut [T] {
         T: Clone,
     {
         <[T]>::fill(self, value);
+    }
+
+    #[inline(always)]
+    fn copy_from_slice(&mut self, src: &[T])
+    where
+        T: Copy,
+    {
+        <[T]>::copy_from_slice(self, src);
+    }
+
+    #[inline(always)]
+    fn chunks_exact_mut<'a>(&'a mut self, chunk_size: usize) -> std::slice::ChunksExactMut<'a, T> {
+        <[T]>::chunks_exact_mut(self, chunk_size)
+    }
+
+    #[inline(always)]
+    fn split_at_mut(&mut self, mid: usize) -> (&mut [T], &mut [T]) {
+        <[T]>::split_at_mut(self, mid)
+    }
+
+    #[inline(always)]
+    unsafe fn split_at_mut_unchecked(&mut self, mid: usize) -> (&mut [T], &mut [T]) {
+        unsafe { <[T]>::split_at_mut_unchecked(self, mid) }
     }
 }
 
@@ -131,6 +265,21 @@ impl<T> Data for Vec<T> {
     fn iter<'a>(&'a self) -> Iter<'a, T> {
         <[T]>::iter(self)
     }
+
+    #[inline(always)]
+    fn chunks_exact<'a>(&'a self, chunk_size: usize) -> std::slice::ChunksExact<'a, T> {
+        <[T]>::chunks_exact(self, chunk_size)
+    }
+
+    #[inline(always)]
+    fn split_at(&self, mid: usize) -> (&[T], &[T]) {
+        <[T]>::split_at(self, mid)
+    }
+
+    #[inline(always)]
+    unsafe fn split_at_unchecked(&self, mid: usize) -> (&[T], &[T]) {
+        unsafe { <[T]>::split_at_unchecked(self, mid) }
+    }
 }
 
 impl<T> DataMut for Vec<T> {
@@ -150,6 +299,49 @@ impl<T> DataMut for Vec<T> {
         T: Clone,
     {
         <[T]>::fill(self, value);
+    }
+
+    #[inline(always)]
+    fn copy_from_slice(&mut self, src: &[T])
+    where
+        T: Copy,
+    {
+        <[T]>::copy_from_slice(self, src);
+    }
+
+    #[inline(always)]
+    fn chunks_exact_mut<'a>(&'a mut self, chunk_size: usize) -> std::slice::ChunksExactMut<'a, T> {
+        <[T]>::chunks_exact_mut(self, chunk_size)
+    }
+
+    #[inline(always)]
+    fn split_at_mut(&mut self, mid: usize) -> (&mut [T], &mut [T]) {
+        <[T]>::split_at_mut(self, mid)
+    }
+
+    #[inline(always)]
+    unsafe fn split_at_mut_unchecked(&mut self, mid: usize) -> (&mut [T], &mut [T]) {
+        unsafe { <[T]>::split_at_mut_unchecked(self, mid) }
+    }
+}
+
+impl<T> DataOwned for Vec<T> {
+    #[inline(always)]
+    fn from_slice(data: &[T]) -> Self
+    where
+        T: Clone,
+    {
+        data.to_vec()
+    }
+
+    #[inline(always)]
+    fn from_vec(data: Vec<T>) -> Self {
+        data
+    }
+
+    #[inline(always)]
+    fn into_iter(self) -> std::vec::IntoIter<T> {
+        <Vec<T> as IntoIterator>::into_iter(self)
     }
 }
 
@@ -177,6 +369,21 @@ impl<T> Data for Box<[T]> {
     fn iter<'a>(&'a self) -> Iter<'a, T> {
         <[T]>::iter(self)
     }
+
+    #[inline(always)]
+    fn chunks_exact<'a>(&'a self, chunk_size: usize) -> std::slice::ChunksExact<'a, T> {
+        <[T]>::chunks_exact(self, chunk_size)
+    }
+
+    #[inline(always)]
+    fn split_at(&self, mid: usize) -> (&[T], &[T]) {
+        <[T]>::split_at(self, mid)
+    }
+
+    #[inline(always)]
+    unsafe fn split_at_unchecked(&self, mid: usize) -> (&[T], &[T]) {
+        unsafe { <[T]>::split_at_unchecked(self, mid) }
+    }
 }
 
 impl<T> DataMut for Box<[T]> {
@@ -196,5 +403,48 @@ impl<T> DataMut for Box<[T]> {
         T: Clone,
     {
         <[T]>::fill(self, value);
+    }
+
+    #[inline(always)]
+    fn copy_from_slice(&mut self, src: &[T])
+    where
+        T: Copy,
+    {
+        <[T]>::copy_from_slice(self, src);
+    }
+
+    #[inline(always)]
+    fn chunks_exact_mut<'a>(&'a mut self, chunk_size: usize) -> std::slice::ChunksExactMut<'a, T> {
+        <[T]>::chunks_exact_mut(self, chunk_size)
+    }
+
+    #[inline(always)]
+    fn split_at_mut(&mut self, mid: usize) -> (&mut [T], &mut [T]) {
+        <[T]>::split_at_mut(self, mid)
+    }
+
+    #[inline(always)]
+    unsafe fn split_at_mut_unchecked(&mut self, mid: usize) -> (&mut [T], &mut [T]) {
+        unsafe { <[T]>::split_at_mut_unchecked(self, mid) }
+    }
+}
+
+impl<T> DataOwned for Box<[T]> {
+    #[inline(always)]
+    fn from_slice(data: &[T]) -> Self
+    where
+        T: Clone,
+    {
+        data.to_vec().into_boxed_slice()
+    }
+
+    #[inline(always)]
+    fn from_vec(data: Vec<T>) -> Self {
+        data.into_boxed_slice()
+    }
+
+    #[inline(always)]
+    fn into_iter(self) -> std::vec::IntoIter<T> {
+        <Box<[T]> as IntoIterator>::into_iter(self)
     }
 }

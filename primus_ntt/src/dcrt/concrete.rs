@@ -1,7 +1,8 @@
 /// ntt for 32bits
 pub mod prime32 {
 
-    use primus_poly::{CrtPolynomial, DataMut, DcrtPolynomial, RawData};
+    use primus_integer::{DataMut, RawData};
+    use primus_poly::{CrtPolynomial, DcrtPolynomial};
 
     use crate::{Concrete32Table, DcrtTable, NttTable};
 
@@ -67,8 +68,8 @@ pub mod prime32 {
         #[inline]
         fn transform_inplace<S: RawData<Elem = Self::ValueT> + DataMut>(
             &self,
-            mut crt_poly: CrtPolynomial<S, u32>,
-        ) -> DcrtPolynomial<S, u32> {
+            mut crt_poly: CrtPolynomial<S>,
+        ) -> DcrtPolynomial<S> {
             let poly_length = self.poly_length();
 
             self.iter()
@@ -81,8 +82,8 @@ pub mod prime32 {
         #[inline]
         fn inverse_transform_inplace<S: RawData<Elem = Self::ValueT> + DataMut>(
             &self,
-            mut dcrt_poly: DcrtPolynomial<S, u32>,
-        ) -> CrtPolynomial<S, u32> {
+            mut dcrt_poly: DcrtPolynomial<S>,
+        ) -> CrtPolynomial<S> {
             let poly_length = self.poly_length();
 
             self.iter()
@@ -129,7 +130,8 @@ pub mod prime32 {
 /// ntt for 64bits
 pub mod prime64 {
 
-    use primus_poly::{CrtPolynomial, DataMut, DcrtPolynomial, RawData};
+    use primus_integer::{DataMut, RawData};
+    use primus_poly::{CrtPolynomial, DcrtPolynomial};
 
     use crate::{Concrete64Table, DcrtTable, NttTable};
 
@@ -196,8 +198,8 @@ pub mod prime64 {
         #[inline]
         fn transform_inplace<S: RawData<Elem = Self::ValueT> + DataMut>(
             &self,
-            mut crt_poly: CrtPolynomial<S, u64>,
-        ) -> DcrtPolynomial<S, u64> {
+            mut crt_poly: CrtPolynomial<S>,
+        ) -> DcrtPolynomial<S> {
             let poly_length = self.poly_length();
 
             self.iter()
@@ -210,8 +212,8 @@ pub mod prime64 {
         #[inline]
         fn inverse_transform_inplace<S: RawData<Elem = Self::ValueT> + DataMut>(
             &self,
-            mut dcrt_poly: DcrtPolynomial<S, u64>,
-        ) -> CrtPolynomial<S, u64> {
+            mut dcrt_poly: DcrtPolynomial<S>,
+        ) -> CrtPolynomial<S> {
             let poly_length = self.poly_length();
 
             self.iter()

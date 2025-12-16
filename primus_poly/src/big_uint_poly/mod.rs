@@ -1,6 +1,5 @@
-use primus_integer::UnsignedInteger;
-
-use crate::{Data, DataMut, DataOwned, RawData};
+use num_traits::Zero;
+use primus_integer::{Data, DataMut, DataOwned, RawData, UnsignedInteger};
 
 mod add;
 mod neg;
@@ -8,14 +7,14 @@ mod sub;
 
 /// Represents a polynomial where coefficients are elements of a specified numeric `T`.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct BigUintPolynomial<S, T = <S as RawData>::Elem>(pub S)
+pub struct BigUintPolynomial<S>(pub S)
 where
-    S: RawData<Elem = T>,
-    T: UnsignedInteger;
+    S: RawData,
+    <S as RawData>::Elem: UnsignedInteger;
 
 impl_iters!(BigUintPolynomial, bit_uint_poly);
 
-impl<S, T> BigUintPolynomial<S, T>
+impl<S, T> BigUintPolynomial<S>
 where
     S: RawData<Elem = T>,
     T: UnsignedInteger,
@@ -27,7 +26,7 @@ where
     }
 }
 
-impl<S, T> BigUintPolynomial<S, T>
+impl<S, T> BigUintPolynomial<S>
 where
     S: RawData<Elem = T> + DataOwned,
     T: UnsignedInteger,
@@ -35,7 +34,7 @@ where
     /// Creates a [`BigUintPolynomial<S>`] with all coefficients equal to zero.
     #[inline]
     pub fn zero(big_uint_poly_len: usize) -> Self {
-        Self(S::zero(big_uint_poly_len))
+        Self(S::from_vec(vec![T::ZERO; big_uint_poly_len]))
     }
 
     /// Drop self, and return the vector.
@@ -51,7 +50,7 @@ where
     }
 }
 
-impl<S, T> BigUintPolynomial<S, T>
+impl<S, T> BigUintPolynomial<S>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
@@ -65,7 +64,7 @@ where
     /// Sets `self` to `0`.
     #[inline]
     pub fn set_zero(&mut self) {
-        self.0.set_zero();
+        self.0.fill(T::ZERO);
     }
 
     /// Extracts a mutable slice of the entire vector.
@@ -73,7 +72,7 @@ where
     /// Equivalent to `&mut s[..]`.
     #[inline]
     pub fn as_mut_slice(&mut self) -> &mut [T] {
-        self.0.as_mut()
+        self.0.as_mut_slice()
     }
 
     /// Returns an iterator that allows modifying each value or coefficient of the polynomial.
@@ -83,7 +82,7 @@ where
     }
 }
 
-impl<S, T> BigUintPolynomial<S, T>
+impl<S, T> BigUintPolynomial<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
@@ -91,7 +90,7 @@ where
     /// Returns `true` if `self` is equal to `0`.
     #[inline]
     pub fn is_zero(&self) -> bool {
-        self.0.is_zero()
+        self.0.iter().all(Zero::is_zero)
     }
 
     /// Extracts a slice containing the entire vector.
@@ -99,7 +98,7 @@ where
     /// Equivalent to `&s[..]`.
     #[inline]
     pub fn as_slice(&self) -> &[T] {
-        self.0.as_ref()
+        self.0.as_slice()
     }
 
     /// Returns an iterator that allows reading each value or coefficient of the polynomial.

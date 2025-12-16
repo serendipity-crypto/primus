@@ -1,18 +1,16 @@
-use primus_integer::UnsignedInteger;
+use primus_integer::{Data, DataMut, RawData, UnsignedInteger};
 use primus_reduce::ops::{ReduceAdd, ReduceAddAssign};
-
-use crate::{Data, DataMut, RawData};
 
 use super::Polynomial;
 
-impl<S, T> Polynomial<S, T>
+impl<S, T> Polynomial<S>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
 {
     /// Performs `self + rhs` according to `modulus`.
     #[inline]
-    pub fn add<M, A: RawData<Elem = T> + Data>(mut self, rhs: &Polynomial<A, T>, modulus: M) -> Self
+    pub fn add<M, A: RawData<Elem = T> + Data>(mut self, rhs: &Polynomial<A>, modulus: M) -> Self
     where
         M: Copy + ReduceAddAssign<T>,
     {
@@ -22,7 +20,7 @@ where
 
     /// Performs `self += rhs` according to `modulus`.
     #[inline]
-    pub fn add_assign<M, A>(&mut self, rhs: &Polynomial<A, T>, modulus: M)
+    pub fn add_assign<M, A>(&mut self, rhs: &Polynomial<A>, modulus: M)
     where
         M: Copy + ReduceAddAssign<T>,
         A: RawData<Elem = T> + Data,
@@ -34,19 +32,15 @@ where
     }
 }
 
-impl<S, T> Polynomial<S, T>
+impl<S, T> Polynomial<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
 {
     /// Performs `result = self + rhs` according to `modulus`.
     #[inline]
-    pub fn add_inplace<M, A, B>(
-        &self,
-        rhs: &Polynomial<A, T>,
-        result: &mut Polynomial<B, T>,
-        modulus: M,
-    ) where
+    pub fn add_inplace<M, A, B>(&self, rhs: &Polynomial<A>, result: &mut Polynomial<B>, modulus: M)
+    where
         M: Copy + ReduceAdd<T, Output = T>,
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + DataMut,
