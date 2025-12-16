@@ -1,6 +1,6 @@
 use std::iter::FusedIterator;
 
-use primus_integer::{BigIntegerOps, UnsignedInteger, izip};
+use primus_integer::{BigUint, UnsignedInteger, izip};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -17,15 +17,15 @@ impl<T: UnsignedInteger> ValueMask<T> {
     pub fn new(basis_minus_one: T, drop_bits: u32) -> Self {
         let index = (drop_bits / T::BITS) as usize;
         let drop_bits = drop_bits % T::BITS;
-        let mut mask = [basis_minus_one, T::ZERO];
-        let carry = mask.slice_left_shift_assign(drop_bits);
+        let mut mask = BigUint([basis_minus_one, T::ZERO]);
+        let carry = mask.left_shift_assign(drop_bits);
         assert_eq!(carry, T::ZERO);
         let shr_bits = drop_bits;
         let shl_bits = T::BITS - drop_bits;
 
         Self {
             index,
-            mask,
+            mask: mask.0,
             shr_bits,
             shl_bits,
         }
@@ -40,11 +40,11 @@ impl<T: UnsignedInteger> ValueMask<T> {
             new_shr_bits -= T::BITS;
         }
 
-        let mut mask = [basis_minus_one, T::ZERO];
-        let carry = mask.slice_left_shift_assign(new_shr_bits);
+        let mut mask = BigUint([basis_minus_one, T::ZERO]);
+        let carry = mask.left_shift_assign(new_shr_bits);
         assert_eq!(carry, T::ZERO);
 
-        self.mask = mask;
+        self.mask = mask.0;
         self.shr_bits = new_shr_bits;
         self.shl_bits = T::BITS - new_shr_bits;
 
@@ -80,7 +80,7 @@ impl<'a, T: UnsignedInteger> Iterator for BigUintSignedDecomposerIter<'a, T> {
                 value_mask,
                 carry_mask: self.carry_mask,
                 basis_minus_one: self.basis_minus_one,
-                modulus_minus_basis: self.modulus_minus_basis,
+                modulus_minus_basis: BigUint(self.modulus_minus_basis),
             })
     }
 }
@@ -92,7 +92,7 @@ pub struct OnceBigUintSignedDecomposer<'a, T: UnsignedInteger> {
     pub(super) value_mask: ValueMask<T>,
     pub(super) carry_mask: T,
     pub(super) basis_minus_one: T,
-    pub(super) modulus_minus_basis: &'a [T],
+    pub(super) modulus_minus_basis: BigUint<&'a [T]>,
 }
 
 impl<'a, T: UnsignedInteger> OnceBigUintSignedDecomposer<'a, T> {
@@ -102,18 +102,18 @@ impl<'a, T: UnsignedInteger> OnceBigUintSignedDecomposer<'a, T> {
         let temp = self.value_mask.get_value(value) + T::as_from(carry);
 
         let next_carry = !(temp & self.carry_mask).is_zero();
-        let mut result = vec![T::ZERO; value.len()];
+        let mut result = BigUint(vec![T::ZERO; value.len()]);
         if next_carry {
             if temp <= self.basis_minus_one {
                 let _ = self
                     .modulus_minus_basis
-                    .slice_add_value_inplace(temp, &mut result);
+                    .add_value_inplace(temp, &mut result);
             }
         } else {
             result[0] = temp;
         }
 
-        (result, next_carry)
+        (result.0, next_carry)
     }
 
     #[inline]
@@ -137,7 +137,7 @@ impl<'a, T: UnsignedInteger> OnceBigUintSignedDecomposer<'a, T> {
             } else {
                 let _ = self
                     .modulus_minus_basis
-                    .slice_add_value_inplace(temp, decomposed_value);
+                    .add_value_inplace(temp, &mut BigUint(decomposed_value));
             }
         } else {
             decomposed_value.fill(T::ZERO);

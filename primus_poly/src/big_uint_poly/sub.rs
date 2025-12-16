@@ -1,4 +1,4 @@
-use primus_integer::{BigIntegerOps, Data, DataMut, RawData, UnsignedInteger, izip};
+use primus_integer::{BigUint, Data, DataMut, RawData, UnsignedInteger, izip};
 
 use super::BigUintPolynomial;
 
@@ -9,9 +9,10 @@ where
 {
     /// Performs `self - rhs` according to `modulus`.
     #[inline]
-    pub fn sub<A>(mut self, rhs: &BigUintPolynomial<A>, modulus: &[T]) -> Self
+    pub fn sub<A, B>(mut self, rhs: &BigUintPolynomial<A>, modulus: &BigUint<B>) -> Self
     where
         A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + Data,
     {
         self.sub_assign(rhs, modulus);
         self
@@ -19,16 +20,17 @@ where
 
     /// Performs `self -= rhs` according to `modulus`.
     #[inline]
-    pub fn sub_assign<A>(&mut self, rhs: &BigUintPolynomial<A>, modulus: &[T])
+    pub fn sub_assign<A, B>(&mut self, rhs: &BigUintPolynomial<A>, modulus: &BigUint<B>)
     where
         A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + Data,
     {
         debug_assert_eq!(self.len(), rhs.len());
         let value_len = modulus.len();
         self.iter_mut(value_len)
             .zip(rhs.iter(value_len))
-            .for_each(|(a, b)| {
-                a.slice_sub_modulo_assign(b, modulus);
+            .for_each(|(mut a, b)| {
+                a.sub_modulo_assign(&b, modulus);
             });
     }
 }
@@ -40,9 +42,14 @@ where
 {
     /// Performs `result = self - rhs` according to `modulus`.
     #[inline]
-    pub fn sub_inplace<A>(&self, rhs: &Self, result: &mut BigUintPolynomial<A>, modulus: &[T])
-    where
+    pub fn sub_inplace<A, B>(
+        &self,
+        rhs: &Self,
+        result: &mut BigUintPolynomial<A>,
+        modulus: &BigUint<B>,
+    ) where
         A: RawData<Elem = T> + DataMut,
+        B: RawData<Elem = T> + Data,
     {
         debug_assert_eq!(self.len(), rhs.len());
         debug_assert_eq!(self.len(), result.len());
@@ -52,8 +59,8 @@ where
             rhs.iter(value_len),
             result.iter_mut(value_len)
         )
-        .for_each(|(a, b, c)| {
-            a.slice_sub_modulo_inplace(b, c, modulus);
+        .for_each(|(a, b, mut c)| {
+            a.sub_modulo_inplace(&b, &mut c, modulus);
         });
     }
 }

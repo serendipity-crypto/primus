@@ -1,7 +1,7 @@
 use primus_decompose::{big_integer::BigUintApproxSignedBasis, primitive::ApproxSignedBasis};
 use primus_distr::{DiscreteGaussian, SignedDiscreteGaussian};
 use primus_factor::ShoupFactor;
-use primus_integer::{BigIntegerOps, DivRemScalar, UnsignedInteger, multiply_many_values};
+use primus_integer::{BigUint, DivRemScalar, UnsignedInteger, multiply_many_values};
 use primus_modulo::ops::*;
 use primus_reduce::FieldContext;
 use primus_rns::{BaseConverter, RNSBase};
@@ -265,8 +265,8 @@ where
         let base_q = RNSBase::new(cipher_moduli).unwrap();
         let cipher_modulus = base_q.moduli_product();
         let cipher_modulus_minus_one = {
-            let mut temp = cipher_modulus.to_vec();
-            let _ = temp.slice_sub_value_assign(T::ONE);
+            let mut temp = BigUint(cipher_modulus.0.to_vec());
+            let _ = temp.sub_value_assign(T::ONE);
             temp
         };
 
@@ -277,14 +277,14 @@ where
 
         let noise_distribution = SignedDiscreteGaussian::new(noise_standard_deviation).unwrap();
 
-        let mut delta = vec![T::ZERO; cipher_modulus.len()];
+        let mut delta = BigUint(vec![T::ZERO; cipher_modulus.len()]);
 
-        let rem = DivRemScalar::div_rem_scalar(cipher_modulus, t, &mut delta);
+        let rem = DivRemScalar::div_rem_scalar(cipher_modulus.0, t, delta.digits_mut());
         if rem * T::TWO >= t {
-            let _ = delta.slice_add_value_assign(T::ONE);
+            let _ = delta.add_value_assign(T::ONE);
         }
 
-        let delta_mod_q: Vec<T> = base_q.decompose(delta.as_ref());
+        let delta_mod_q: Vec<T> = base_q.decompose(delta.digits());
 
         let inv_delta_mod_q: Vec<T> = delta_mod_q
             .iter()
@@ -294,7 +294,7 @@ where
 
         let t_gamma = [plain_modulus, gamma_modulus];
         let base_t_gamma = RNSBase::new(&t_gamma).unwrap();
-        let q_mod_t_gamma = base_t_gamma.decompose(cipher_modulus);
+        let q_mod_t_gamma = base_t_gamma.decompose(cipher_modulus.digits());
         let minus_inv_q_mod_t_gamma: Vec<T> = q_mod_t_gamma
             .iter()
             .zip(&t_gamma)
@@ -318,12 +318,12 @@ where
             common_size,
             plain_modulus_value: t,
             plain_modulus,
-            cipher_modulus_minus_one,
+            cipher_modulus_minus_one: cipher_modulus_minus_one.0,
             cipher_moduli: cipher_moduli.to_vec(),
             cipher_moduli_value,
             cipher_moduli_minus_one,
             cipher_moduli_uniform_distr,
-            delta,
+            delta: delta.0,
             delta_mod_q,
             inv_delta_mod_q,
             gamma,
@@ -360,7 +360,7 @@ where
     }
 
     /// Returns a reference to the cipher modulus of this [`CrtGlweParameters<T, M>`].
-    pub fn cipher_modulus(&self) -> &[T] {
+    pub fn cipher_modulus(&self) -> BigUint<&[T]> {
         self.base_q.moduli_product()
     }
 
@@ -752,7 +752,7 @@ where
         let decompose_length = basis.decompose_length();
         Self {
             cipher_modulus_minus_one: glwe_params.cipher_modulus_minus_one().to_vec(),
-            cipher_modulus: glwe_params.cipher_modulus().to_vec(),
+            cipher_modulus: glwe_params.cipher_modulus().0.to_vec(),
             cipher_moduli: glwe_params.cipher_moduli().to_vec(),
             cipher_moduli_value: glwe_params.cipher_moduli_value().to_vec(),
             cipher_moduli_minus_one: glwe_params.cipher_moduli_minus_one().to_vec(),
@@ -778,8 +778,8 @@ where
 
     /// Returns a reference to the cipher modulus of this [`CrtGlevParameters<T, M>`].
     #[inline]
-    pub fn cipher_modulus(&self) -> &[T] {
-        &self.cipher_modulus
+    pub fn cipher_modulus(&self) -> BigUint<&[T]> {
+        BigUint(&self.cipher_modulus)
     }
 
     /// Returns a reference to the cipher modulus minus one of this [`CrtGlevParameters<T, M>`].

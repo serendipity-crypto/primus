@@ -212,7 +212,7 @@ impl<T: UnsignedInteger, M: FieldContext<T>> BaseConverter<T, M> {
         });
 
         let p = self.obase.moduli()[0];
-        let q_mod_p = self.ibase.moduli_product().modulo(p);
+        let q_mod_p = self.ibase.moduli_product().0.modulo(p);
         let base_change_matrix_first = self.iter_base_change_matrix().next().unwrap();
 
         // Final multiplication
@@ -233,7 +233,7 @@ impl<T: UnsignedInteger, M: FieldContext<T>> BaseConverter<T, M> {
 
 #[cfg(test)]
 mod tests {
-    use primus_integer::BigIntegerOps;
+    use primus_integer::BigUint;
     use primus_modulus::BarrettModulus;
     use rand::Rng;
 
@@ -242,7 +242,7 @@ mod tests {
     type ValueT = u32;
 
     #[test]
-    #[ignore = "just for pirint"]
+    #[ignore = "just for print"]
     fn test_base_convert() {
         let mut rng = rand::rng();
 
@@ -270,8 +270,10 @@ mod tests {
             .collect();
         let dbasis = RNSBase::new(&basis).unwrap();
         println!("{:?}\n", dbasis.moduli_product());
-        let mut ibasis_product = ibasis.moduli_product().to_vec();
+        let mut ibasis_product = ibasis.moduli_product().0.to_vec();
         ibasis_product.resize(dbasis.moduli_product().len(), 0);
+
+        let ibasis_product = BigUint(ibasis_product);
 
         for _ in 0..10 {
             let mut residues_in = Vec::with_capacity(in_len);
@@ -279,16 +281,16 @@ mod tests {
                 residues_in.push(rng.random_range(0..converter.ibase.moduli()[i].value()));
             }
 
-            let value = ibasis.compose(&residues_in);
+            let value = BigUint(ibasis.compose(&residues_in));
             println!("{:?}", value);
 
             let mut residues_out = vec![0; out_len];
             converter.fast_convert(&residues_in, &mut residues_out);
 
             residues_in.extend_from_slice(&residues_out);
-            let mut value = dbasis.compose(&residues_in);
-            while value.slice_cmp(&ibasis_product).is_ge() {
-                let _ = value.slice_sub_assign(&ibasis_product);
+            let mut value = BigUint(dbasis.compose(&residues_in));
+            while value.cmp(&ibasis_product).is_ge() {
+                let _ = value.sub_assign(&ibasis_product);
             }
             println!("{:?}\n", value);
         }

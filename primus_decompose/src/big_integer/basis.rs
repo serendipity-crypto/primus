@@ -1,5 +1,5 @@
 use num_traits::ConstOne;
-use primus_integer::{BigIntegerOps, DivRem, UnsignedInteger};
+use primus_integer::{BigUint, BigUintIterMut, Data, DivRem, UnsignedInteger};
 use primus_reduce::FieldContext;
 use primus_rns::RNSBase;
 use serde::{Deserialize, Serialize};
@@ -20,9 +20,9 @@ pub struct BigUintApproxSignedBasis<T: UnsignedInteger> {
     drop_bits: u32,
     init_carry_mask: Option<(usize, T)>,
     carry_mask: T,
-    split_value: Option<Vec<T>>,
+    split_value: Option<BigUint<Vec<T>>>,
     modulus_sub_basis: Vec<T>,
-    next_pow_of_2_sub_modulus: Vec<T>,
+    next_pow_of_2_sub_modulus: BigUint<Vec<T>>,
     scalars: Vec<T>,
     scalars_residue: Vec<T>,
     moduli_count: usize,
@@ -43,7 +43,7 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
         // FIXME: log_basis may be bigger than T::BITS
         assert!(!modulus.last().unwrap().is_zero());
         assert!(log_basis > 0 && T::BITS > log_basis);
-        assert_eq!(modulus, rns_base.moduli_product());
+        assert_eq!(modulus, rns_base.moduli_product().0);
 
         let modulus_value_len = modulus.len();
         let unused_bits = modulus.last().unwrap().leading_zeros();
@@ -78,84 +78,83 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
             (T::ONE << log_basis) | (T::ONE << (log_basis - 1))
         };
 
-        let split_value: Option<Vec<T>> = if log_basis == 1 {
+        let split_value: Option<BigUint<Vec<T>>> = if log_basis == 1 {
             if drop_bits == 0 {
                 None
             } else {
-                let mut value = vec![T::ZERO; modulus_value_len];
+                let mut value = BigUint(vec![T::ZERO; modulus_value_len]);
                 for _ in 0..decompose_length {
-                    let carry = value.slice_left_shift_assign(1);
+                    let carry = value.left_shift_assign(1);
                     assert_eq!(carry, T::ZERO);
                     value[0] |= T::ONE;
                 }
-                let carry = value.slice_left_shift_assign(1);
+                let carry = value.left_shift_assign(1);
                 assert_eq!(carry, T::ZERO);
                 value[0] |= T::ONE;
-                let carry = value.slice_left_shift_assign(drop_bits - 1);
+                let carry = value.left_shift_assign(drop_bits - 1);
                 assert_eq!(carry, T::ZERO);
-                if value.slice_cmp(modulus).is_ge() {
+                if value.cmp(&BigUint(modulus)).is_ge() {
                     None
                 } else {
                     Some(value)
                 }
             }
         } else {
-            let mut value = vec![T::ZERO; modulus_value_len];
+            let mut value = BigUint(vec![T::ZERO; modulus_value_len]);
             for _ in 0..decompose_length {
-                let carry = value.slice_left_shift_assign(log_basis);
+                let carry = value.left_shift_assign(log_basis);
                 assert_eq!(carry, T::ZERO);
                 value[0] |= basis_minus_one >> 1u32;
             }
             if drop_bits > 0 {
-                let carry = value.slice_left_shift_assign(1);
+                let carry = value.left_shift_assign(1);
                 assert_eq!(carry, T::ZERO);
                 value[0] |= T::ONE;
-                let carry = value.slice_left_shift_assign(drop_bits - 1);
+                let carry = value.left_shift_assign(drop_bits - 1);
                 assert_eq!(carry, T::ZERO);
             } else {
-                let carry = value.slice_add_value_assign(T::ONE);
+                let carry = value.add_value_assign(T::ONE);
                 assert!(!carry);
             }
 
-            if value.slice_cmp(modulus).is_ge() {
+            if value.cmp(&BigUint(modulus)).is_ge() {
                 None
             } else {
                 Some(value)
             }
         };
 
-        let mut modulus_sub_basis = modulus.to_vec();
-        let borrow = modulus_sub_basis.slice_sub_value_assign(basis);
+        let mut modulus_sub_basis = BigUint(modulus.to_vec());
+        let borrow = modulus_sub_basis.sub_value_assign(basis);
         assert!(!borrow);
 
-        let next_pow_of_2_sub_modulus: Vec<T> = {
-            let mut next_pow_of_2_minus_one = vec![T::MAX; modulus_value_len];
+        let next_pow_of_2_sub_modulus: BigUint<Vec<T>> = {
+            let mut next_pow_of_2_minus_one = BigUint(vec![T::MAX; modulus_value_len]);
             next_pow_of_2_minus_one[modulus_value_len - 1] >>= unused_bits;
 
-            let mut modulus_minus_one = modulus.to_vec();
-            let _ = modulus_minus_one.slice_sub_value_assign(T::ONE);
+            let mut modulus_minus_one = BigUint(modulus.to_vec());
+            let _ = modulus_minus_one.sub_value_assign(T::ONE);
 
-            let borrow = next_pow_of_2_minus_one.slice_sub_assign(&modulus_minus_one);
+            let borrow = next_pow_of_2_minus_one.sub_assign(&modulus_minus_one);
             assert!(!borrow);
             next_pow_of_2_minus_one
         };
 
         let mut scalars = vec![T::ZERO; modulus_value_len * decompose_length];
-        let mut prev: Option<Vec<T>> = None;
-        scalars
-            .chunks_exact_mut(modulus_value_len)
-            .for_each(|scalar| {
-                if let Some(pre) = prev.as_mut() {
-                    let carry = pre.slice_left_shift_assign(log_basis);
-                    assert_eq!(carry, T::ZERO);
-                    scalar.copy_from_slice(pre);
-                } else {
-                    scalar[0] = T::ONE;
-                    let carry = scalar.slice_left_shift_assign(drop_bits);
-                    assert_eq!(carry, T::ZERO);
-                    prev = Some(scalar.to_vec());
-                }
-            });
+        let mut prev: Option<BigUint<Vec<T>>> = None;
+
+        BigUintIterMut::new(&mut scalars, modulus_value_len).for_each(|mut scalar| {
+            if let Some(pre) = prev.as_mut() {
+                let carry = pre.left_shift_assign(log_basis);
+                assert_eq!(carry, T::ZERO);
+                scalar.0.copy_from_slice(&pre.0);
+            } else {
+                scalar[0] = T::ONE;
+                let carry = scalar.left_shift_assign(drop_bits);
+                assert_eq!(carry, T::ZERO);
+                prev = Some(BigUint(scalar.0.to_vec()));
+            }
+        });
 
         let moduli_count = rns_base.moduli_count();
         let mut scalars_residue = vec![T::ZERO; moduli_count * decompose_length];
@@ -185,7 +184,7 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
             init_carry_mask,
             carry_mask,
             split_value,
-            modulus_sub_basis,
+            modulus_sub_basis: modulus_sub_basis.0,
             next_pow_of_2_sub_modulus,
             scalars,
             scalars_residue,
@@ -244,7 +243,7 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
 
     /// Returns the split value of this [`BigUintApproxSignedBasis<T>`].
     #[inline]
-    pub fn split_value(&self) -> Option<&Vec<T>> {
+    pub fn split_value(&self) -> Option<&BigUint<Vec<T>>> {
         self.split_value.as_ref()
     }
 
@@ -256,7 +255,7 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
 
     /// Returns a reference to the next pow of 2 sub modulus of this [`BigUintApproxSignedBasis<T>`].
     #[inline]
-    pub fn next_pow_of_2_sub_modulus(&self) -> &[T] {
+    pub fn next_pow_of_2_sub_modulus(&self) -> &BigUint<Vec<T>> {
         &self.next_pow_of_2_sub_modulus
     }
 
@@ -285,12 +284,15 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
 
     /// Init carry and adjusted value for a value.
     #[inline]
-    pub fn init_value_carry(&self, value: &[T]) -> (Vec<T>, bool) {
-        let mut adjust = value.to_vec();
+    pub fn init_value_carry<A>(&self, value: &BigUint<A>) -> (Vec<T>, bool)
+    where
+        A: Data<Elem = T>,
+    {
+        let mut adjust = BigUint(value.0.as_slice().to_vec());
         if let Some(split) = &self.split_value
-            && value.slice_cmp(split).is_ge()
+            && value.cmp(split).is_ge()
         {
-            let _ = adjust.slice_add_assign(&self.next_pow_of_2_sub_modulus);
+            let _ = adjust.add_assign(&self.next_pow_of_2_sub_modulus);
         }
 
         let carry = match self.init_carry_mask {
@@ -298,7 +300,7 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
             None => false,
         };
 
-        (adjust, carry)
+        (adjust.0, carry)
     }
 
     /// Init carries and adjusted values for a slice and store the adjusted values back to `values`.
@@ -310,18 +312,15 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
         big_uint_value_len: usize,
     ) {
         if let Some(split) = &self.split_value {
-            values
-                .chunks_exact_mut(big_uint_value_len)
-                .for_each(|value| {
-                    if value.slice_cmp(split).is_ge() {
-                        let _ = value.slice_add_assign(&self.next_pow_of_2_sub_modulus);
-                    }
-                })
+            BigUintIterMut::new(values, big_uint_value_len).for_each(|mut value| {
+                if value.cmp(split).is_ge() {
+                    let _ = value.add_assign(&self.next_pow_of_2_sub_modulus);
+                }
+            })
         }
 
         match self.init_carry_mask {
-            Some((i, mask)) => values
-                .chunks_exact_mut(big_uint_value_len)
+            Some((i, mask)) => BigUintIterMut::new(values, big_uint_value_len)
                 .zip(carries)
                 .for_each(|(value, carry)| {
                     *carry = !(value[i] & mask).is_zero();

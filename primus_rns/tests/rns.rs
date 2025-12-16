@@ -1,7 +1,7 @@
 use indicatif::{ProgressIterator, ProgressStyle};
 use itertools::izip;
 use primus_factor::{FactorMul, ShoupFactor};
-use primus_integer::{BigIntegerOps, DivRemScalar, multiply_many_values};
+use primus_integer::{BigUint, BigUintIterMut, Data, DivRemScalar, multiply_many_values};
 use primus_modulo::{InvModulo, Modulo};
 use primus_modulus::BarrettModulus;
 use primus_poly::CrtPolynomial;
@@ -38,7 +38,7 @@ fn test_rns3() {
     let moduli_value: [ValueT; 2] = [1099511592961, 1099511590913];
     let moduli = moduli_value.map(<BarrettModulus<ValueT>>::new);
     let base_q = RNSBase::new(&moduli).unwrap();
-    let q = base_q.moduli_product().to_vec();
+    let q = base_q.moduli_product();
 
     let t = 257;
     for r in 0..t {
@@ -46,14 +46,14 @@ fn test_rns3() {
 
         println!("{:?}", base_q.decompose(&input));
 
-        let mut input: [ValueT; 2] = [0; 2];
+        let mut input: BigUint<[ValueT; 2]> = BigUint([0; 2]);
         if r < (t + 1) / 2 {
             input[0] = r;
         } else {
-            let _ = q.slice_sub_value_inplace(t - r, &mut input);
+            let _ = q.sub_value_inplace(t - r, &mut input);
         }
 
-        let d = base_q.decompose(&input);
+        let d = base_q.decompose(input.digits());
 
         if r < (t + 1) / 2 {
             assert_eq!(d[0], r);
@@ -73,7 +73,7 @@ fn test_bfv_dec() {
     let moduli_count = moduli_value.len();
     let moduli = moduli_value.map(<BarrettModulus<ValueT>>::new);
     let base_q = RNSBase::new(&moduli).unwrap();
-    let q = base_q.moduli_product().to_vec();
+    let q = base_q.moduli_product();
 
     let t = 257;
     let gamma = 1125899906629633;
@@ -81,7 +81,7 @@ fn test_bfv_dec() {
     let mod_gamma = <BarrettModulus<ValueT>>::new(gamma);
     let t_gamma = [mod_t, mod_gamma];
     let base_t_gamma = RNSBase::new(&t_gamma).unwrap();
-    let q_mod_t_gamma = base_t_gamma.decompose(&q);
+    let q_mod_t_gamma = base_t_gamma.decompose(q.digits());
     let minus_inv_q_mod_t_gamma: Vec<ValueT> = q_mod_t_gamma
         .iter()
         .zip(&t_gamma)
@@ -92,7 +92,7 @@ fn test_bfv_dec() {
     let t_gamma_mod_q = base_q.decompose(&t_gamma_value);
 
     let mut delta = vec![0; moduli_count];
-    let _rem = DivRemScalar::div_rem_scalar(&q, t, &mut delta);
+    let _rem = DivRemScalar::div_rem_scalar(q.digits(), t, &mut delta);
     let delta_residue = base_q.decompose(&delta);
 
     let converter = BaseConverter::new(&base_q, &base_t_gamma);
@@ -102,9 +102,9 @@ fn test_bfv_dec() {
 
     for r in 0..t as usize {
         let r: ValueT = r as ValueT;
-        let mut input: [ValueT; 2] = [0; 2];
+        let mut input: BigUint<[ValueT; 2]> = BigUint([0; 2]);
         if r * 2 > t {
-            let _ = q.slice_sub_value_inplace(t - r, &mut input);
+            let _ = q.sub_value_inplace(t - r, &mut input);
         } else {
             input[0] = r;
         }
@@ -113,7 +113,7 @@ fn test_bfv_dec() {
             .iter_mut()
             .zip(&moduli)
             .for_each(|(r, modulus)| {
-                *r = modulus.reduce(input);
+                *r = modulus.reduce(input.digits());
             });
 
         // delta * m
@@ -158,7 +158,7 @@ fn test_bfv_dec_array() {
     let moduli_count = moduli_value.len();
     let moduli = moduli_value.map(<BarrettModulus<ValueT>>::new);
     let base_q = RNSBase::new(&moduli).unwrap();
-    let q = base_q.moduli_product().to_vec();
+    let q = base_q.moduli_product();
 
     let t = 12289;
     let gamma = 2305843009213554689;
@@ -166,7 +166,7 @@ fn test_bfv_dec_array() {
     let mod_gamma = <BarrettModulus<ValueT>>::new(gamma);
     let t_gamma = [mod_t, mod_gamma];
     let base_t_gamma = RNSBase::new(&t_gamma).unwrap();
-    let q_mod_t_gamma = base_t_gamma.decompose(&q);
+    let q_mod_t_gamma = base_t_gamma.decompose(q.digits());
     let minus_inv_q_mod_t_gamma: Vec<ValueT> = q_mod_t_gamma
         .iter()
         .zip(&t_gamma)
@@ -181,7 +181,7 @@ fn test_bfv_dec_array() {
     let poly_length = 32;
 
     let mut delta = vec![0; moduli_count];
-    let _rem = DivRemScalar::div_rem_scalar(&q, t, &mut delta);
+    let _rem = DivRemScalar::div_rem_scalar(q.digits(), t, &mut delta);
     let delta_mod_q = base_q.decompose(&delta);
 
     let converter = BaseConverter::new(&base_q, &base_t_gamma);
@@ -203,12 +203,11 @@ fn test_bfv_dec_array() {
             .take(poly_length)
             .collect();
         let mut big_uint_values = vec![0; big_uint_value_len * poly_length];
-        big_uint_values
-            .chunks_exact_mut(big_uint_value_len)
+        BigUintIterMut::new(&mut big_uint_values, big_uint_value_len)
             .zip(input.iter())
-            .for_each(|(a, &b)| {
+            .for_each(|(mut a, &b)| {
                 if b * 2 > t {
-                    let _ = q.slice_sub_value_inplace(t - b, a);
+                    let _ = q.sub_value_inplace(t - b, &mut a);
                 } else {
                     a[0] = b;
                 }

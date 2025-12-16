@@ -273,6 +273,96 @@ impl<T> DataMut for &mut [T] {
     }
 }
 
+impl<T, const N: usize> RawData for [T; N] {
+    type Elem = T;
+}
+
+impl<T, const N: usize> Data for [T; N] {
+    #[inline(always)]
+    fn as_slice(&self) -> &[Self::Elem] {
+        self
+    }
+
+    #[inline(always)]
+    fn len(&self) -> usize {
+        N
+    }
+
+    #[inline(always)]
+    fn is_empty(&self) -> bool {
+        N == 0
+    }
+
+    #[inline(always)]
+    fn iter<'a>(&'a self) -> Iter<'a, Self::Elem> {
+        <[T]>::iter(self)
+    }
+
+    #[inline(always)]
+    fn chunks_exact<'a>(
+        &'a self,
+        chunk_size: usize,
+    ) -> std::slice::ChunksExact<'a, <Self as RawData>::Elem> {
+        <[T]>::chunks_exact(self, chunk_size)
+    }
+
+    #[inline(always)]
+    fn split_at(&self, mid: usize) -> (&[<Self as RawData>::Elem], &[<Self as RawData>::Elem]) {
+        <[T]>::split_at(self, mid)
+    }
+
+    #[inline(always)]
+    unsafe fn split_at_unchecked(
+        &self,
+        mid: usize,
+    ) -> (&[<Self as RawData>::Elem], &[<Self as RawData>::Elem]) {
+        unsafe { <[T]>::split_at_unchecked(self, mid) }
+    }
+}
+
+impl<T, const N: usize> DataMut for [T; N] {
+    #[inline(always)]
+    fn as_mut_slice(&mut self) -> &mut [T] {
+        self
+    }
+
+    #[inline(always)]
+    fn iter_mut<'a>(&'a mut self) -> IterMut<'a, T> {
+        <[T]>::iter_mut(self)
+    }
+
+    #[inline(always)]
+    fn fill(&mut self, value: T)
+    where
+        T: Clone,
+    {
+        <[T]>::fill(self, value);
+    }
+
+    #[inline(always)]
+    fn copy_from_slice(&mut self, src: &[T])
+    where
+        T: Copy,
+    {
+        <[T]>::copy_from_slice(self, src);
+    }
+
+    #[inline(always)]
+    fn chunks_exact_mut<'a>(&'a mut self, chunk_size: usize) -> std::slice::ChunksExactMut<'a, T> {
+        <[T]>::chunks_exact_mut(self, chunk_size)
+    }
+
+    #[inline(always)]
+    fn split_at_mut(&mut self, mid: usize) -> (&mut [T], &mut [T]) {
+        <[T]>::split_at_mut(self, mid)
+    }
+
+    #[inline(always)]
+    unsafe fn split_at_mut_unchecked(&mut self, mid: usize) -> (&mut [T], &mut [T]) {
+        unsafe { <[T]>::split_at_mut_unchecked(self, mid) }
+    }
+}
+
 impl<T> RawData for Vec<T> {
     type Elem = T;
 }

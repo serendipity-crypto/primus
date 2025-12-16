@@ -51,8 +51,12 @@ fn test_external_product() {
     let sk = CrtGlweSecretKey::generate(&glwe_params, &mut rng);
     let dcrt_sk = DcrtGlweSecretKey::from_coeff_secret_key(&sk, &table);
 
-    let basis =
-        BigUintApproxSignedBasis::new(glwe_params.cipher_modulus(), 30, None, glwe_params.base_q());
+    let basis = BigUintApproxSignedBasis::new(
+        glwe_params.cipher_modulus().digits(),
+        30,
+        None,
+        glwe_params.base_q(),
+    );
     let glev_params = CrtGlevParameters::with_glwe_params(&glwe_params, basis);
 
     let pk = DcrtGlwePublicKey::new(&dcrt_sk, &glwe_params, &table, &mut rng);

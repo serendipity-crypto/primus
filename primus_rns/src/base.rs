@@ -3,7 +3,7 @@ use std::slice::Iter;
 use itertools::Itertools;
 use primus_factor::{FactorMul, ShoupFactor};
 use primus_integer::{
-    BigIntegerOps, Data, DataMut, RawData, UnsignedInteger, izip, multiply_many_values,
+    BigUint, BigUintIter, Data, DataMut, RawData, UnsignedInteger, izip, multiply_many_values,
     multiply_many_values_except_inplace,
 };
 use primus_modulo::ops::*;
@@ -100,8 +100,8 @@ where
 
     /// Returns a reference to the moduli product of this [`RNSBase<T, M>`].
     #[inline]
-    pub fn moduli_product(&self) -> &[T] {
-        &self.moduli_product
+    pub fn moduli_product(&self) -> BigUint<&[T]> {
+        BigUint(&self.moduli_product)
     }
 
     #[inline]
@@ -287,26 +287,27 @@ where
         debug_assert_eq!(self.moduli_count(), residues.len());
 
         let value_len = self.big_uint_value_len();
+        let moduli_product = &self.moduli_product();
 
-        let mut value = vec![T::ZERO; value_len];
+        let mut value = BigUint(vec![T::ZERO; value_len]);
 
         izip!(
             residues,
             &self.inv_punctured_product_mod_modulus,
-            self.punctured_product.chunks_exact(value_len),
+            BigUintIter::new(&self.punctured_product, value_len),
             &self.moduli
         )
         .for_each(
-            |(&ri, &inv_mi, mi, &modulus): (&T, &ShoupFactor<T>, &[T], &M)| {
+            |(&ri, &inv_mi, mi, &modulus): (&T, &ShoupFactor<T>, BigUint<&[T]>, &M)| {
                 let product = inv_mi.factor_mul_modulo(ri, modulus.value_unchecked());
-                let carry = mi.slice_mul_value_add_inplace(product, &mut value);
-                if !carry.is_zero() || value.slice_cmp(&self.moduli_product).is_ge() {
-                    let _ = value.slice_sub_assign(&self.moduli_product);
+                let carry = mi.mul_value_add_inplace(product, &mut value);
+                if !carry.is_zero() || value.cmp(moduli_product).is_ge() {
+                    let _ = value.sub_assign(moduli_product);
                 }
             },
         );
 
-        value
+        value.0
     }
 
     pub fn compose_inplace(&self, residues: &[T], value: &mut [T]) {
@@ -314,21 +315,24 @@ where
         debug_assert_eq!(self.big_uint_value_len(), value.len());
 
         let value_len = self.moduli_product.len();
+        let moduli_product = &self.moduli_product();
 
         value.fill(T::ZERO);
+
+        let mut value = BigUint(value);
 
         izip!(
             residues,
             &self.inv_punctured_product_mod_modulus,
-            self.punctured_product.chunks_exact(value_len),
+            BigUintIter::new(&self.punctured_product, value_len),
             &self.moduli
         )
         .for_each(
-            |(&ri, &inv_mi, mi, &modulus): (&T, &ShoupFactor<T>, &[T], &M)| {
+            |(&ri, &inv_mi, mi, &modulus): (&T, &ShoupFactor<T>, BigUint<&[T]>, &M)| {
                 let product = inv_mi.factor_mul_modulo(ri, modulus.value_unchecked());
-                let carry = mi.slice_mul_value_add_inplace(product, value);
-                if !carry.is_zero() || value.slice_cmp(&self.moduli_product).is_ge() {
-                    let _ = value.slice_sub_assign(&self.moduli_product);
+                let carry = mi.mul_value_add_inplace(product, &mut value);
+                if !carry.is_zero() || value.cmp(moduli_product).is_ge() {
+                    let _ = value.sub_assign(moduli_product);
                 }
             },
         );

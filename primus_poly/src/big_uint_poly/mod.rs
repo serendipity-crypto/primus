@@ -1,5 +1,7 @@
 use num_traits::Zero;
-use primus_integer::{Data, DataMut, DataOwned, RawData, UnsignedInteger};
+use primus_integer::{
+    BigUintIter, BigUintIterMut, Data, DataMut, DataOwned, RawData, UnsignedInteger,
+};
 
 mod add;
 mod neg;
@@ -77,8 +79,8 @@ where
 
     /// Returns an iterator that allows modifying each value or coefficient of the polynomial.
     #[inline]
-    pub fn iter_mut(&mut self, value_len: usize) -> std::slice::ChunksExactMut<'_, T> {
-        self.0.chunks_exact_mut(value_len)
+    pub fn iter_mut(&mut self, value_len: usize) -> BigUintIterMut<'_, T> {
+        BigUintIterMut::new(self.as_mut_slice(), value_len)
     }
 }
 
@@ -103,8 +105,8 @@ where
 
     /// Returns an iterator that allows reading each value or coefficient of the polynomial.
     #[inline]
-    pub fn iter(&self, value_len: usize) -> std::slice::ChunksExact<'_, T> {
-        self.0.chunks_exact(value_len)
+    pub fn iter(&self, value_len: usize) -> BigUintIter<'_, T> {
+        BigUintIter::new(self.as_slice(), value_len)
     }
 
     #[allow(clippy::len_without_is_empty)]

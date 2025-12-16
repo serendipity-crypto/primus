@@ -2,7 +2,7 @@
 mod tests {
     use itertools::Itertools;
     use primus_decompose::big_integer::BigUintApproxSignedBasis;
-    use primus_integer::{BigIntegerOps, izip, multiply_many_values};
+    use primus_integer::{BigUint, BigUintIter, BigUintIterMut, izip, multiply_many_values};
     use primus_modulus::BarrettModulus;
     use primus_reduce::ops::*;
     use primus_rns::RNSBase;
@@ -46,7 +46,7 @@ mod tests {
         let basis_value = basis.basis_value();
         let log_basis = basis.log_basis() as usize;
         let mut decomposed_unsigned_value = Vec::with_capacity(basis.decompose_length());
-        let mut difference = vec![0; composed_modulus.len()];
+        let mut difference = BigUint(vec![0; composed_modulus.len()]);
 
         let mut value = multiply_many_values(&distrs.map(|distr| rng.sample(distr)));
         value.resize(composed_modulus.len(), 0);
@@ -78,7 +78,7 @@ mod tests {
         println!("value");
         show(&value);
 
-        let (adjust_value, mut carry) = basis.init_value_carry(&value);
+        let (adjust_value, mut carry) = basis.init_value_carry(&BigUint(&*value));
 
         println!("adjust_value");
         show(&adjust_value);
@@ -101,7 +101,7 @@ mod tests {
                 }
                 acc
             });
-        let result = rns_base.compose(&result);
+        let result = BigUint(rns_base.compose(&result));
 
         for &unsigned_value in decomposed_unsigned_value.iter().rev() {
             if basis_value > 2 {
@@ -120,17 +120,19 @@ mod tests {
         }
         println!();
 
+        let value = BigUint(value);
+
         println!("value ={:?}", value);
         println!("result={:?}", result);
 
-        if result.slice_cmp(&value).is_le() {
-            let _ = value.slice_sub_inplace(&result, &mut difference);
+        if result.cmp(&value).is_le() {
+            let _ = value.sub_inplace(&result, &mut difference);
         } else {
-            let _ = result.slice_sub_inplace(&value, &mut difference);
+            let _ = result.sub_inplace(&value, &mut difference);
         }
 
         assert!(
-            difference.slice_cmp(&[difference_bound, 0]).is_le(),
+            difference.cmp(&BigUint([difference_bound, 0])).is_le(),
             "value: {:?}\ndifference: {:?}",
             value,
             difference
@@ -165,13 +167,13 @@ mod tests {
 
         let basis_value = basis.basis_value();
         let mut decomposed_unsigned_value = vec![0; basis.decompose_length()];
-        let mut difference = vec![0; composed_modulus.len()];
+        let mut difference = BigUint(vec![0; composed_modulus.len()]);
 
         for _ in 0..1_0000 {
             let mut value = multiply_many_values(&distrs.map(|distr| rng.sample(distr)));
             value.resize(composed_modulus.len(), 0);
 
-            let (adjust_value, mut carry) = basis.init_value_carry(&value);
+            let (adjust_value, mut carry) = basis.init_value_carry(&BigUint(&*value));
 
             for (decomposer, unsigned_value) in basis
                 .decomposer_iter()
@@ -193,16 +195,17 @@ mod tests {
                     }
                     acc
                 });
-            let result = rns_base.compose(&result);
+            let result = BigUint(rns_base.compose(&result));
+            let value = BigUint(value);
 
-            if result.slice_cmp(&value).is_le() {
-                let _ = value.slice_sub_inplace(&result, &mut difference);
+            if result.cmp(&value).is_le() {
+                let _ = value.sub_inplace(&result, &mut difference);
             } else {
-                let _ = result.slice_sub_inplace(&value, &mut difference);
+                let _ = result.sub_inplace(&value, &mut difference);
             }
 
             assert!(
-                difference.slice_cmp(&[difference_bound, 0]).is_le(),
+                difference.cmp(&BigUint([difference_bound, 0])).is_le(),
                 "value: {:?}\ndifference: {:?}",
                 value,
                 difference
@@ -304,15 +307,15 @@ mod tests {
         let mut min: Vec<ValueT> = vec![0; N * big_uint_value_len];
 
         izip!(
-            input_values.chunks_exact(big_uint_value_len),
-            output_values.chunks_exact(big_uint_value_len),
-            min.chunks_exact_mut(big_uint_value_len),
+            BigUintIter::new(&input_values, big_uint_value_len),
+            BigUintIter::new(&output_values, big_uint_value_len),
+            BigUintIterMut::new(&mut min, big_uint_value_len),
         )
-        .for_each(|(i, o, m)| {
-            if i.slice_cmp(o).is_le() {
-                let _ = o.slice_sub_inplace(i, m);
+        .for_each(|(i, o, mut m)| {
+            if i.cmp(&o).is_le() {
+                let _ = o.sub_inplace(&i, &mut m);
             } else {
-                let _ = i.slice_sub_inplace(o, m);
+                let _ = i.sub_inplace(&o, &mut m);
             }
         });
 
@@ -417,7 +420,7 @@ mod tests {
         let rns_base = RNSBase::new(&moduli).unwrap();
         let big_uint_value_len = rns_base.big_uint_value_len();
         let composed_modulus = rns_base.moduli_product();
-        let basis = BigUintApproxSignedBasis::new(composed_modulus, 5, None, &rns_base);
+        let basis = BigUintApproxSignedBasis::new(composed_modulus.0, 5, None, &rns_base);
 
         let modulus: WideT = 134215681 * 134176769;
 
@@ -451,7 +454,7 @@ mod tests {
                     );
                 });
 
-                if input_big_uint_value.slice_cmp(composed_modulus).is_ge() {
+                if BigUint(input_big_uint_value).cmp(&composed_modulus).is_ge() {
                     assert!(carries[0]);
                 }
             });
