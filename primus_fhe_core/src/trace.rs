@@ -34,7 +34,7 @@ impl<T: UnsignedInteger> CrtGlweTraceContext<T> {
     pub fn as_mut(
         &mut self,
     ) -> (
-        &mut primus_lattice::glwe::CrtGlwe<Vec<T>, T>,
+        &mut primus_lattice::glwe::CrtGlwe<Vec<T>>,
         &mut CrtGlweAutoContext<T>,
     ) {
         (&mut self.crt_glwe, &mut self.auto_context)

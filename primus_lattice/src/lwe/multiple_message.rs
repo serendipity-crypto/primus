@@ -8,12 +8,12 @@ use super::Lwe;
 ///
 /// This structure encrypts several messages like a rlwe but truncated `b`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct MultiMsgLwe<S, T = <S as RawData>::Elem>(pub S)
+pub struct MultiMsgLwe<S>(pub S)
 where
-    S: RawData<Elem = T>,
-    T: UnsignedInteger;
+    S: RawData,
+    <S as RawData>::Elem: UnsignedInteger;
 
-impl<S, T> MultiMsgLwe<S, T>
+impl<S, T> MultiMsgLwe<S>
 where
     S: RawData<Elem = T> + DataOwned,
     T: UnsignedInteger,
@@ -39,7 +39,7 @@ where
     }
 }
 
-impl<S, T> MultiMsgLwe<S, T>
+impl<S, T> MultiMsgLwe<S>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
@@ -154,7 +154,7 @@ where
     }
 }
 
-impl<S, T> MultiMsgLwe<S, T>
+impl<S, T> MultiMsgLwe<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
@@ -282,7 +282,7 @@ impl<T: UnsignedInteger> MultiMsgLwe<Vec<T>> {
     }
 }
 
-impl<S, T> Size for MultiMsgLwe<S, T>
+impl<S, T> Size for MultiMsgLwe<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,

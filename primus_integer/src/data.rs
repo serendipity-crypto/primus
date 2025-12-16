@@ -50,8 +50,19 @@ pub trait Data: RawData {
 
     /// Divides one slice into two at an index, without doing bounds checking.
     ///
-    /// The first will contain all indices from `[0, mid)` (excluding the index `mid` itself)
-    /// and the second will contain all indices from `[mid, len)` (excluding the index len itself).
+    /// The first will contain all indices from `[0, mid)` (excluding
+    /// the index `mid` itself) and the second will contain all
+    /// indices from `[mid, len)` (excluding the index `len` itself).
+    ///
+    /// For a safe alternative see [`split_at`].
+    ///
+    /// # Safety
+    ///
+    /// Calling this method with an out-of-bounds index is *[undefined behavior]*
+    /// even if the resulting reference is not used. The caller has to ensure that
+    /// `0 <= mid <= self.len()`.
+    ///
+    /// [undefined behavior]: https://doc.rust-lang.org/reference/behavior-considered-undefined.html
     unsafe fn split_at_unchecked(
         &self,
         mid: usize,
@@ -84,6 +95,15 @@ pub trait DataMut: Data {
         chunk_size: usize,
     ) -> std::slice::ChunksExactMut<'a, <Self as RawData>::Elem>;
 
+    /// Divides one mutable slice into two at an index.
+    ///
+    /// The first will contain all indices from `[0, mid)` (excluding
+    /// the index `mid` itself) and the second will contain all
+    /// indices from `[mid, len)` (excluding the index `len` itself).
+    ///
+    /// # Panics
+    ///
+    /// Panics if `mid > len`.
     fn split_at_mut(
         &mut self,
         mid: usize,
@@ -94,8 +114,20 @@ pub trait DataMut: Data {
 
     /// Divides one mutable slice into two at an index, without doing bounds checking.
     ///
-    /// The first will contain all indices from `[0, mid)` (excluding the index `mid` itself)
-    /// and the second will contain all indices from `[mid, len)` (excluding the index len itself).
+    /// The first will contain all indices from `[0, mid)` (excluding
+    /// the index `mid` itself) and the second will contain all
+    /// indices from `[mid, len)` (excluding the index `len` itself).
+    ///
+    /// For a safe alternative see [`split_at_mut`].
+    ///
+    /// # Safety
+    ///
+    /// Calling this method with an out-of-bounds index is *[undefined behavior]*
+    /// even if the resulting reference is not used. The caller has to ensure that
+    /// `0 <= mid <= self.len()`.
+    ///
+    /// [`split_at_mut`]: std::slice::split_at_mut
+    /// [undefined behavior]: https://doc.rust-lang.org/reference/behavior-considered-undefined.html
     unsafe fn split_at_mut_unchecked(
         &mut self,
         mid: usize,

@@ -15,20 +15,20 @@ pub type CrtRlweOwned<T> = CrtRlwe<Vec<T>>;
 ///
 /// where `a` and `b` are [`primus_poly::crt::CrtPolynomial`] with same poly length and moduli count.
 #[derive(Clone)]
-pub struct CrtRlwe<S, T = <S as RawData>::Elem>(pub S)
+pub struct CrtRlwe<S>(pub S)
 where
-    S: RawData<Elem = T>,
-    T: UnsignedInteger;
+    S: RawData,
+    <S as RawData>::Elem: UnsignedInteger;
 
-impl_common!(CrtRlwe<S, T>);
-impl_bytes_conversion!(CrtRlwe<S, T>);
-impl_zero!(CrtRlwe<S, T>);
+impl_common!(CrtRlwe<S>);
+impl_bytes_conversion!(CrtRlwe<S>);
+impl_zero!(CrtRlwe<S>);
 impl_iters!(CrtRlwe);
-impl_iter_sub_structure!(CrtRlwe<S, T>, CrtPolynomial, crt_poly);
-impl_basic_operation_multiple_modulus!(CrtRlwe<S, T>);
-impl_crt_ntt!(CrtRlwe<S, T>, DcrtRlwe);
+impl_iter_sub_structure!(CrtRlwe<S>, CrtPolynomial, crt_poly);
+impl_basic_operation_multiple_modulus!(CrtRlwe<S>);
+impl_crt_ntt!(CrtRlwe<S>, DcrtRlwe);
 
-impl<S, T> CrtRlwe<S, T>
+impl<S, T> CrtRlwe<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,

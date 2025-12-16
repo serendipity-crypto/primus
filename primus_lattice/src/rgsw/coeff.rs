@@ -15,15 +15,15 @@ use super::NttRgsw;
 ///
 /// where `c1` to `c[k+1]` are [`crate::rlev::Rlev`] with same parameter, `k` is the dimension.
 #[derive(Clone)]
-pub struct Rgsw<S, T = <S as RawData>::Elem>(pub S)
+pub struct Rgsw<S>(pub S)
 where
-    S: RawData<Elem = T>,
-    T: UnsignedInteger;
+    S: RawData,
+    <S as RawData>::Elem: UnsignedInteger;
 
-impl_common!(Rgsw<S, T>);
-impl_bytes_conversion!(Rgsw<S, T>);
-impl_zero!(Rgsw<S, T>);
+impl_common!(Rgsw<S>);
+impl_bytes_conversion!(Rgsw<S>);
+impl_zero!(Rgsw<S>);
 impl_iters!(Rgsw);
-impl_iter_sub_structure!(Rgsw<S, T>, Rlev);
-impl_basic_operation_single_modulus!(Rgsw<S, T>);
-impl_ntt!(Rgsw<S, T>, NttRgsw);
+impl_iter_sub_structure!(Rgsw<S>, Rlev);
+impl_basic_operation_single_modulus!(Rgsw<S>);
+impl_ntt!(Rgsw<S>, NttRgsw);

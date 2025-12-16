@@ -16,15 +16,15 @@ use super::DcrtRlev;
 ///
 /// where `c1` to `cd` are [`crate::rlwe::CrtRlwe`] with same parameter, `d` is the decompose length.
 #[derive(Clone)]
-pub struct CrtRlev<S, T = <S as RawData>::Elem>(pub S)
+pub struct CrtRlev<S>(pub S)
 where
-    S: RawData<Elem = T>,
-    T: UnsignedInteger;
+    S: RawData,
+    <S as RawData>::Elem: UnsignedInteger;
 
-impl_common!(CrtRlev<S, T>);
-impl_bytes_conversion!(CrtRlev<S, T>);
-impl_zero!(CrtRlev<S, T>);
+impl_common!(CrtRlev<S>);
+impl_bytes_conversion!(CrtRlev<S>);
+impl_zero!(CrtRlev<S>);
 impl_iters!(CrtRlev);
-impl_iter_sub_structure!(CrtRlev<S, T>, CrtRlwe);
-impl_basic_operation_multiple_modulus!(CrtRlev<S, T>);
-impl_crt_ntt!(CrtRlev<S, T>, DcrtRlev);
+impl_iter_sub_structure!(CrtRlev<S>, CrtRlwe);
+impl_basic_operation_multiple_modulus!(CrtRlev<S>);
+impl_crt_ntt!(CrtRlev<S>, DcrtRlev);

@@ -11,17 +11,17 @@ use super::Rlwe;
 
 /// A cryptographic structure for Ring Learning with Errors (RLWE).
 #[derive(Clone)]
-pub struct TruncatedRlwe<S, T = <S as RawData>::Elem>(pub S)
+pub struct TruncatedRlwe<S>(pub S)
 where
-    S: RawData<Elem = T>,
-    T: UnsignedInteger;
+    S: RawData,
+    <S as RawData>::Elem: UnsignedInteger;
 
-impl_common!(TruncatedRlwe<S, T>);
-impl_bytes_conversion!(TruncatedRlwe<S, T>);
-impl_zero!(TruncatedRlwe<S, T>);
-impl_basic_operation_single_modulus!(TruncatedRlwe<S, T>);
+impl_common!(TruncatedRlwe<S>);
+impl_bytes_conversion!(TruncatedRlwe<S>);
+impl_zero!(TruncatedRlwe<S>);
+impl_basic_operation_single_modulus!(TruncatedRlwe<S>);
 
-impl<T> TruncatedRlwe<Vec<T>, T>
+impl<T> TruncatedRlwe<Vec<T>>
 where
     T: UnsignedInteger,
 {

@@ -1,77 +1,75 @@
 macro_rules! impl_common {
-    ($cipher:ident < $s:ident, $t:ident >) => {
-        impl<$s, $t> $cipher<$s, $t>
+    ($cipher:ident < $s:ident >) => {
+        impl<$s> $cipher<$s>
         where
-            $s: RawData<Elem = $t>,
-            $t: UnsignedInteger,
+            $s: RawData,
+            <$s as RawData>::Elem: UnsignedInteger,
         {
-            #[doc = concat!(r" Creates a new [`",stringify!($cipher),"<",stringify!($s),", ",stringify!($t),">`].")]
+            #[doc = concat!(r" Creates a new [`",stringify!($cipher),"<",stringify!($s),">`].")]
             #[inline(always)]
             pub fn new(data: $s) -> Self {
                 Self(data)
             }
         }
 
-        impl<$s, $t> AsRef<[$t]> for $cipher<$s, $t>
+        impl<$s, T> AsRef<[T]> for $cipher<$s>
         where
-            $s: RawData<Elem = $t> + Data,
-            $t: UnsignedInteger,
+            $s: RawData<Elem = T> + Data,
+            T: UnsignedInteger,
         {
             #[inline(always)]
-            fn as_ref(&self)->&[$t]{
+            fn as_ref(&self) -> &[T] {
                 self.0.as_slice()
             }
-
         }
 
-        impl<$s, $t> AsMut<[$t]> for $cipher<$s, $t>
+        impl<$s, T> AsMut<[T]> for $cipher<$s>
         where
-            $s: RawData<Elem = $t> + DataMut,
-            $t: UnsignedInteger,
+            $s: RawData<Elem = T> + DataMut,
+            T: UnsignedInteger,
         {
             #[inline(always)]
-            fn as_mut(&mut self)->&mut [$t]{
+            fn as_mut(&mut self) -> &mut [T] {
                 self.0.as_mut_slice()
             }
-
         }
     };
 }
 
 macro_rules! impl_bytes_conversion {
-    ($cipher:ident < $s:ident, $t:ident >) => {
-        impl<$s, $t> $cipher<$s, $t>
+    ($cipher:ident < $s:ident >) => {
+        impl<$s, T> $cipher<$s>
         where
-            $s: RawData<Elem = $t> + DataOwned,
-            $t: UnsignedInteger,
+            $s: RawData<Elem = T> + DataOwned,
+            T: UnsignedInteger,
         {
-            #[doc = concat!(r" Creates a new [`",stringify!($cipher),"<",stringify!($s),", ",stringify!($t),">`] from bytes `data`.")]
+            #[doc = concat!(r" Creates a new [`",stringify!($cipher),"<",stringify!($s),">`] from bytes `data`.")]
             #[inline]
             pub fn from_bytes(data: &[u8]) -> Self {
-                let converted_data: &[$t] = bytemuck::cast_slice(data);
+                let converted_data: &[T] = bytemuck::cast_slice(data);
 
                 Self(<$s>::from_slice(converted_data))
             }
         }
 
-        impl<$s, $t> $cipher<$s, $t>
+        impl<$s, T> $cipher<$s>
         where
-            $s: RawData<Elem = $t> + DataMut,
-            $t: UnsignedInteger,
+            $s: RawData<Elem = T> + DataMut,
+            T: UnsignedInteger,
         {
             /// Copy from bytes `data`.
             #[inline]
             pub fn from_bytes_assign(&mut self, data: &[u8]) {
-                let converted_data: &[$t] = bytemuck::cast_slice(data);
+                let converted_data: &[T] = bytemuck::cast_slice(data);
 
                 self.0.copy_from_slice(converted_data);
             }
         }
 
-        impl<$s, $t> $cipher<$s, $t>
+        impl<$s, T> $cipher<$s>
         where
-            $s: RawData<Elem = $t> + Data,
-            $t: UnsignedInteger,
+            $s: RawData<Elem = T> + Data,
+            T: UnsignedInteger,
         {
             /// Converts `self` into bytes.
             #[inline]
@@ -99,14 +97,14 @@ macro_rules! impl_bytes_conversion {
 }
 
 macro_rules! impl_zero {
-    ($cipher:ident < $s:ident, $t:ident >) => {
-        impl<$s, $t> $cipher<$s, $t>
+    ($cipher:ident < $s:ident >) => {
+        impl<$s, T> $cipher<$s>
         where
-            $s: RawData<Elem = $t> + DataOwned,
-            $t: UnsignedInteger,
+            $s: RawData<Elem = T> + DataOwned,
+            T: UnsignedInteger,
         {
             paste::paste! {
-                #[doc = concat!(r" Creates a new [`",stringify!($cipher),"<",stringify!($s),", ",stringify!($t),">`] with all values or coefficients equal to zero.")]
+                #[doc = concat!(r" Creates a new [`",stringify!($cipher),"<",stringify!($s),">`] with all values or coefficients equal to zero.")]
                 #[inline]
                 pub fn zero([<$cipher:snake _len>]: usize) -> Self {
                     Self(<$s>::from_vec(vec![T::ZERO; [<$cipher:snake _len>]]))
@@ -114,10 +112,10 @@ macro_rules! impl_zero {
             }
         }
 
-        impl<$s, $t> $cipher<$s, $t>
+        impl<$s, T> $cipher<$s>
         where
-            $s: RawData<Elem = $t> + DataMut,
-            $t: UnsignedInteger,
+            $s: RawData<Elem = T> + DataMut,
+            T: UnsignedInteger,
         {
             /// Set all values or coefficients equal to zero.
             #[inline]
@@ -147,7 +145,7 @@ macro_rules! impl_iters {
             }
 
             impl<'a, T: UnsignedInteger> Iterator for [<$cipher Iter>]<'a, T> {
-                type Item = $cipher<&'a [T], T>;
+                type Item = $cipher<&'a [T]>;
 
                 #[inline]
                 fn next(&mut self) -> Option<Self::Item> {
@@ -176,7 +174,7 @@ macro_rules! impl_iters {
             }
 
             impl<'a, T: UnsignedInteger> Iterator for [<$cipher IterMut>]<'a, T> {
-                type Item = $cipher<&'a mut [T], T>;
+                type Item = $cipher<&'a mut [T]>;
 
                 #[inline]
                 fn next(&mut self) -> Option<Self::Item> {
@@ -190,15 +188,15 @@ macro_rules! impl_iters {
 }
 
 macro_rules! impl_iter_sub_structure {
-    ($cipher:ident < $s:ident, $t:ident >, $sub:ident) => {
-        impl<$s, $t> $cipher<$s, $t>
+    ($cipher:ident < $s:ident >, $sub:ident) => {
+        impl<$s, T> $cipher<$s>
         where
-            $s: RawData<Elem = $t> + Data,
-            $t: UnsignedInteger,
+            $s: RawData<Elem = T> + Data,
+            T: UnsignedInteger,
         {
             paste::paste! {
                 #[inline]
-                pub fn [<iter_ $sub:snake>]<'a>(&'a self, [<$sub:snake _len>]: usize) -> [<$sub Iter>]<'a, $t> {
+                pub fn [<iter_ $sub:snake>]<'a>(&'a self, [<$sub:snake _len>]: usize) -> [<$sub Iter>]<'a, T> {
                     [<$sub Iter>] {
                         iter: self.0.chunks_exact([<$sub:snake _len>])
                     }
@@ -207,17 +205,17 @@ macro_rules! impl_iter_sub_structure {
             }
         }
 
-        impl<$s, $t> $cipher<$s, $t>
+        impl<$s, T> $cipher<$s>
         where
-            $s: RawData<Elem = $t> + DataMut,
-            $t: UnsignedInteger,
+            $s: RawData<Elem = T> + DataMut,
+            T: UnsignedInteger,
         {
             paste::paste! {
                 #[inline]
                 pub fn [<iter_ $sub:snake _mut>]<'a>(
                     &'a mut self,
                     [<$sub:snake _len>]: usize,
-                ) -> [<$sub IterMut>]<'a, $t> {
+                ) -> [<$sub IterMut>]<'a, T> {
                     [<$sub IterMut>] {
                         iter: self.0.chunks_exact_mut([<$sub:snake _len>])
                     }
@@ -225,15 +223,15 @@ macro_rules! impl_iter_sub_structure {
             }
         }
     };
-    ($cipher:ident < $s:ident, $t:ident >, $sub:ident, $sub_short:ident) => {
-        impl<$s, $t> $cipher<$s, $t>
+    ($cipher:ident < $s:ident >, $sub:ident, $sub_short:ident) => {
+        impl<$s, T> $cipher<$s>
         where
-            $s: RawData<Elem = $t> + Data,
-            $t: UnsignedInteger,
+            $s: RawData<Elem = T> + Data,
+            T: UnsignedInteger,
         {
             paste::paste! {
                 #[inline]
-                pub fn [<iter_ $sub_short>]<'a>(&'a self, [<$sub_short _len>]: usize) -> [<$sub Iter>]<'a, $t> {
+                pub fn [<iter_ $sub_short>]<'a>(&'a self, [<$sub_short _len>]: usize) -> [<$sub Iter>]<'a, T> {
                     [<$sub Iter>] {
                         iter: self.0.chunks_exact([<$sub_short _len>])
                     }
@@ -242,17 +240,17 @@ macro_rules! impl_iter_sub_structure {
             }
         }
 
-        impl<$s, $t> $cipher<$s, $t>
+        impl<$s, T> $cipher<$s>
         where
-            $s: RawData<Elem = $t> + DataMut,
-            $t: UnsignedInteger,
+            $s: RawData<Elem = T> + DataMut,
+            T: UnsignedInteger,
         {
             paste::paste! {
                 #[inline]
                 pub fn [<iter_ $sub_short _mut>]<'a>(
                     &'a mut self,
                     [<$sub_short _len>]: usize,
-                ) -> [<$sub IterMut>]<'a, $t> {
+                ) -> [<$sub IterMut>]<'a, T> {
                     [<$sub IterMut>] {
                         iter: self.0.chunks_exact_mut([<$sub_short _len>])
                     }
@@ -263,18 +261,18 @@ macro_rules! impl_iter_sub_structure {
 }
 
 macro_rules! impl_basic_operation_single_modulus {
-    ($cipher:ident < $s:ident, $t:ident >) => {
-        impl<$s, $t> $cipher<$s, $t>
+    ($cipher:ident < $s:ident >) => {
+        impl<$s, T> $cipher<$s>
         where
-            $s: RawData<Elem = $t> + DataMut,
-            $t: UnsignedInteger,
+            $s: RawData<Elem = T> + DataMut,
+            T: UnsignedInteger,
         {
             /// Perform element-wise modular addition `self + rhs`.
             #[inline]
             pub fn add_element_wise<M, A>(mut self, rhs: &$cipher<A>, modulus: M) -> Self
             where
-                M: FieldContext<$t>,
-                A: RawData<Elem = $t> + Data,
+                M: FieldContext<T>,
+                A: RawData<Elem = T> + Data,
             {
                 ArrayBase(self.as_mut()).add_element_wise_assign(&ArrayBase(rhs.as_ref()), modulus);
                 self
@@ -284,8 +282,8 @@ macro_rules! impl_basic_operation_single_modulus {
             #[inline]
             pub fn sub_element_wise<M, A>(mut self, rhs: &$cipher<A>, modulus: M) -> Self
             where
-                M: FieldContext<$t>,
-                A: RawData<Elem = $t> + Data,
+                M: FieldContext<T>,
+                A: RawData<Elem = T> + Data,
             {
                 ArrayBase(self.as_mut()).sub_element_wise_assign(&ArrayBase(rhs.as_ref()), modulus);
                 self
@@ -295,8 +293,8 @@ macro_rules! impl_basic_operation_single_modulus {
             #[inline]
             pub fn add_element_wise_assign<M, A>(&mut self, rhs: &$cipher<A>, modulus: M)
             where
-                M: FieldContext<$t>,
-                A: RawData<Elem = $t> + Data,
+                M: FieldContext<T>,
+                A: RawData<Elem = T> + Data,
             {
                 ArrayBase(self.as_mut()).add_element_wise_assign(&ArrayBase(rhs.as_ref()), modulus);
             }
@@ -305,17 +303,17 @@ macro_rules! impl_basic_operation_single_modulus {
             #[inline]
             pub fn sub_element_wise_assign<M, A>(&mut self, rhs: &$cipher<A>, modulus: M)
             where
-                M: FieldContext<$t>,
-                A: RawData<Elem = $t> + Data,
+                M: FieldContext<T>,
+                A: RawData<Elem = T> + Data,
             {
                 ArrayBase(self.as_mut()).sub_element_wise_assign(&ArrayBase(rhs.as_ref()), modulus);
             }
         }
 
-        impl<$s, $t> $cipher<$s, $t>
+        impl<$s, T> $cipher<$s>
         where
-            $s: RawData<Elem = $t> + Data,
-            $t: UnsignedInteger,
+            $s: RawData<Elem = T> + Data,
+            T: UnsignedInteger,
         {
             /// Performs in-place element-wise modular addition:`result = self + rhs`,
             #[inline]
@@ -325,9 +323,9 @@ macro_rules! impl_basic_operation_single_modulus {
                 result: &mut $cipher<B>,
                 modulus: M,
             ) where
-                M: FieldContext<$t>,
-                A: RawData<Elem = $t> + Data,
-                B: RawData<Elem = $t> + DataMut,
+                M: FieldContext<T>,
+                A: RawData<Elem = T> + Data,
+                B: RawData<Elem = T> + DataMut,
             {
                 ArrayBase(self.as_ref()).add_element_wise_inplace(
                     &ArrayBase(rhs.as_ref()),
@@ -344,9 +342,9 @@ macro_rules! impl_basic_operation_single_modulus {
                 result: &mut $cipher<B>,
                 modulus: M,
             ) where
-                M: FieldContext<$t>,
-                A: RawData<Elem = $t> + Data,
-                B: RawData<Elem = $t> + DataMut,
+                M: FieldContext<T>,
+                A: RawData<Elem = T> + Data,
+                B: RawData<Elem = T> + DataMut,
             {
                 ArrayBase(self.as_ref()).sub_element_wise_inplace(
                     &ArrayBase(rhs.as_ref()),
@@ -359,11 +357,11 @@ macro_rules! impl_basic_operation_single_modulus {
 }
 
 macro_rules! impl_basic_operation_multiple_modulus {
-    ($cipher:ident < $s:ident, $t:ident >) => {
-        impl<$s, $t> $cipher<$s, $t>
+    ($cipher:ident < $s:ident >) => {
+        impl<$s, T> $cipher<$s>
         where
-            $s: RawData<Elem = $t> + DataMut,
-            $t: UnsignedInteger,
+            $s: RawData<Elem = T> + DataMut,
+            T: UnsignedInteger,
         {
             /// Perform element-wise modular addition `self + rhs`.
             #[inline]
@@ -375,8 +373,8 @@ macro_rules! impl_basic_operation_multiple_modulus {
                 moduli: &[M],
             ) -> Self
             where
-                M: FieldContext<$t>,
-                A: RawData<Elem = $t> + Data,
+                M: FieldContext<T>,
+                A: RawData<Elem = T> + Data,
             {
                 self.add_element_wise_assign(rhs, poly_length, crt_poly_length, moduli);
                 self
@@ -392,8 +390,8 @@ macro_rules! impl_basic_operation_multiple_modulus {
                 moduli: &[M],
             ) -> Self
             where
-                M: FieldContext<$t>,
-                A: RawData<Elem = $t> + Data,
+                M: FieldContext<T>,
+                A: RawData<Elem = T> + Data,
             {
                 self.sub_element_wise_assign(rhs, poly_length, crt_poly_length, moduli);
                 self
@@ -456,10 +454,10 @@ macro_rules! impl_basic_operation_multiple_modulus {
             }
         }
 
-        impl<$s, $t> $cipher<$s, $t>
+        impl<$s, T> $cipher<$s>
         where
-            $s: RawData<Elem = $t> + Data,
-            $t: UnsignedInteger,
+            $s: RawData<Elem = T> + Data,
+            T: UnsignedInteger,
         {
             /// Performs element-wise modular addition `result = self + rhs`.
             #[inline]
@@ -537,17 +535,17 @@ macro_rules! impl_basic_operation_multiple_modulus {
 }
 
 macro_rules! impl_ntt {
-    ($cipher:ident < $s:ident, $t:ident >,$ntt_cipher:ident) => {
-        impl<$s, $t> $cipher<$s, $t>
+    ($cipher:ident < $s:ident >,$ntt_cipher:ident) => {
+        impl<$s, T> $cipher<$s>
         where
-            $s: RawData<Elem = $t> + DataMut,
-            $t: UnsignedInteger,
+            $s: RawData<Elem = T> + DataMut,
+            T: UnsignedInteger,
         {
             /// Transforms `self` to ntt form.
             #[inline]
             pub fn into_ntt_form<Table>(mut self, ntt_table: &Table) -> $ntt_cipher<S>
             where
-                Table: NttTable<ValueT = $t>,
+                Table: NttTable<ValueT = T>,
             {
                 let poly_length = ntt_table.poly_length();
                 self.0.chunks_exact_mut(poly_length).for_each(|poly| {
@@ -557,10 +555,10 @@ macro_rules! impl_ntt {
             }
         }
 
-        impl<$s, $t> $cipher<$s, $t>
+        impl<$s, T> $cipher<$s>
         where
-            $s: RawData<Elem = $t> + Data,
-            $t: UnsignedInteger,
+            $s: RawData<Elem = T> + Data,
+            T: UnsignedInteger,
         {
             /// Transforms `self` to ntt form and stores in `result`.
             #[inline]
@@ -569,8 +567,8 @@ macro_rules! impl_ntt {
                 result: &mut $ntt_cipher<A>,
                 ntt_table: &Table,
             ) where
-                A: RawData<Elem = $t> + DataMut,
-                Table: NttTable<ValueT = $t>,
+                A: RawData<Elem = T> + DataMut,
+                Table: NttTable<ValueT = T>,
             {
                 let poly_length = ntt_table.poly_length();
                 result.0.copy_from_slice(self.as_ref());
@@ -583,17 +581,17 @@ macro_rules! impl_ntt {
 }
 
 macro_rules! impl_intt {
-    ($ntt_cipher:ident < $s:ident, $t:ident >,$cipher:ident) => {
-        impl<$s, $t> $ntt_cipher<$s, $t>
+    ($ntt_cipher:ident < $s:ident >,$cipher:ident) => {
+        impl<$s, T> $ntt_cipher<$s>
         where
-            $s: RawData<Elem = $t> + DataMut,
-            $t: UnsignedInteger,
+            $s: RawData<Elem = T> + DataMut,
+            T: UnsignedInteger,
         {
             /// Transforms `self` to coefficient form.
             #[inline]
             pub fn into_coeff_form<Table>(mut self, ntt_table: &Table) -> $cipher<S>
             where
-                Table: NttTable<ValueT = $t>,
+                Table: NttTable<ValueT = T>,
             {
                 let poly_length = ntt_table.poly_length();
                 self.0.chunks_exact_mut(poly_length).for_each(|poly| {
@@ -603,10 +601,10 @@ macro_rules! impl_intt {
             }
         }
 
-        impl<$s, $t> $ntt_cipher<$s, $t>
+        impl<$s, T> $ntt_cipher<$s>
         where
-            $s: RawData<Elem = $t> + Data,
-            $t: UnsignedInteger,
+            $s: RawData<Elem = T> + Data,
+            T: UnsignedInteger,
         {
             /// Transforms `self` to coefficient form and stores in `result`.
             #[inline]
@@ -615,8 +613,8 @@ macro_rules! impl_intt {
                 result: &mut $cipher<A>,
                 ntt_table: &Table,
             ) where
-                A: RawData<Elem = $t> + DataMut,
-                Table: NttTable<ValueT = $t>,
+                A: RawData<Elem = T> + DataMut,
+                Table: NttTable<ValueT = T>,
             {
                 let poly_length = ntt_table.poly_length();
                 result.0.copy_from_slice(self.as_ref());
@@ -629,17 +627,17 @@ macro_rules! impl_intt {
 }
 
 macro_rules! impl_crt_ntt {
-    ($cipher:ident < $s:ident, $t:ident >,$ntt_cipher:ident) => {
-        impl<$s, $t> $cipher<$s, $t>
+    ($cipher:ident < $s:ident >,$ntt_cipher:ident) => {
+        impl<$s, T> $cipher<$s>
         where
-            $s: RawData<Elem = $t> + DataMut,
-            $t: UnsignedInteger,
+            $s: RawData<Elem = T> + DataMut,
+            T: UnsignedInteger,
         {
             /// Transforms `self` to ntt form.
             #[inline]
             pub fn into_ntt_form<Table>(self, table: &Table) -> $ntt_cipher<$s>
             where
-                Table: DcrtTable<ValueT = $t>,
+                Table: DcrtTable<ValueT = T>,
             {
                 let crt_poly_length = table.crt_poly_length();
                 let Self(mut data) = self;
@@ -650,17 +648,17 @@ macro_rules! impl_crt_ntt {
             }
         }
 
-        impl<$s, $t> $cipher<$s, $t>
+        impl<$s, T> $cipher<$s>
         where
-            $s: RawData<Elem = $t> + Data,
-            $t: UnsignedInteger,
+            $s: RawData<Elem = T> + Data,
+            T: UnsignedInteger,
         {
             /// Transforms `self` to ntt form and stores in `result`.
             #[inline]
             pub fn to_ntt_form_inplace<Table, A>(&self, result: &mut $ntt_cipher<A>, table: &Table)
             where
-                Table: DcrtTable<ValueT = $t>,
-                A: RawData<Elem = $t> + DataMut,
+                Table: DcrtTable<ValueT = T>,
+                A: RawData<Elem = T> + DataMut,
             {
                 let crt_poly_length = table.crt_poly_length();
                 result.0.copy_from_slice(self.as_ref());
@@ -676,17 +674,17 @@ macro_rules! impl_crt_ntt {
 }
 
 macro_rules! impl_crt_intt {
-    ($ntt_cipher:ident < $s:ident, $t:ident >,$cipher:ident) => {
-        impl<$s, $t> $ntt_cipher<$s, $t>
+    ($ntt_cipher:ident < $s:ident >,$cipher:ident) => {
+        impl<$s, T> $ntt_cipher<$s>
         where
-            $s: RawData<Elem = $t> + DataMut,
-            $t: UnsignedInteger,
+            $s: RawData<Elem = T> + DataMut,
+            T: UnsignedInteger,
         {
             /// Transforms `self` to coefficient form.
             #[inline]
             pub fn into_coeff_form<Table>(self, table: &Table) -> $cipher<$s>
             where
-                Table: DcrtTable<ValueT = $t>,
+                Table: DcrtTable<ValueT = T>,
             {
                 let crt_poly_length = table.crt_poly_length();
                 let Self(mut data) = self;
@@ -697,17 +695,17 @@ macro_rules! impl_crt_intt {
             }
         }
 
-        impl<$s, $t> $ntt_cipher<$s, $t>
+        impl<$s, T> $ntt_cipher<$s>
         where
-            $s: RawData<Elem = $t> + Data,
-            $t: UnsignedInteger,
+            $s: RawData<Elem = T> + Data,
+            T: UnsignedInteger,
         {
             /// Transforms `self` to coefficient form and stores in `result`.
             #[inline]
             pub fn to_coeff_form_inplace<Table, A>(&self, result: &mut $cipher<A>, table: &Table)
             where
-                Table: DcrtTable<ValueT = $t>,
-                A: RawData<Elem = $t> + DataMut,
+                Table: DcrtTable<ValueT = T>,
+                A: RawData<Elem = T> + DataMut,
             {
                 let crt_poly_length = table.crt_poly_length();
                 result.0.copy_from_slice(self.as_ref());

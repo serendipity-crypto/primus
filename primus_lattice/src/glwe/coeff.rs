@@ -13,20 +13,20 @@ use super::NttGlwe;
 ///
 /// where `a1`...`ak` and `b` are [`primus_poly::Polynomial`] with same poly length, `k` is the dimension.
 #[derive(Clone)]
-pub struct Glwe<S, T = <S as RawData>::Elem>(pub S)
+pub struct Glwe<S>(pub S)
 where
-    S: RawData<Elem = T>,
-    T: UnsignedInteger;
+    S: RawData,
+    <S as RawData>::Elem: UnsignedInteger;
 
-impl_common!(Glwe<S, T>);
-impl_bytes_conversion!(Glwe<S, T>);
-impl_zero!(Glwe<S, T>);
+impl_common!(Glwe<S>);
+impl_bytes_conversion!(Glwe<S>);
+impl_zero!(Glwe<S>);
 impl_iters!(Glwe);
-impl_iter_sub_structure!(Glwe<S, T>, Polynomial, poly);
-impl_basic_operation_single_modulus!(Glwe<S, T>);
-impl_ntt!(Glwe<S, T>, NttGlwe);
+impl_iter_sub_structure!(Glwe<S>, Polynomial, poly);
+impl_basic_operation_single_modulus!(Glwe<S>);
+impl_ntt!(Glwe<S>, NttGlwe);
 
-impl<S, T> Glwe<S, T>
+impl<S, T> Glwe<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,

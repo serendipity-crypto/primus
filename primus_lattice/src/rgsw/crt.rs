@@ -15,15 +15,15 @@ use super::DcrtRgsw;
 ///
 /// where `c1` to `c[k+1]` are [`crate::rlev::CrtRlev`] with same parameter, `k` is the dimension.
 #[derive(Clone)]
-pub struct CrtRgsw<S, T = <S as RawData>::Elem>(pub S)
+pub struct CrtRgsw<S>(pub S)
 where
-    S: RawData<Elem = T>,
-    T: UnsignedInteger;
+    S: RawData,
+    <S as RawData>::Elem: UnsignedInteger;
 
-impl_common!(CrtRgsw<S, T>);
-impl_bytes_conversion!(CrtRgsw<S, T>);
-impl_zero!(CrtRgsw<S, T>);
+impl_common!(CrtRgsw<S>);
+impl_bytes_conversion!(CrtRgsw<S>);
+impl_zero!(CrtRgsw<S>);
 impl_iters!(CrtRgsw);
-impl_iter_sub_structure!(CrtRgsw<S, T>, CrtRlev);
-impl_basic_operation_multiple_modulus!(CrtRgsw<S, T>);
-impl_crt_ntt!(CrtRgsw<S, T>, DcrtRgsw);
+impl_iter_sub_structure!(CrtRgsw<S>, CrtRlev);
+impl_basic_operation_multiple_modulus!(CrtRgsw<S>);
+impl_crt_ntt!(CrtRgsw<S>, DcrtRgsw);

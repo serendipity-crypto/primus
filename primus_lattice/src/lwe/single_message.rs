@@ -11,12 +11,12 @@ use serde::{Deserialize, Serialize};
 /// The LWE problem is a fundamental component in modern cryptography, often used to build
 /// secure cryptographic systems that are considered hard to crack by quantum computers.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Lwe<S, T = <S as RawData>::Elem>(pub S)
+pub struct Lwe<S>(pub S)
 where
-    S: RawData<Elem = T>,
-    T: UnsignedInteger;
+    S: RawData,
+    <S as RawData>::Elem: UnsignedInteger;
 
-impl<S, T> Lwe<S, T>
+impl<S, T> Lwe<S>
 where
     S: RawData<Elem = T> + DataOwned,
     T: UnsignedInteger,
@@ -30,7 +30,7 @@ where
     }
 }
 
-impl<S, T> Lwe<S, T>
+impl<S, T> Lwe<S>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
@@ -44,7 +44,7 @@ where
     }
 }
 
-impl<S, T> Lwe<S, T>
+impl<S, T> Lwe<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
@@ -67,7 +67,7 @@ where
     }
 }
 
-impl<S, T> Lwe<S, T>
+impl<S, T> Lwe<S>
 where
     S: RawData<Elem = T> + DataOwned,
     T: UnsignedInteger,
@@ -91,7 +91,7 @@ where
     }
 }
 
-impl<T> Lwe<Vec<T>, T>
+impl<T> Lwe<Vec<T>>
 where
     T: UnsignedInteger,
 {
@@ -131,7 +131,7 @@ where
     }
 }
 
-impl<S, T> Lwe<S, T>
+impl<S, T> Lwe<S>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
@@ -162,7 +162,7 @@ where
     }
 }
 
-impl<S, T> Lwe<S, T>
+impl<S, T> Lwe<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
@@ -191,7 +191,7 @@ where
     }
 }
 
-impl<S, T> Lwe<S, T>
+impl<S, T> Lwe<S>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
@@ -295,7 +295,7 @@ where
     }
 }
 
-impl<S, T> Lwe<S, T>
+impl<S, T> Lwe<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
@@ -357,7 +357,7 @@ where
     }
 }
 
-impl<S, T> Size for Lwe<S, T>
+impl<S, T> Size for Lwe<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,

@@ -16,15 +16,15 @@ use super::NttGlev;
 ///
 /// where `c1` to `cd` are [`crate::glwe::Glwe`] with same parameter, `d` is the decompose length.
 #[derive(Clone)]
-pub struct Glev<S, T = <S as RawData>::Elem>(pub S)
+pub struct Glev<S>(pub S)
 where
-    S: RawData<Elem = T>,
-    T: UnsignedInteger;
+    S: RawData,
+    <S as RawData>::Elem: UnsignedInteger;
 
-impl_common!(Glev<S, T>);
-impl_bytes_conversion!(Glev<S, T>);
-impl_zero!(Glev<S, T>);
+impl_common!(Glev<S>);
+impl_bytes_conversion!(Glev<S>);
+impl_zero!(Glev<S>);
 impl_iters!(Glev);
-impl_iter_sub_structure!(Glev<S, T>, Glwe);
-impl_basic_operation_single_modulus!(Glev<S, T>);
-impl_ntt!(Glev<S, T>, NttGlev);
+impl_iter_sub_structure!(Glev<S>, Glwe);
+impl_basic_operation_single_modulus!(Glev<S>);
+impl_ntt!(Glev<S>, NttGlev);

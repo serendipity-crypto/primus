@@ -15,15 +15,15 @@ use super::Ggsw;
 ///
 /// where `c1` to `c[k+1]` are [`crate::glev::NttGlev`] with same parameter, `k` is the dimension.
 #[derive(Clone)]
-pub struct NttGgsw<S, T = <S as RawData>::Elem>(pub S)
+pub struct NttGgsw<S>(pub S)
 where
-    S: RawData<Elem = T>,
-    T: UnsignedInteger;
+    S: RawData,
+    <S as RawData>::Elem: UnsignedInteger;
 
-impl_common!(NttGgsw<S, T>);
-impl_bytes_conversion!(NttGgsw<S, T>);
-impl_zero!(NttGgsw<S, T>);
+impl_common!(NttGgsw<S>);
+impl_bytes_conversion!(NttGgsw<S>);
+impl_zero!(NttGgsw<S>);
 impl_iters!(NttGgsw);
-impl_iter_sub_structure!(NttGgsw<S, T>, NttGlev);
-impl_basic_operation_single_modulus!(NttGgsw<S, T>);
-impl_intt!(NttGgsw<S, T>, Ggsw);
+impl_iter_sub_structure!(NttGgsw<S>, NttGlev);
+impl_basic_operation_single_modulus!(NttGgsw<S>);
+impl_intt!(NttGgsw<S>, Ggsw);

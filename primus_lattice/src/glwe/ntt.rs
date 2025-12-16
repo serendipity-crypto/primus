@@ -13,20 +13,20 @@ use super::Glwe;
 ///
 /// where `a1`...`ak` and `b` are [`NttPolynomial`] with same poly length, `k` is the dimension.
 #[derive(Clone)]
-pub struct NttGlwe<S, T = <S as RawData>::Elem>(pub S)
+pub struct NttGlwe<S>(pub S)
 where
-    S: RawData<Elem = T>,
-    T: UnsignedInteger;
+    S: RawData,
+    <S as RawData>::Elem: UnsignedInteger;
 
-impl_common!(NttGlwe<S, T>);
-impl_bytes_conversion!(NttGlwe<S, T>);
-impl_zero!(NttGlwe<S, T>);
+impl_common!(NttGlwe<S>);
+impl_bytes_conversion!(NttGlwe<S>);
+impl_zero!(NttGlwe<S>);
 impl_iters!(NttGlwe);
-impl_iter_sub_structure!(NttGlwe<S, T>, NttPolynomial, ntt_poly);
-impl_basic_operation_single_modulus!(NttGlwe<S, T>);
-impl_intt!(NttGlwe<S, T>, Glwe);
+impl_iter_sub_structure!(NttGlwe<S>, NttPolynomial, ntt_poly);
+impl_basic_operation_single_modulus!(NttGlwe<S>);
+impl_intt!(NttGlwe<S>, Glwe);
 
-impl<S, T> NttGlwe<S, T>
+impl<S, T> NttGlwe<S>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
@@ -46,7 +46,7 @@ where
     }
 }
 
-impl<S, T> NttGlwe<S, T>
+impl<S, T> NttGlwe<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,

@@ -15,20 +15,20 @@ pub type DcrtRlweOwned<T> = DcrtRlwe<Vec<T>>;
 ///
 /// where `a` and `b` are [`DcrtPolynomial`] with same poly length and moduli count.
 #[derive(Clone)]
-pub struct DcrtRlwe<S, T = <S as RawData>::Elem>(pub S)
+pub struct DcrtRlwe<S>(pub S)
 where
-    S: RawData<Elem = T>,
-    T: UnsignedInteger;
+    S: RawData,
+    <S as RawData>::Elem: UnsignedInteger;
 
-impl_common!(DcrtRlwe<S, T>);
-impl_bytes_conversion!(DcrtRlwe<S, T>);
-impl_zero!(DcrtRlwe<S, T>);
+impl_common!(DcrtRlwe<S>);
+impl_bytes_conversion!(DcrtRlwe<S>);
+impl_zero!(DcrtRlwe<S>);
 impl_iters!(DcrtRlwe);
-impl_iter_sub_structure!(DcrtRlwe<S, T>, DcrtPolynomial, dcrt_poly);
-impl_basic_operation_multiple_modulus!(DcrtRlwe<S, T>);
-impl_crt_intt!(DcrtRlwe<S, T>, CrtRlwe);
+impl_iter_sub_structure!(DcrtRlwe<S>, DcrtPolynomial, dcrt_poly);
+impl_basic_operation_multiple_modulus!(DcrtRlwe<S>);
+impl_crt_intt!(DcrtRlwe<S>, CrtRlwe);
 
-impl<S, T> DcrtRlwe<S, T>
+impl<S, T> DcrtRlwe<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,

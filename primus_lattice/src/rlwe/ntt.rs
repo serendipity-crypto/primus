@@ -15,20 +15,20 @@ pub type NttRlweOwned<T> = NttRlwe<Vec<T>>;
 ///
 /// where `a` and `b` are [`NttPolynomial`] with same poly length.
 #[derive(Clone)]
-pub struct NttRlwe<S, T = <S as RawData>::Elem>(pub S)
+pub struct NttRlwe<S>(pub S)
 where
-    S: RawData<Elem = T>,
-    T: UnsignedInteger;
+    S: RawData,
+    <S as RawData>::Elem: UnsignedInteger;
 
-impl_common!(NttRlwe<S, T>);
-impl_bytes_conversion!(NttRlwe<S, T>);
-impl_zero!(NttRlwe<S, T>);
+impl_common!(NttRlwe<S>);
+impl_bytes_conversion!(NttRlwe<S>);
+impl_zero!(NttRlwe<S>);
 impl_iters!(NttRlwe);
-impl_iter_sub_structure!(NttRlwe<S, T>, NttPolynomial, ntt_poly);
-impl_basic_operation_single_modulus!(NttRlwe<S, T>);
-impl_intt!(NttRlwe<S, T>, Rlwe);
+impl_iter_sub_structure!(NttRlwe<S>, NttPolynomial, ntt_poly);
+impl_basic_operation_single_modulus!(NttRlwe<S>);
+impl_intt!(NttRlwe<S>, Rlwe);
 
-impl<S, T> NttRlwe<S, T>
+impl<S, T> NttRlwe<S>
 where
     S: RawData<Elem = T> + DataOwned,
     T: UnsignedInteger,
@@ -44,7 +44,7 @@ where
     }
 }
 
-impl<S, T> NttRlwe<S, T>
+impl<S, T> NttRlwe<S>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
@@ -105,7 +105,7 @@ where
     }
 }
 
-impl<S, T> NttRlwe<S, T>
+impl<S, T> NttRlwe<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,

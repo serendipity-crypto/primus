@@ -46,6 +46,7 @@ where
     S: Data<Elem = T>,
     T: UnsignedInteger,
 {
+    #[allow(clippy::len_without_is_empty)]
     #[inline(always)]
     pub fn len(&self) -> usize {
         self.0.len()

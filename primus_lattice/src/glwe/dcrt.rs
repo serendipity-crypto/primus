@@ -20,20 +20,20 @@ use super::CrtGlwe;
 ///
 /// where `a1`...`ak` and `b` are [`DcrtPolynomial`] with same poly length and moduli count, `k` is the dimension.
 #[derive(Clone)]
-pub struct DcrtGlwe<S, T = <S as RawData>::Elem>(pub S)
+pub struct DcrtGlwe<S>(pub S)
 where
-    S: RawData<Elem = T>,
-    T: UnsignedInteger;
+    S: RawData,
+    <S as RawData>::Elem: UnsignedInteger;
 
-impl_common!(DcrtGlwe<S, T>);
-impl_bytes_conversion!(DcrtGlwe<S, T>);
-impl_zero!(DcrtGlwe<S, T>);
+impl_common!(DcrtGlwe<S>);
+impl_bytes_conversion!(DcrtGlwe<S>);
+impl_zero!(DcrtGlwe<S>);
 impl_iters!(DcrtGlwe);
-impl_iter_sub_structure!(DcrtGlwe<S, T>, DcrtPolynomial, dcrt_poly);
-impl_basic_operation_multiple_modulus!(DcrtGlwe<S, T>);
-impl_crt_intt!(DcrtGlwe<S, T>, CrtGlwe);
+impl_iter_sub_structure!(DcrtGlwe<S>, DcrtPolynomial, dcrt_poly);
+impl_basic_operation_multiple_modulus!(DcrtGlwe<S>);
+impl_crt_intt!(DcrtGlwe<S>, CrtGlwe);
 
-impl<S, T> DcrtGlwe<S, T>
+impl<S, T> DcrtGlwe<S>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
@@ -246,7 +246,7 @@ where
     }
 }
 
-impl<S, T> DcrtGlwe<S, T>
+impl<S, T> DcrtGlwe<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,

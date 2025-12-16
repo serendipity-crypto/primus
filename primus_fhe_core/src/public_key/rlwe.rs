@@ -7,15 +7,15 @@ use primus_reduce::FieldContext;
 use crate::{NttRlweCiphertext, NttRlweSecretKey, RlweParameters};
 
 #[derive(Clone)]
-pub struct NttRlwePublicKey<S, T = <S as RawData>::Elem>
+pub struct NttRlwePublicKey<S>
 where
-    S: RawData<Elem = T>,
-    T: UnsignedInteger,
+    S: RawData,
+    <S as RawData>::Elem: UnsignedInteger,
 {
     key: NttRlwe<S>,
 }
 
-impl<S, T> AsRef<[T]> for NttRlwePublicKey<S, T>
+impl<S, T> AsRef<[T]> for NttRlwePublicKey<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
@@ -26,7 +26,7 @@ where
     }
 }
 
-impl<S, T> AsMut<[T]> for NttRlwePublicKey<S, T>
+impl<S, T> AsMut<[T]> for NttRlwePublicKey<S>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
@@ -37,7 +37,7 @@ where
     }
 }
 
-impl<S, T> From<NttRlwe<S>> for NttRlwePublicKey<S, T>
+impl<S, T> From<NttRlwe<S>> for NttRlwePublicKey<S>
 where
     S: RawData<Elem = T>,
     T: UnsignedInteger,
@@ -48,7 +48,7 @@ where
     }
 }
 
-impl<T: UnsignedInteger> NttRlwePublicKey<Vec<T>, T> {
+impl<T: UnsignedInteger> NttRlwePublicKey<Vec<T>> {
     pub fn new<M, Table, R>(
         secret_key: &NttRlweSecretKey<T>,
         params: &RlweParameters<T, M>,
@@ -87,7 +87,7 @@ impl<T: UnsignedInteger> NttRlwePublicKey<Vec<T>, T> {
     }
 }
 
-impl<S, T> NttRlwePublicKey<S, T>
+impl<S, T> NttRlwePublicKey<S>
 where
     S: RawData<Elem = T> + DataOwned,
     T: UnsignedInteger,
@@ -101,7 +101,7 @@ where
     }
 }
 
-impl<S, T> NttRlwePublicKey<S, T>
+impl<S, T> NttRlwePublicKey<S>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
@@ -113,12 +113,12 @@ where
     }
 
     #[inline]
-    pub fn key_mut(&mut self) -> &mut NttRlwe<S, T> {
+    pub fn key_mut(&mut self) -> &mut NttRlwe<S> {
         &mut self.key
     }
 }
 
-impl<S, T> NttRlwePublicKey<S, T>
+impl<S, T> NttRlwePublicKey<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
@@ -244,7 +244,7 @@ where
         result
     }
 
-    pub fn key(&self) -> &NttRlwe<S, T> {
+    pub fn key(&self) -> &NttRlwe<S> {
         &self.key
     }
 }

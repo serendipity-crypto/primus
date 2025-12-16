@@ -13,18 +13,18 @@ use super::CrtGlwe;
 ///
 /// where `a1`...`ak` and `b` are [`primus_poly::BigUintPolynomial`] with same poly length, `k` is the dimension.
 #[derive(Clone)]
-pub struct BigUintGlwe<S, T = <S as RawData>::Elem>(pub S)
+pub struct BigUintGlwe<S>(pub S)
 where
-    S: RawData<Elem = T>,
-    T: UnsignedInteger;
+    S: RawData,
+    <S as RawData>::Elem: UnsignedInteger;
 
-impl_common!(BigUintGlwe<S, T>);
-impl_bytes_conversion!(BigUintGlwe<S, T>);
-impl_zero!(BigUintGlwe<S, T>);
+impl_common!(BigUintGlwe<S>);
+impl_bytes_conversion!(BigUintGlwe<S>);
+impl_zero!(BigUintGlwe<S>);
 impl_iters!(BigUintGlwe);
-impl_iter_sub_structure!(BigUintGlwe<S, T>, BigUintPolynomial, big_uint_poly);
+impl_iter_sub_structure!(BigUintGlwe<S>, BigUintPolynomial, big_uint_poly);
 
-impl<S, T> BigUintGlwe<S, T>
+impl<S, T> BigUintGlwe<S>
 where
     S: RawData<Elem = T> + DataMut,
     T: UnsignedInteger,
@@ -51,7 +51,7 @@ where
     }
 }
 
-impl<S, T> BigUintGlwe<S, T>
+impl<S, T> BigUintGlwe<S>
 where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,

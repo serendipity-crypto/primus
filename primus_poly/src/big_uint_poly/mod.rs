@@ -107,6 +107,7 @@ where
         self.0.chunks_exact(value_len)
     }
 
+    #[allow(clippy::len_without_is_empty)]
     #[inline]
     pub fn len(&self) -> usize {
         self.0.len()

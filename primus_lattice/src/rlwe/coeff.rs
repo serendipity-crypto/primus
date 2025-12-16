@@ -24,18 +24,18 @@ pub type RlweOwned<T> = Rlwe<Vec<T>>;
 ///
 /// where `a` and `b` are [`Polynomial`] with same poly length.
 #[derive(Clone)]
-pub struct Rlwe<S, T = <S as RawData>::Elem>(pub S)
+pub struct Rlwe<S>(pub S)
 where
-    S: RawData<Elem = T>,
-    T: UnsignedInteger;
+    S: RawData,
+    <S as RawData>::Elem: UnsignedInteger;
 
-impl_common!(Rlwe<S, T>);
-impl_bytes_conversion!(Rlwe<S, T>);
-impl_zero!(Rlwe<S, T>);
+impl_common!(Rlwe<S>);
+impl_bytes_conversion!(Rlwe<S>);
+impl_zero!(Rlwe<S>);
 impl_iters!(Rlwe);
-impl_iter_sub_structure!(Rlwe<S, T>, Polynomial, poly);
-impl_basic_operation_single_modulus!(Rlwe<S, T>);
-impl_ntt!(Rlwe<S, T>, NttRlwe);
+impl_iter_sub_structure!(Rlwe<S>, Polynomial, poly);
+impl_basic_operation_single_modulus!(Rlwe<S>);
+impl_ntt!(Rlwe<S>, NttRlwe);
 
 impl<S, T> Rlwe<S>
 where
@@ -53,7 +53,7 @@ where
     }
 }
 
-impl<T: UnsignedInteger> Rlwe<Vec<T>, T> {
+impl<T: UnsignedInteger> Rlwe<Vec<T>> {
     /// Extract an LWE sample from RLWE.
     #[inline]
     pub fn extract_lwe_locally<M>(self, modulus: M) -> Lwe<Vec<T>>

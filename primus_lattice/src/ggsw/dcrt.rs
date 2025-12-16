@@ -15,15 +15,15 @@ use super::CrtGgsw;
 ///
 /// where `c1` to `c[k+1]` are [`crate::glev::DcrtGlev`] with same parameter, `k` is the dimension.
 #[derive(Clone)]
-pub struct DcrtGgsw<S, T = <S as RawData>::Elem>(pub S)
+pub struct DcrtGgsw<S>(pub S)
 where
-    S: RawData<Elem = T>,
-    T: UnsignedInteger;
+    S: RawData,
+    <S as RawData>::Elem: UnsignedInteger;
 
-impl_common!(DcrtGgsw<S, T>);
-impl_bytes_conversion!(DcrtGgsw<S, T>);
-impl_zero!(DcrtGgsw<S, T>);
+impl_common!(DcrtGgsw<S>);
+impl_bytes_conversion!(DcrtGgsw<S>);
+impl_zero!(DcrtGgsw<S>);
 impl_iters!(DcrtGgsw);
-impl_iter_sub_structure!(DcrtGgsw<S, T>, DcrtGlev);
-impl_basic_operation_multiple_modulus!(DcrtGgsw<S, T>);
-impl_crt_intt!(DcrtGgsw<S, T>, CrtGgsw);
+impl_iter_sub_structure!(DcrtGgsw<S>, DcrtGlev);
+impl_basic_operation_multiple_modulus!(DcrtGgsw<S>);
+impl_crt_intt!(DcrtGgsw<S>, CrtGgsw);

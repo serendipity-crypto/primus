@@ -125,6 +125,7 @@ impl<T: UnsignedInteger> DcrtGlwePublicKey<T> {
         result
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn encrypt_monomial_in_dcrt_glev_inplace<R, Table, M>(
         &self,
         index: usize,
