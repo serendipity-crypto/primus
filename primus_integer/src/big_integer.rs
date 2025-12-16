@@ -76,6 +76,7 @@ where
     }
 
     /// Adds a value to the big integer, returning true if there was a carry.
+    #[must_use]
     #[inline]
     pub fn add_value_inplace<A>(&self, value: T, result: &mut BigUint<A>) -> bool
     where
@@ -111,6 +112,7 @@ where
     }
 
     /// Subtracts a value to the big integer, returning true if there was a borrow.
+    #[must_use]
     #[inline]
     pub fn sub_value_inplace<A>(&self, value: T, result: &mut BigUint<A>) -> bool
     where
@@ -146,6 +148,7 @@ where
     }
 
     /// Multiplies the big integer by a value, storing the result in another big integer.
+    #[must_use]
     #[inline]
     pub fn mul_value_inplace<A>(&self, value: T, result: &mut BigUint<A>) -> T
     where
@@ -167,6 +170,7 @@ where
     }
 
     /// Multiplies the big integer by a value, then add to another big integer.
+    #[must_use]
     #[inline]
     pub fn mul_value_add_inplace<A>(&self, value: T, result: &mut BigUint<A>) -> T
     where
@@ -187,6 +191,7 @@ where
     }
 
     /// Adds two big integers to the result, returning true if there was a carry.
+    #[must_use]
     #[inline]
     pub fn add_inplace<A, B>(&self, other: &BigUint<A>, result: &mut BigUint<B>) -> bool
     where
@@ -205,6 +210,7 @@ where
     }
 
     /// Subtracts another big integer from this one, returning true if there was a borrow.
+    #[must_use]
     #[inline]
     pub fn sub_inplace<A, B>(&self, other: &BigUint<A>, result: &mut BigUint<B>) -> bool
     where
@@ -223,6 +229,7 @@ where
     }
 
     /// Compares this big integer with another, returning an [`Ordering`].
+    #[must_use]
     #[inline]
     pub fn cmp<A>(&self, other: &BigUint<A>) -> Ordering
     where
@@ -362,6 +369,7 @@ where
     }
 
     /// Adds a value to the big integer, returning true if there was a carry.
+    #[must_use]
     #[inline]
     pub fn add_value_assign(&mut self, value: T) -> bool {
         let mut carry;
@@ -381,6 +389,7 @@ where
     }
 
     /// Subtracts a value from the big integer, returning true if there was a borrow.
+    #[must_use]
     #[inline]
     pub fn sub_value_assign(&mut self, value: T) -> bool {
         let mut borrow;
@@ -400,6 +409,7 @@ where
     }
 
     /// Multiplies the big integer by a value, returning any carry that results.
+    #[must_use]
     #[inline]
     pub fn mul_value_assign(&mut self, value: T) -> T {
         if value.is_zero() {
@@ -416,6 +426,7 @@ where
     }
 
     /// Adds another big integer to this one, returning true if there was a carry.
+    #[must_use]
     #[inline]
     pub fn add_assign<A>(&mut self, other: &BigUint<A>) -> bool
     where
@@ -433,6 +444,7 @@ where
     }
 
     /// Subtracts another big integer from this one, returning true if there was a borrow.
+    #[must_use]
     #[inline]
     pub fn sub_assign<A>(&mut self, other: &BigUint<A>) -> bool
     where
@@ -992,6 +1004,91 @@ mod tests {
             result |= r as u128;
         }
         result
+    }
+
+    #[test]
+    fn test_big_uint_ops() {
+        let mut rng = rand::rng();
+        let moduli: [ValueT; 3] = [134215681, 134176769, 132120577];
+        let modulus = BigUint(multiply_many_values(&moduli));
+        let m_raw = compose(modulus.digits());
+
+        assert_eq!(128 - m_raw.leading_zeros(), modulus.bits_count());
+
+        let distrs = moduli.map(|m| Uniform::new(0, m).unwrap());
+
+        let a_residues = distrs.map(|distr| distr.sample(&mut rng));
+        let mut a = BigUint(multiply_many_values(&a_residues));
+        let mut a_raw = compose(a.digits());
+
+        a.right_shift_assign(3);
+        a_raw >>= 3;
+        assert_eq!(a_raw, compose(a.digits()));
+
+        let carry = a.left_shift_assign(3);
+        assert_eq!(carry, 0);
+        a_raw <<= 3;
+        assert_eq!(a_raw, compose(a.digits()));
+
+        let v: ValueT = rng.random();
+        let _r = a.add_value_assign(v);
+        a_raw += v as u128;
+        assert_eq!(a_raw, compose(a.digits()));
+
+        let _r = a.sub_value_assign(v);
+        a_raw -= v as u128;
+        assert_eq!(a_raw, compose(a.digits()));
+
+        let r = a.mul_value_assign(v);
+        let mut p = a.clone();
+        p.0.push(r);
+        a_raw *= v as u128;
+        assert_eq!(a_raw, compose(p.digits()));
+
+        let mut result = BigUint(vec![0; a.len()]);
+        a_raw = compose(a.digits());
+        let _carry = a.add_value_inplace(v, &mut result);
+        assert_eq!(a_raw + v as u128, compose(result.digits()));
+
+        let _borrow = a.sub_value_inplace(v, &mut result);
+        assert_eq!(a_raw - v as u128, compose(result.digits()));
+
+        let r = a.mul_value_inplace(v, &mut result);
+        result.0.push(r);
+        assert_eq!(a_raw * v as u128, compose(result.digits()));
+
+        let a_residues = distrs.map(|distr| distr.sample(&mut rng));
+        let b_residues = distrs.map(|distr| distr.sample(&mut rng));
+        let mut a = BigUint(multiply_many_values(&a_residues));
+        let b = BigUint(multiply_many_values(&b_residues));
+        let a_raw = compose(a.digits());
+        let b_raw = compose(b.digits());
+
+        let mut result = b.clone();
+        let carry = a.mul_value_add_inplace(v, &mut result);
+        result.0.push(carry);
+        assert_eq!(a_raw * v as u128 + b_raw, compose(result.digits()));
+
+        let _r = a.add_assign(&b);
+        assert_eq!(a_raw + b_raw, compose(a.digits()));
+
+        let _r = a.sub_assign(&b);
+        assert_eq!(a_raw, compose(a.digits()));
+
+        a.add_modulo_assign(&b, &modulus);
+        let r = (a_raw + b_raw) % m_raw;
+        assert_eq!(r, compose(a.digits()));
+
+        let a_residues = distrs.map(|distr| distr.sample(&mut rng));
+        let b_residues = distrs.map(|distr| distr.sample(&mut rng));
+        let mut a = BigUint(multiply_many_values(&a_residues));
+        let b = BigUint(multiply_many_values(&b_residues));
+        let a_raw = compose(a.digits());
+        let b_raw = compose(b.digits());
+
+        a.sub_modulo_assign(&b, &modulus);
+        let r = (a_raw + m_raw - b_raw) % m_raw;
+        assert_eq!(r, compose(a.digits()))
     }
 
     #[test]

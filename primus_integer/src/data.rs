@@ -5,6 +5,7 @@ pub trait RawData: Sized {
 }
 
 pub trait Data: RawData {
+    /// Returns a slice containing the entire data.
     fn as_slice(&self) -> &[Self::Elem];
 
     /// Returns the number of elements.
@@ -20,6 +21,7 @@ pub trait Data: RawData {
 }
 
 pub trait DataMut: Data {
+    /// Returns a mutable slice containing the entire data.
     fn as_mut_slice(&mut self) -> &mut [<Self as RawData>::Elem];
 
     /// Returns an iterator that allows modifying each value.
@@ -54,7 +56,7 @@ impl<T> Data for &[T] {
     }
 
     #[inline(always)]
-    fn iter<'a>(&'a self) -> Iter<'a, Self::Elem> {
+    fn iter<'a>(&'a self) -> Iter<'a, T> {
         <[T]>::iter(self)
     }
 }
@@ -80,7 +82,7 @@ impl<T> Data for &mut [T] {
     }
 
     #[inline(always)]
-    fn iter<'a>(&'a self) -> Iter<'a, Self::Elem> {
+    fn iter<'a>(&'a self) -> Iter<'a, T> {
         <[T]>::iter(self)
     }
 }
@@ -92,7 +94,7 @@ impl<T> DataMut for &mut [T] {
     }
 
     #[inline(always)]
-    fn iter_mut<'a>(&'a mut self) -> IterMut<'a, Self::Elem> {
+    fn iter_mut<'a>(&'a mut self) -> IterMut<'a, T> {
         <[T]>::iter_mut(self)
     }
 
@@ -126,7 +128,7 @@ impl<T> Data for Vec<T> {
     }
 
     #[inline(always)]
-    fn iter<'a>(&'a self) -> Iter<'a, Self::Elem> {
+    fn iter<'a>(&'a self) -> Iter<'a, T> {
         <[T]>::iter(self)
     }
 }
@@ -138,7 +140,7 @@ impl<T> DataMut for Vec<T> {
     }
 
     #[inline(always)]
-    fn iter_mut<'a>(&'a mut self) -> IterMut<'a, Self::Elem> {
+    fn iter_mut<'a>(&'a mut self) -> IterMut<'a, T> {
         <[T]>::iter_mut(self)
     }
 
@@ -172,7 +174,7 @@ impl<T> Data for Box<[T]> {
     }
 
     #[inline(always)]
-    fn iter<'a>(&'a self) -> Iter<'a, Self::Elem> {
+    fn iter<'a>(&'a self) -> Iter<'a, T> {
         <[T]>::iter(self)
     }
 }
@@ -184,7 +186,7 @@ impl<T> DataMut for Box<[T]> {
     }
 
     #[inline(always)]
-    fn iter_mut<'a>(&'a mut self) -> IterMut<'a, Self::Elem> {
+    fn iter_mut<'a>(&'a mut self) -> IterMut<'a, T> {
         <[T]>::iter_mut(self)
     }
 
