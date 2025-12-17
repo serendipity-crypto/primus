@@ -1,5 +1,5 @@
 use num_traits::ConstOne;
-use primus_integer::{BigUint, BigUintIterMut, Data, DivRem, UnsignedInteger};
+use primus_integer::{BigUint, BigUintIter, BigUintIterMut, Data, DivRem, UnsignedInteger};
 use primus_reduce::FieldContext;
 use primus_rns::RNSBase;
 use serde::{Deserialize, Serialize};
@@ -32,7 +32,7 @@ pub struct BigUintApproxSignedBasis<T: UnsignedInteger> {
 impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
     #[inline]
     pub fn new<M>(
-        modulus: &[T],
+        modulus: BigUint<&[T]>,
         log_basis: u32,
         reverse_length: Option<usize>,
         rns_base: &RNSBase<T, M>,
@@ -41,12 +41,12 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
         M: FieldContext<T>,
     {
         // FIXME: log_basis may be bigger than T::BITS
-        assert!(!modulus.last().unwrap().is_zero());
+        assert!(!modulus.0.last().unwrap().is_zero());
         assert!(log_basis > 0 && T::BITS > log_basis);
-        assert_eq!(modulus, rns_base.moduli_product().0);
+        assert_eq!(modulus, rns_base.moduli_product());
 
         let modulus_value_len = modulus.len();
-        let unused_bits = modulus.last().unwrap().leading_zeros();
+        let unused_bits = modulus.0.last().unwrap().leading_zeros();
 
         let basis = <T as ConstOne>::ONE << log_basis;
         let basis_minus_one = basis - <T as ConstOne>::ONE;
@@ -93,7 +93,7 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
                 value[0] |= T::ONE;
                 let carry = value.left_shift_assign(drop_bits - 1);
                 assert_eq!(carry, T::ZERO);
-                if value.cmp(&BigUint(modulus)).is_ge() {
+                if value.cmp(&modulus).is_ge() {
                     None
                 } else {
                     Some(value)
@@ -117,14 +117,14 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
                 assert!(!carry);
             }
 
-            if value.cmp(&BigUint(modulus)).is_ge() {
+            if value.cmp(&modulus).is_ge() {
                 None
             } else {
                 Some(value)
             }
         };
 
-        let mut modulus_sub_basis = BigUint(modulus.to_vec());
+        let mut modulus_sub_basis = BigUint(modulus.0.to_vec());
         let borrow = modulus_sub_basis.sub_value_assign(basis);
         assert!(!borrow);
 
@@ -132,7 +132,7 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
             let mut next_pow_of_2_minus_one = BigUint(vec![T::MAX; modulus_value_len]);
             next_pow_of_2_minus_one[modulus_value_len - 1] >>= unused_bits;
 
-            let mut modulus_minus_one = BigUint(modulus.to_vec());
+            let mut modulus_minus_one = BigUint(modulus.0.to_vec());
             let _ = modulus_minus_one.sub_value_assign(T::ONE);
 
             let borrow = next_pow_of_2_minus_one.sub_assign(&modulus_minus_one);
@@ -159,8 +159,7 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
         let moduli_count = rns_base.moduli_count();
         let mut scalars_residue = vec![T::ZERO; moduli_count * decompose_length];
 
-        scalars
-            .chunks_exact(modulus_value_len)
+        BigUintIter::new(&mut scalars, modulus_value_len)
             .zip(scalars_residue.chunks_exact_mut(moduli_count))
             .for_each(|(scalar, residues)| {
                 rns_base.decompose_inplace(scalar, residues);
@@ -175,7 +174,7 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
         }
 
         Self {
-            modulus: modulus.to_vec(),
+            modulus: modulus.0.to_vec(),
             basis,
             basis_minus_one,
             decompose_length,

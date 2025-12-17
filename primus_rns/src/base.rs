@@ -3,8 +3,8 @@ use std::slice::Iter;
 use itertools::Itertools;
 use primus_factor::{FactorMul, ShoupFactor};
 use primus_integer::{
-    BigUint, BigUintIter, Data, DataMut, RawData, UnsignedInteger, izip, multiply_many_values,
-    multiply_many_values_except_inplace,
+    BigUint, BigUintIter, BigUintIterMut, Data, DataMut, RawData, UnsignedInteger, izip,
+    multiply_many_values, multiply_many_values_except_inplace,
 };
 use primus_modulo::ops::*;
 use primus_poly::{BigUintPolynomial, CrtPolynomial, Polynomial};
@@ -25,7 +25,7 @@ where
     M: FieldContext<T>,
 {
     moduli: Vec<M>,
-    moduli_product: Vec<T>,
+    moduli_product: BigUint<Vec<T>>,
     punctured_product: Vec<T>,
     inv_punctured_product_mod_modulus: Vec<ShoupFactor<T>>,
 }
@@ -59,7 +59,7 @@ where
             return Err(RNSError::CoPrimeError);
         }
 
-        let moduli_product = multiply_many_values(&moduli_values);
+        let moduli_product = BigUint(multiply_many_values(&moduli_values));
 
         let big_uint_len = moduli_product.len();
         let mut punctured_product = vec![T::ZERO; big_uint_len * moduli.len()];
@@ -101,7 +101,7 @@ where
     /// Returns a reference to the moduli product of this [`RNSBase<T, M>`].
     #[inline]
     pub fn moduli_product(&self) -> BigUint<&[T]> {
-        BigUint(&self.moduli_product)
+        self.moduli_product.view()
     }
 
     #[inline]
@@ -130,7 +130,7 @@ where
 
     /// Decomposes a value into its RNS representation.
     #[inline]
-    pub fn decompose(&self, value: &[T]) -> Vec<T> {
+    pub fn decompose(&self, BigUint(value): BigUint<&[T]>) -> Vec<T> {
         self.moduli
             .iter()
             .map(|&modulus| value.modulo(modulus))
@@ -158,7 +158,7 @@ where
 
     /// Decomposes a value into its RNS representation, writing the result into the provided slice.
     #[inline]
-    pub fn decompose_inplace(&self, value: &[T], residues: &mut [T]) {
+    pub fn decompose_inplace(&self, BigUint(value): BigUint<&[T]>, residues: &mut [T]) {
         debug_assert_eq!(self.moduli_count(), residues.len());
 
         for (residue, &modulus) in residues.iter_mut().zip(self.moduli.iter()) {
@@ -283,7 +283,7 @@ where
     }
 
     /// Composes a value from its RNS representation.
-    pub fn compose(&self, residues: &[T]) -> Vec<T> {
+    pub fn compose(&self, residues: &[T]) -> BigUint<Vec<T>> {
         debug_assert_eq!(self.moduli_count(), residues.len());
 
         let value_len = self.big_uint_value_len();
@@ -307,19 +307,17 @@ where
             },
         );
 
-        value.0
+        value
     }
 
-    pub fn compose_inplace(&self, residues: &[T], value: &mut [T]) {
+    pub fn compose_inplace(&self, residues: &[T], value: &mut BigUint<&mut [T]>) {
         debug_assert_eq!(self.moduli_count(), residues.len());
         debug_assert_eq!(self.big_uint_value_len(), value.len());
 
         let value_len = self.moduli_product.len();
         let moduli_product = &self.moduli_product();
 
-        value.fill(T::ZERO);
-
-        let mut value = BigUint(value);
+        value.set_zero();
 
         izip!(
             residues,
@@ -330,7 +328,7 @@ where
         .for_each(
             |(&ri, &inv_mi, mi, &modulus): (&T, &ShoupFactor<T>, BigUint<&[T]>, &M)| {
                 let product = inv_mi.factor_mul_modulo(ri, modulus.value_unchecked());
-                let carry = mi.mul_value_add_inplace(product, &mut value);
+                let carry = mi.mul_value_add_inplace(product, value);
                 if !carry.is_zero() || value.cmp(moduli_product).is_ge() {
                     let _ = value.sub_assign(moduli_product);
                 }
@@ -358,7 +356,7 @@ where
             .map(|s| s.iter())
             .collect();
 
-        for value in big_uint_values.chunks_exact_mut(big_uint_value_len) {
+        for ref mut value in BigUintIterMut::new(big_uint_values, big_uint_value_len) {
             for (iter, residue) in iters.iter_mut().zip(residues.iter_mut()) {
                 *residue = *iter.next().unwrap();
             }

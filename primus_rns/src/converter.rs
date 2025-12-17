@@ -281,14 +281,14 @@ mod tests {
                 residues_in.push(rng.random_range(0..converter.ibase.moduli()[i].value()));
             }
 
-            let value = BigUint(ibasis.compose(&residues_in));
+            let value = ibasis.compose(&residues_in);
             println!("{:?}", value);
 
             let mut residues_out = vec![0; out_len];
             converter.fast_convert(&residues_in, &mut residues_out);
 
             residues_in.extend_from_slice(&residues_out);
-            let mut value = BigUint(dbasis.compose(&residues_in));
+            let mut value = dbasis.compose(&residues_in);
             while value.cmp(&ibasis_product).is_ge() {
                 let _ = value.sub_assign(&ibasis_product);
             }

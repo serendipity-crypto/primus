@@ -18,7 +18,7 @@ fn test_rns() {
 
     let residues = &[2, 3, 2];
     let value = base.compose(residues);
-    let dec = base.decompose(&value);
+    let dec = base.decompose(value.view());
     assert_eq!(dec, residues);
 }
 
@@ -29,7 +29,7 @@ fn test_rns2() {
 
     let residues = &[2, 3];
     let value = base.compose(residues);
-    let dec = base.decompose(&value);
+    let dec = base.decompose(value.view());
     assert_eq!(dec, residues);
 }
 
@@ -44,7 +44,7 @@ fn test_rns3() {
     for r in 0..t {
         let input: [ValueT; 2] = [r, 0];
 
-        println!("{:?}", base_q.decompose(&input));
+        println!("{:?}", base_q.decompose(BigUint(&input)));
 
         let mut input: BigUint<[ValueT; 2]> = BigUint([0; 2]);
         if r < (t + 1) / 2 {
@@ -53,7 +53,7 @@ fn test_rns3() {
             let _ = q.sub_value_inplace(t - r, &mut input);
         }
 
-        let d = base_q.decompose(input.digits());
+        let d = base_q.decompose(input.view());
 
         if r < (t + 1) / 2 {
             assert_eq!(d[0], r);
@@ -81,7 +81,7 @@ fn test_bfv_dec() {
     let mod_gamma = <BarrettModulus<ValueT>>::new(gamma);
     let t_gamma = [mod_t, mod_gamma];
     let base_t_gamma = RNSBase::new(&t_gamma).unwrap();
-    let q_mod_t_gamma = base_t_gamma.decompose(q.digits());
+    let q_mod_t_gamma = base_t_gamma.decompose(q.view());
     let minus_inv_q_mod_t_gamma: Vec<ValueT> = q_mod_t_gamma
         .iter()
         .zip(&t_gamma)
@@ -89,11 +89,11 @@ fn test_bfv_dec() {
         .collect();
     let inv_gamma_mod_t = ShoupFactor::new(mod_t.reduce_inv(mod_t.reduce(gamma)), t);
     let t_gamma_value = multiply_many_values(&[t, gamma]);
-    let t_gamma_mod_q = base_q.decompose(&t_gamma_value);
+    let t_gamma_mod_q = base_q.decompose(BigUint(&t_gamma_value));
 
     let mut delta = vec![0; moduli_count];
     let _rem = DivRemScalar::div_rem_scalar(q.digits(), t, &mut delta);
-    let delta_residue = base_q.decompose(&delta);
+    let delta_residue = base_q.decompose(BigUint(&delta));
 
     let converter = BaseConverter::new(&base_q, &base_t_gamma);
 
@@ -166,7 +166,7 @@ fn test_bfv_dec_array() {
     let mod_gamma = <BarrettModulus<ValueT>>::new(gamma);
     let t_gamma = [mod_t, mod_gamma];
     let base_t_gamma = RNSBase::new(&t_gamma).unwrap();
-    let q_mod_t_gamma = base_t_gamma.decompose(q.digits());
+    let q_mod_t_gamma = base_t_gamma.decompose(q.view());
     let minus_inv_q_mod_t_gamma: Vec<ValueT> = q_mod_t_gamma
         .iter()
         .zip(&t_gamma)
@@ -174,7 +174,7 @@ fn test_bfv_dec_array() {
         .collect();
     let inv_gamma_mod_t = ShoupFactor::new(gamma.modulo(mod_t).inv_modulo(mod_t), t);
     let t_gamma_value = multiply_many_values(&[t, gamma]);
-    let t_gamma_mod_q = base_q.decompose(&t_gamma_value);
+    let t_gamma_mod_q = base_q.decompose(BigUint(&t_gamma_value));
     let plain_uniform = Uniform::new(0, t).unwrap();
     let big_uint_value_len = base_q.big_uint_value_len();
 
@@ -182,7 +182,7 @@ fn test_bfv_dec_array() {
 
     let mut delta = vec![0; moduli_count];
     let _rem = DivRemScalar::div_rem_scalar(q.digits(), t, &mut delta);
-    let delta_mod_q = base_q.decompose(&delta);
+    let delta_mod_q = base_q.decompose(BigUint(&delta));
 
     let converter = BaseConverter::new(&base_q, &base_t_gamma);
 

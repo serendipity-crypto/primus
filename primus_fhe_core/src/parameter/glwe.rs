@@ -284,7 +284,7 @@ where
             let _ = delta.add_value_assign(T::ONE);
         }
 
-        let delta_mod_q: Vec<T> = base_q.decompose(delta.digits());
+        let delta_mod_q: Vec<T> = base_q.decompose(delta.view());
 
         let inv_delta_mod_q: Vec<T> = delta_mod_q
             .iter()
@@ -294,7 +294,7 @@ where
 
         let t_gamma = [plain_modulus, gamma_modulus];
         let base_t_gamma = RNSBase::new(&t_gamma).unwrap();
-        let q_mod_t_gamma = base_t_gamma.decompose(cipher_modulus.digits());
+        let q_mod_t_gamma = base_t_gamma.decompose(cipher_modulus.view());
         let minus_inv_q_mod_t_gamma: Vec<T> = q_mod_t_gamma
             .iter()
             .zip(&t_gamma)
@@ -303,7 +303,7 @@ where
         let inv_gamma_mod_t =
             ShoupFactor::new(gamma.modulo(plain_modulus).inv_modulo(plain_modulus), t);
         let t_gamma_value = multiply_many_values(&[t, gamma]);
-        let t_gamma_mod_q: Vec<T> = base_q.decompose(t_gamma_value.as_ref());
+        let t_gamma_mod_q: Vec<T> = base_q.decompose(BigUint(&t_gamma_value));
 
         let converter = BaseConverter::new(&base_q, &base_t_gamma);
 

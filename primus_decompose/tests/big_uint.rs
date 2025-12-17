@@ -24,9 +24,9 @@ mod tests {
         let distrs = moduli_value.map(|m| Uniform::new(0, m).unwrap());
 
         let rns_base = RNSBase::new(&moduli).unwrap();
-        let composed_modulus: Vec<ValueT> = multiply_many_values(&moduli_value);
-        let unused_bits = composed_modulus.last().unwrap().leading_zeros();
-        let basis = BigUintApproxSignedBasis::new(&composed_modulus, 7, None, &rns_base);
+        let composed_modulus = rns_base.moduli_product();
+        let unused_bits = composed_modulus.0.last().unwrap().leading_zeros();
+        let basis = BigUintApproxSignedBasis::new(composed_modulus, 7, None, &rns_base);
 
         println!("decompose_length: {}", basis.decompose_length());
 
@@ -73,7 +73,7 @@ mod tests {
         };
 
         println!("modulus: {:?}", composed_modulus);
-        show(&composed_modulus);
+        show(composed_modulus.0);
 
         println!("value");
         show(&value);
@@ -101,7 +101,7 @@ mod tests {
                 }
                 acc
             });
-        let result = BigUint(rns_base.compose(&result));
+        let result = rns_base.compose(&result);
 
         for &unsigned_value in decomposed_unsigned_value.iter().rev() {
             if basis_value > 2 {
@@ -151,8 +151,8 @@ mod tests {
         let distrs = moduli_value.map(|m| Uniform::new(0, m).unwrap());
 
         let rns_base = RNSBase::new(&moduli).unwrap();
-        let composed_modulus: Vec<ValueT> = multiply_many_values(&moduli_value);
-        let basis = BigUintApproxSignedBasis::new(&composed_modulus, 7, None, &rns_base);
+        let composed_modulus = rns_base.moduli_product();
+        let basis = BigUintApproxSignedBasis::new(composed_modulus, 7, None, &rns_base);
 
         // make test simple
         assert!(basis.drop_bits() < ValueT::BITS);
@@ -195,7 +195,7 @@ mod tests {
                     }
                     acc
                 });
-            let result = BigUint(rns_base.compose(&result));
+            let result = rns_base.compose(&result);
             let value = BigUint(value);
 
             if result.cmp(&value).is_le() {
@@ -225,9 +225,9 @@ mod tests {
         let distrs = moduli_value.map(|m| Uniform::new(0, m).unwrap());
 
         let rns_base = RNSBase::new(&moduli).unwrap();
-        let modulus: Vec<ValueT> = multiply_many_values(&moduli_value);
+        let modulus = rns_base.moduli_product();
         let big_uint_value_len = modulus.len();
-        let basis = BigUintApproxSignedBasis::new(&modulus, 5, None, &rns_base);
+        let basis = BigUintApproxSignedBasis::new(modulus, 5, None, &rns_base);
         let basis_value = basis.basis_value();
 
         let difference_bound = basis
@@ -342,8 +342,8 @@ mod tests {
 
         let rns_base = RNSBase::new(&moduli).unwrap();
         let big_uint_value_len = rns_base.big_uint_value_len();
-        let composed_modulus: Vec<ValueT> = multiply_many_values(&moduli_value);
-        let basis = BigUintApproxSignedBasis::new(&composed_modulus, 5, None, &rns_base);
+        let composed_modulus = rns_base.moduli_product();
+        let basis = BigUintApproxSignedBasis::new(composed_modulus, 5, None, &rns_base);
 
         assert_eq!(moduli_count, 2);
         assert_eq!(big_uint_value_len, 2);
@@ -420,7 +420,7 @@ mod tests {
         let rns_base = RNSBase::new(&moduli).unwrap();
         let big_uint_value_len = rns_base.big_uint_value_len();
         let composed_modulus = rns_base.moduli_product();
-        let basis = BigUintApproxSignedBasis::new(composed_modulus.0, 5, None, &rns_base);
+        let basis = BigUintApproxSignedBasis::new(composed_modulus, 5, None, &rns_base);
 
         let modulus: WideT = 134215681 * 134176769;
 

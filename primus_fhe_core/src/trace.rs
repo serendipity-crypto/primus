@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use primus_factor::ShoupFactor;
-use primus_integer::{AsInto, Data, DataMut, RawData, UnsignedInteger};
+use primus_integer::{AsInto, BigUint, Data, DataMut, RawData, UnsignedInteger};
 use primus_ntt::DcrtTable;
 use primus_reduce::FieldContext;
 use primus_rns::RNSBase;
@@ -162,7 +162,7 @@ where
         let big_uint_value_len = params.big_uint_value_len();
         let mut n = vec![T::ZERO; big_uint_value_len];
         n[0] = poly_length.as_into();
-        let n_residue = rns_base.decompose(&n);
+        let n_residue = rns_base.decompose(BigUint(&n));
 
         let inv_n_residue: Vec<ShoupFactor<T>> = n_residue
             .iter()
@@ -230,7 +230,7 @@ where
         let log_d = count.trailing_zeros() as usize;
         let mut n = vec![T::ZERO; big_uint_value_len];
         n[0] = count.as_into();
-        let n_residue = rns_base.decompose(&n);
+        let n_residue = rns_base.decompose(BigUint(&n));
 
         let inv_n_residue: Vec<ShoupFactor<T>> = n_residue
             .iter()

@@ -108,6 +108,10 @@ where
             .map_or(0, |(i, v)| T::BITS * (i as u32 + 1) - v.leading_zeros())
     }
 
+    pub fn view(&self) -> BigUint<&[T]> {
+        BigUint(self.0.as_slice())
+    }
+
     /// Adds a value to the big integer, returning true if there was a carry.
     #[must_use]
     #[inline]
@@ -366,6 +370,10 @@ where
     #[inline(always)]
     pub fn set_zero(&mut self) {
         self.0.fill(T::ZERO);
+    }
+
+    pub fn view_mut(&mut self) -> BigUint<&mut [T]> {
+        BigUint(self.0.as_mut_slice())
     }
 
     /// Left shifts the big integer.
