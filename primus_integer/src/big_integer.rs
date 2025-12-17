@@ -71,6 +71,26 @@ where
     }
 }
 
+impl<T> From<BigUint<&[T]>> for BigUint<Vec<T>>
+where
+    T: UnsignedInteger,
+{
+    #[inline]
+    fn from(BigUint(value): BigUint<&[T]>) -> Self {
+        BigUint(value.to_vec())
+    }
+}
+
+impl<T> From<BigUint<&mut [T]>> for BigUint<Vec<T>>
+where
+    T: UnsignedInteger,
+{
+    #[inline]
+    fn from(BigUint(value): BigUint<&mut [T]>) -> Self {
+        BigUint(value.to_vec())
+    }
+}
+
 impl<S, T> BigUint<S>
 where
     S: Data<Elem = T>,
