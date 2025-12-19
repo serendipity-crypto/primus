@@ -303,7 +303,7 @@ where
         let inv_gamma_mod_t =
             ShoupFactor::new(gamma.modulo(plain_modulus).inv_modulo(plain_modulus), t);
         let t_gamma_value = multiply_many_values(&[t, gamma]);
-        let t_gamma_mod_q: Vec<T> = base_q.decompose(BigUint(&t_gamma_value));
+        let t_gamma_mod_q: Vec<T> = base_q.decompose(t_gamma_value.view());
 
         let converter = BaseConverter::new(&base_q, &base_t_gamma);
 
@@ -708,7 +708,7 @@ where
             .map(|qi| qi.value_unchecked())
             .collect();
         let cipher_moduli_minus_one = cipher_moduli_value.iter().map(|&qi| qi - T::ONE).collect();
-        let cipher_modulus = BigUint(multiply_many_values(&cipher_moduli_value));
+        let cipher_modulus = multiply_many_values(&cipher_moduli_value);
         let cipher_modulus_minus_one = {
             let mut temp = cipher_modulus.clone();
             temp[0] -= T::ONE;

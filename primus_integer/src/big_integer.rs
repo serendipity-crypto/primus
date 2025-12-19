@@ -995,7 +995,7 @@ where
 // }
 
 /// Multiplies many values together, returning the result as a big integer slice.
-pub fn multiply_many_values<T: UnsignedInteger>(values: &[T]) -> Vec<T> {
+pub fn multiply_many_values<T: UnsignedInteger>(values: &[T]) -> BigUint<Vec<T>> {
     let mut result = BigUint(Vec::with_capacity(values.len()));
     result.0.push(values[0]);
     for &v in values.iter().skip(1) {
@@ -1005,7 +1005,7 @@ pub fn multiply_many_values<T: UnsignedInteger>(values: &[T]) -> Vec<T> {
         }
     }
     result.0.shrink_to_fit();
-    result.0
+    result
 }
 
 /// Multiplies many values together, except for one specified by index, returning the result as a big integer slice.
@@ -1071,7 +1071,7 @@ mod tests {
     fn test_big_uint_ops() {
         let mut rng = rand::rng();
         let moduli: [ValueT; 3] = [134215681, 134176769, 132120577];
-        let modulus = BigUint(multiply_many_values(&moduli));
+        let modulus = multiply_many_values(&moduli);
         let m_raw = compose(modulus.digits());
 
         assert_eq!(128 - m_raw.leading_zeros(), modulus.bits_count());
@@ -1079,7 +1079,7 @@ mod tests {
         let distrs = moduli.map(|m| Uniform::new(0, m).unwrap());
 
         let a_residues = distrs.map(|distr| distr.sample(&mut rng));
-        let mut a = BigUint(multiply_many_values(&a_residues));
+        let mut a = multiply_many_values(&a_residues);
         let mut a_raw = compose(a.digits());
 
         a.right_shift_assign(3);
@@ -1120,8 +1120,8 @@ mod tests {
 
         let a_residues = distrs.map(|distr| distr.sample(&mut rng));
         let b_residues = distrs.map(|distr| distr.sample(&mut rng));
-        let mut a = BigUint(multiply_many_values(&a_residues));
-        let b = BigUint(multiply_many_values(&b_residues));
+        let mut a = multiply_many_values(&a_residues);
+        let b = multiply_many_values(&b_residues);
         let a_raw = compose(a.digits());
         let b_raw = compose(b.digits());
 
@@ -1142,8 +1142,8 @@ mod tests {
 
         let a_residues = distrs.map(|distr| distr.sample(&mut rng));
         let b_residues = distrs.map(|distr| distr.sample(&mut rng));
-        let mut a = BigUint(multiply_many_values(&a_residues));
-        let b = BigUint(multiply_many_values(&b_residues));
+        let mut a = multiply_many_values(&a_residues);
+        let b = multiply_many_values(&b_residues);
         let a_raw = compose(a.digits());
         let b_raw = compose(b.digits());
 

@@ -49,7 +49,7 @@ mod tests {
         let mut difference = BigUint(vec![0; composed_modulus.len()]);
 
         let mut value = multiply_many_values(&distrs.map(|distr| rng.sample(distr)));
-        value.resize(composed_modulus.len(), 0);
+        value.0.resize(composed_modulus.len(), 0);
 
         let show = |value: &[ValueT]| {
             let mut value_str = String::new();
@@ -76,9 +76,9 @@ mod tests {
         show(composed_modulus.0);
 
         println!("value");
-        show(&value);
+        show(value.digits());
 
-        let (adjust_value, mut carry) = basis.init_value_carry(&BigUint(&*value));
+        let (adjust_value, mut carry) = basis.init_value_carry(&value);
 
         println!("adjust_value");
         show(&adjust_value);
@@ -120,7 +120,7 @@ mod tests {
         }
         println!();
 
-        let value = BigUint(value);
+        let value = value;
 
         println!("value ={:?}", value);
         println!("result={:?}", result);
@@ -171,9 +171,9 @@ mod tests {
 
         for _ in 0..1_0000 {
             let mut value = multiply_many_values(&distrs.map(|distr| rng.sample(distr)));
-            value.resize(composed_modulus.len(), 0);
+            value.0.resize(composed_modulus.len(), 0);
 
-            let (adjust_value, mut carry) = basis.init_value_carry(&BigUint(&*value));
+            let (adjust_value, mut carry) = basis.init_value_carry(&value);
 
             for (decomposer, unsigned_value) in basis
                 .decomposer_iter()
@@ -196,7 +196,7 @@ mod tests {
                     acc
                 });
             let result = rns_base.compose(&result);
-            let value = BigUint(value);
+            let value = value;
 
             if result.cmp(&value).is_le() {
                 let _ = value.sub_inplace(&result, &mut difference);

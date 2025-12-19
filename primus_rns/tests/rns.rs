@@ -89,7 +89,7 @@ fn test_bfv_dec() {
         .collect();
     let inv_gamma_mod_t = ShoupFactor::new(mod_t.reduce_inv(mod_t.reduce(gamma)), t);
     let t_gamma_value = multiply_many_values(&[t, gamma]);
-    let t_gamma_mod_q = base_q.decompose(BigUint(&t_gamma_value));
+    let t_gamma_mod_q = base_q.decompose(t_gamma_value.view());
 
     let mut delta = vec![0; moduli_count];
     let _rem = DivRemScalar::div_rem_scalar(q.digits(), t, &mut delta);
@@ -174,7 +174,7 @@ fn test_bfv_dec_array() {
         .collect();
     let inv_gamma_mod_t = ShoupFactor::new(gamma.modulo(mod_t).inv_modulo(mod_t), t);
     let t_gamma_value = multiply_many_values(&[t, gamma]);
-    let t_gamma_mod_q = base_q.decompose(BigUint(&t_gamma_value));
+    let t_gamma_mod_q = base_q.decompose(t_gamma_value.view());
     let plain_uniform = Uniform::new(0, t).unwrap();
     let big_uint_value_len = base_q.big_uint_value_len();
 

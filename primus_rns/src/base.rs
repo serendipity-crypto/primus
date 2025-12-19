@@ -59,7 +59,7 @@ where
             return Err(RNSError::CoPrimeError);
         }
 
-        let moduli_product = BigUint(multiply_many_values(&moduli_values));
+        let moduli_product = multiply_many_values(&moduli_values);
 
         let big_uint_len = moduli_product.len();
         let mut punctured_product = vec![T::ZERO; big_uint_len * moduli.len()];
