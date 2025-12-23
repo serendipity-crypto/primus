@@ -42,6 +42,7 @@ where
 {
     type Output = I::Output;
 
+    #[inline]
     fn index(&self, index: I) -> &Self::Output {
         Index::index(self.0.as_slice(), index)
     }
@@ -128,6 +129,7 @@ where
             .map_or(0, |(i, v)| T::BITS * (i as u32 + 1) - v.leading_zeros())
     }
 
+    #[inline(always)]
     pub fn view(&self) -> BigUint<&[T]> {
         BigUint(self.0.as_slice())
     }
@@ -392,11 +394,13 @@ where
         self.0.fill(T::ZERO);
     }
 
+    #[inline(always)]
     pub fn view_mut(&mut self) -> BigUint<&mut [T]> {
         BigUint(self.0.as_mut_slice())
     }
 
     /// Left shifts the big integer.
+    #[must_use]
     #[inline]
     pub fn left_shift_assign(&mut self, bits: u32) -> T {
         if bits != 0 {
@@ -1076,9 +1080,9 @@ mod tests {
 
         assert_eq!(128 - m_raw.leading_zeros(), modulus.bits_count());
 
-        let distrs = moduli.map(|m| Uniform::new(0, m).unwrap());
+        let distr = moduli.map(|m| Uniform::new(0, m).unwrap());
 
-        let a_residues = distrs.map(|distr| distr.sample(&mut rng));
+        let a_residues = distr.map(|distr| distr.sample(&mut rng));
         let mut a = multiply_many_values(&a_residues);
         let mut a_raw = compose(a.digits());
 
@@ -1118,8 +1122,8 @@ mod tests {
         result.0.push(r);
         assert_eq!(a_raw * v as u128, compose(result.digits()));
 
-        let a_residues = distrs.map(|distr| distr.sample(&mut rng));
-        let b_residues = distrs.map(|distr| distr.sample(&mut rng));
+        let a_residues = distr.map(|distr| distr.sample(&mut rng));
+        let b_residues = distr.map(|distr| distr.sample(&mut rng));
         let mut a = multiply_many_values(&a_residues);
         let b = multiply_many_values(&b_residues);
         let a_raw = compose(a.digits());
@@ -1140,8 +1144,8 @@ mod tests {
         let r = (a_raw + b_raw) % m_raw;
         assert_eq!(r, compose(a.digits()));
 
-        let a_residues = distrs.map(|distr| distr.sample(&mut rng));
-        let b_residues = distrs.map(|distr| distr.sample(&mut rng));
+        let a_residues = distr.map(|distr| distr.sample(&mut rng));
+        let b_residues = distr.map(|distr| distr.sample(&mut rng));
         let mut a = multiply_many_values(&a_residues);
         let b = multiply_many_values(&b_residues);
         let a_raw = compose(a.digits());
@@ -1149,6 +1153,12 @@ mod tests {
 
         a.sub_modulo_assign(&b, &modulus);
         let r = (a_raw + m_raw - b_raw) % m_raw;
-        assert_eq!(r, compose(a.digits()))
+        assert_eq!(r, compose(a.digits()));
+
+        let mut c = a.clone();
+        c.neg_modulo_assign(&modulus);
+        let r = a.add_assign(&c);
+        assert!(!r);
+        assert!(a.is_zero() || a == modulus);
     }
 }

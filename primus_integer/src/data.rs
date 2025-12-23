@@ -12,7 +12,10 @@ pub trait Data: RawData {
     fn len(&self) -> usize;
 
     /// Returns `true` if `self` has a length of 0.
-    fn is_empty(&self) -> bool;
+    #[inline(always)]
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 
     /// Returns an iterator.
     ///
@@ -164,11 +167,6 @@ impl<T> Data for &[T] {
     }
 
     #[inline(always)]
-    fn is_empty(&self) -> bool {
-        <[T]>::is_empty(self)
-    }
-
-    #[inline(always)]
     fn iter<'a>(&'a self) -> Iter<'a, T> {
         <[T]>::iter(self)
     }
@@ -202,11 +200,6 @@ impl<T> Data for &mut [T] {
     #[inline(always)]
     fn len(&self) -> usize {
         <[T]>::len(self)
-    }
-
-    #[inline(always)]
-    fn is_empty(&self) -> bool {
-        <[T]>::is_empty(self)
     }
 
     #[inline(always)]
@@ -286,11 +279,6 @@ impl<T, const N: usize> Data for [T; N] {
     #[inline(always)]
     fn len(&self) -> usize {
         N
-    }
-
-    #[inline(always)]
-    fn is_empty(&self) -> bool {
-        N == 0
     }
 
     #[inline(always)]
@@ -376,11 +364,6 @@ impl<T> Data for Vec<T> {
     #[inline(always)]
     fn len(&self) -> usize {
         <Vec<T>>::len(self)
-    }
-
-    #[inline(always)]
-    fn is_empty(&self) -> bool {
-        Vec::is_empty(self)
     }
 
     #[inline(always)]
@@ -480,11 +463,6 @@ impl<T> Data for Box<[T]> {
     #[inline(always)]
     fn len(&self) -> usize {
         <[T]>::len(self)
-    }
-
-    #[inline(always)]
-    fn is_empty(&self) -> bool {
-        <[T]>::is_empty(self)
     }
 
     #[inline(always)]
