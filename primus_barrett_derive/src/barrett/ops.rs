@@ -2,7 +2,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::Ident;
 
-pub(crate) fn impl_reduce_ops(name: &Ident, modulus: &TokenStream, ty: &syn::Type) -> TokenStream {
+pub(crate) fn impl_reduce_ops(name: &Ident, modulus: &TokenStream, ty: &syn::Path) -> TokenStream {
     quote! {
         impl ::primus_modulus::reduce::ops::Reduce<#ty> for #name {
             type Output = #ty;

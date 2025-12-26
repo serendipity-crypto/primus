@@ -61,7 +61,7 @@ mod u8tests {
     use rand::{distr::Uniform, prelude::*};
 
     #[derive(Barrett)]
-    #[modulus(u8, value = 61)]
+    #[modulus(ty = u8, value = 61)]
     struct Modulus;
 
     type ValueT = u8;
@@ -78,7 +78,7 @@ mod u16tests {
     use rand::{distr::Uniform, prelude::*};
 
     #[derive(Barrett)]
-    #[modulus(u16, value = 12289)]
+    #[modulus(ty = u16, value = 12289)]
     struct Modulus;
 
     type ValueT = u16;
@@ -95,7 +95,7 @@ mod u32tests {
     use rand::{distr::Uniform, prelude::*};
 
     #[derive(Barrett)]
-    #[modulus(u32, value = 536813569)]
+    #[modulus(ty = u32, value = 536813569)]
     struct Modulus;
 
     type ValueT = u32;
@@ -112,7 +112,7 @@ mod u64tests {
     use rand::{distr::Uniform, prelude::*};
 
     #[derive(Barrett)]
-    #[modulus(u64, value = 4611686018427322369)]
+    #[modulus(ty = u64, value = 4611686018427322369)]
     struct Modulus;
 
     type ValueT = u64;

@@ -3,22 +3,23 @@ use quote::quote;
 use syn::Ident;
 
 pub(crate) fn basic(
+    vis: &syn::Visibility,
     name: &Ident,
     modulus: &TokenStream,
-    ty: &syn::Type,
+    ty: &syn::Path,
     ratio: &[TokenStream; 2],
 ) -> TokenStream {
     let [r0, r1] = ratio;
     quote! {
         impl #name {
             /// Retures the modulus value.
-            pub const fn value() -> #ty {
+            #vis const fn value() -> #ty {
                 #modulus
             }
 
             /// Returns the ratio of this [`BarrettModulus<T>`].
             #[inline]
-            pub const fn ratio() -> [#ty; 2] {
+            #vis const fn ratio() -> [#ty; 2] {
                 [#r0, #r1]
             }
         }

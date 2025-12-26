@@ -5,7 +5,7 @@ use syn::Ident;
 pub(crate) fn impl_lazy_reduce_ops(
     name: &Ident,
     modulus: &TokenStream,
-    ty: &syn::Type,
+    ty: &syn::Path,
     ratio: &[TokenStream; 2],
 ) -> TokenStream {
     let [r0, r1] = ratio;
