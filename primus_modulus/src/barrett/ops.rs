@@ -249,14 +249,24 @@ impl<T: UnsignedInteger> ReduceAdd<T> for BarrettModulus<T> {
 
     #[inline(always)]
     fn reduce_add(self, a: T, b: T) -> Self::Output {
-        UintModulus(self.value).reduce_add(a, b)
+        let sum = a + b;
+        if sum >= self.value {
+            sum - self.value
+        } else {
+            sum
+        }
     }
 }
 
 impl<T: UnsignedInteger> ReduceAddAssign<T> for BarrettModulus<T> {
     #[inline(always)]
     fn reduce_add_assign(self, a: &mut T, b: T) {
-        UintModulus(self.value).reduce_add_assign(a, b);
+        let sum = *a + b;
+        *a = if sum >= self.value {
+            sum - self.value
+        } else {
+            sum
+        };
     }
 }
 
@@ -265,14 +275,24 @@ impl<T: UnsignedInteger> ReduceDouble<T> for BarrettModulus<T> {
 
     #[inline(always)]
     fn reduce_double(self, value: T) -> Self::Output {
-        UintModulus(self.value).reduce_double(value)
+        let sum = value << 1u32;
+        if sum >= self.value {
+            sum - self.value
+        } else {
+            sum
+        }
     }
 }
 
 impl<T: UnsignedInteger> ReduceDoubleAssign<T> for BarrettModulus<T> {
     #[inline(always)]
     fn reduce_double_assign(self, value: &mut T) {
-        UintModulus(self.value).reduce_double_assign(value);
+        let sum = *value << 1u32;
+        *value = if sum >= self.value {
+            sum - self.value
+        } else {
+            sum
+        };
     }
 }
 
@@ -281,14 +301,18 @@ impl<T: UnsignedInteger> ReduceSub<T> for BarrettModulus<T> {
 
     #[inline(always)]
     fn reduce_sub(self, a: T, b: T) -> Self::Output {
-        UintModulus(self.value).reduce_sub(a, b)
+        if a >= b { a - b } else { a + self.value - b }
     }
 }
 
 impl<T: UnsignedInteger> ReduceSubAssign<T> for BarrettModulus<T> {
     #[inline(always)]
     fn reduce_sub_assign(self, a: &mut T, b: T) {
-        UintModulus(self.value).reduce_sub_assign(a, b);
+        if *a >= b {
+            *a -= b
+        } else {
+            *a += self.value - b
+        };
     }
 }
 
