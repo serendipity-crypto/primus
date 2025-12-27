@@ -83,14 +83,16 @@ pub(crate) fn impl_reduce_ops(name: &Ident, modulus: &TokenStream, ty: &syn::Pat
 
             #[inline(always)]
             fn reduce_add(self, a: #ty, b: #ty) -> Self::Output {
-                ::primus_modulus::UintModulus(#modulus).reduce_add(a, b)
+                let sum = a + b;
+                if sum >= #modulus { sum - #modulus } else { sum }
             }
         }
 
         impl ::primus_modulus::reduce::ops::ReduceAddAssign<#ty> for #name {
             #[inline(always)]
             fn reduce_add_assign(self, a: &mut #ty, b: #ty) {
-                ::primus_modulus::UintModulus(#modulus).reduce_add_assign(a, b);
+                let sum = *a + b;
+                *a = if sum >= #modulus { sum - #modulus } else { sum };
             }
         }
 
@@ -99,14 +101,16 @@ pub(crate) fn impl_reduce_ops(name: &Ident, modulus: &TokenStream, ty: &syn::Pat
 
             #[inline(always)]
             fn reduce_double(self, value: #ty) -> Self::Output {
-                ::primus_modulus::UintModulus(#modulus).reduce_double(value)
+                let sum = value << 1;
+                if sum >= #modulus { sum - #modulus } else { sum }
             }
         }
 
         impl ::primus_modulus::reduce::ops::ReduceDoubleAssign<#ty> for #name {
             #[inline(always)]
             fn reduce_double_assign(self, value: &mut #ty) {
-                ::primus_modulus::UintModulus(#modulus).reduce_double_assign(value);
+                let sum = *value << 1;
+                *value = if sum >= #modulus { sum - #modulus } else { sum };
             }
         }
 
@@ -115,14 +119,22 @@ pub(crate) fn impl_reduce_ops(name: &Ident, modulus: &TokenStream, ty: &syn::Pat
 
             #[inline(always)]
             fn reduce_sub(self, a: #ty, b: #ty) -> Self::Output {
-                ::primus_modulus::UintModulus(#modulus).reduce_sub(a, b)
+                if a >= b {
+                    a - b
+                } else {
+                    a + #modulus - b
+                }
             }
         }
 
         impl ::primus_modulus::reduce::ops::ReduceSubAssign<#ty> for #name {
             #[inline(always)]
             fn reduce_sub_assign(self, a: &mut #ty, b: #ty) {
-                ::primus_modulus::UintModulus(#modulus).reduce_sub_assign(a, b);
+                if *a >= b {
+                    *a -= b
+                } else {
+                    *a += #modulus - b
+                };
             }
         }
 

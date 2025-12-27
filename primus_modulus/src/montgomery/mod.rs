@@ -12,9 +12,9 @@ mod ops;
 /// with the same modulus. It transforms numbers into Montgomery form where
 /// multiplication followed by reduction can be done more efficiently.
 ///
-/// For a modulus N and R = 2^T::BITS, a number x is represented in Montgomery
-/// form as x' = x * R mod N. Montgomery reduction efficiently computes
-/// x * y * R^(-1) mod N from x' and y'.
+/// For a modulus `N` and `R = 2^T::BITS`, a number `x` is represented in Montgomery
+/// form as `x' = x * R mod N`. Montgomery reduction efficiently computes
+/// `x * y * R^(-1) mod N` from `x'` and `y'`.
 #[derive(Debug, Clone, Copy)]
 pub struct MontgomeryModulus<T: UnsignedInteger> {
     /// The modulus value (must be odd)

@@ -32,10 +32,11 @@ impl<T: UnsignedInteger> ReduceAdd<T> for UintModulus<T> {
 
     #[inline(always)]
     fn reduce_add(self, a: T, b: T) -> Self::Output {
-        if self.0 - b > a {
+        let diff = self.0 - b;
+        if diff > a {
             a + b
         } else {
-            a.wrapping_add(b).wrapping_sub(self.0)
+            a.wrapping_sub(diff)
         }
     }
 }
@@ -43,10 +44,11 @@ impl<T: UnsignedInteger> ReduceAdd<T> for UintModulus<T> {
 impl<T: UnsignedInteger> ReduceAddAssign<T> for UintModulus<T> {
     #[inline(always)]
     fn reduce_add_assign(self, a: &mut T, b: T) {
-        if self.0 - b > *a {
+        let diff = self.0 - b;
+        if diff > *a {
             *a += b;
         } else {
-            *a = a.wrapping_add(b).wrapping_sub(self.0)
+            *a = a.wrapping_sub(diff)
         }
     }
 }
