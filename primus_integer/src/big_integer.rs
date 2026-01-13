@@ -551,8 +551,18 @@ where
         B: Data<Elem = T>,
     {
         debug_assert!(self.len() == other.len() && self.len() == modulus.len());
-        debug_assert!(self.cmp(modulus).is_lt());
-        debug_assert!(other.cmp(modulus).is_lt());
+        debug_assert!(
+            self.cmp(modulus).is_lt(),
+            "self: {:?}\nmodulus: {:?}",
+            self.0.as_slice(),
+            modulus.0.as_slice()
+        );
+        debug_assert!(
+            other.cmp(modulus).is_lt(),
+            "other: {:?}\nmodulus: {:?}",
+            other.0.as_slice(),
+            modulus.0.as_slice()
+        );
 
         if self.sub_assign(other) {
             let _ = self.add_assign(modulus);

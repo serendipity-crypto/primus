@@ -3,8 +3,8 @@ use primus_integer::{Data, DataMut, RawData, UnsignedInteger, izip};
 use primus_lattice::glev::DcrtGlev;
 use primus_ntt::{DcrtTable, NttTable};
 use primus_poly::{
-    CrtPolynomial, CrtPolynomialIter, DcrtPolynomial, DcrtPolynomialIter, NttPolynomial,
-    NttPolynomialIter, Polynomial, PolynomialOwned,
+    CrtPolynomial, CrtPolynomialIter, CrtPolynomialIterMut, DcrtPolynomial, DcrtPolynomialIter,
+    NttPolynomial, NttPolynomialIter, Polynomial, PolynomialOwned,
 };
 use primus_reduce::FieldContext;
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -247,6 +247,10 @@ impl<T: UnsignedInteger> CrtGlweSecretKey<T> {
 
     pub fn iter_crt_poly(&self) -> CrtPolynomialIter<'_, T> {
         CrtPolynomialIter::new(self.key.as_ref(), self.rns_poly_len)
+    }
+
+    pub fn iter_crt_poly_mut(&mut self) -> CrtPolynomialIterMut<'_, T> {
+        CrtPolynomialIterMut::new(self.key.as_mut_slice(), self.rns_poly_len)
     }
 
     /// Returns the distr of this [`CrtGlweSecretKey<T>`].
@@ -498,7 +502,7 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
     }
 
     /// Performs `b - ∑ a*s`.
-    fn phase_inplace<M, A, B>(
+    pub fn phase_inplace<M, A, B>(
         &self,
         ciphertext: &DcrtGlweCiphertext<A>,
         msg_mod_q: &mut DcrtPolynomial<B>,
@@ -522,6 +526,32 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
 
         // msg_mod_q = b - ∑ a*s
         b.sub_to_right(msg_mod_q, poly_length, moduli);
+    }
+
+    /// Performs `- ∑ a*s`.
+    pub fn phase_a_inplace<M, A, B>(
+        &self,
+        ciphertext: &DcrtGlweCiphertext<A>,
+        msg_mod_q: &mut DcrtPolynomial<B>,
+        params: &CrtGlweParameters<T, M>,
+    ) where
+        M: FieldContext<T>,
+        A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + DataMut,
+    {
+        let poly_length = params.poly_length();
+        let moduli = params.cipher_moduli();
+
+        let (a, _b) = ciphertext.a_b(params.rns_glwe_mid());
+
+        msg_mod_q.set_zero();
+
+        // msg_mod_q = ∑a*s
+        self.iter_dcrt_poly().zip(a).for_each(|(si, ai)| {
+            msg_mod_q.add_mul_assign(&ai, &si, poly_length, moduli);
+        });
+
+        msg_mod_q.neg_assign(poly_length, moduli);
     }
 
     pub fn decrypt<M, Table, A>(
