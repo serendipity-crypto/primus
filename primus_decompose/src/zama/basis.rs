@@ -76,8 +76,7 @@ impl<T: UnsignedInteger> ApproxSignedBasis<T> {
                 *pre <<= log_basis;
                 *scalar = *pre;
             } else {
-                *scalar = T::ONE;
-                *scalar <<= drop_length as u32 * log_basis;
+                *scalar = T::ONE << (drop_length as u32 * log_basis);
                 prev = Some(*scalar);
             }
         });

@@ -49,7 +49,7 @@ impl<T: UnsignedInteger> PrimitiveRoot for T {
     {
         assert!(log_degree < T::BITS);
 
-        let modulus_value = modulus.value().unwrap();
+        let modulus_value = modulus.value_unchecked();
 
         // p-1
         let modulus_minus_one = modulus.minus_one();
@@ -71,7 +71,7 @@ impl<T: UnsignedInteger> PrimitiveRoot for T {
 
         let mut w = T::ZERO;
 
-        if (0..100).any(|_| {
+        if (0..200).any(|_| {
             let r = distr.sample(&mut rng);
 
             w = r.exp_modulo(quotient, modulus);
@@ -92,7 +92,7 @@ impl<T: UnsignedInteger> PrimitiveRoot for T {
     {
         let mut root = T::try_primitive_root(log_degree, modulus)?;
 
-        let modulus_value = modulus.value().unwrap();
+        let modulus_value = modulus.value_unchecked();
 
         let generator_sq = root.square_modulo(modulus);
         let generator_sq = ShoupFactor::new(generator_sq, modulus_value);

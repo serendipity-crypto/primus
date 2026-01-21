@@ -1,5 +1,6 @@
 #![cfg_attr(all(feature = "nightly", feature = "simd"), feature(portable_simd))]
 
+mod multiply;
 mod shoup_factor;
 
 pub trait LazyFactorMul<T> {
@@ -12,6 +13,7 @@ pub trait FactorMul<T>: LazyFactorMul<T> {
     fn factor_mul_modulo(self, b: T, modulus: T) -> T;
 }
 
+pub use multiply::MultiplyFactor;
 pub use shoup_factor::ShoupFactor;
 
 #[cfg(all(feature = "nightly", feature = "simd"))]
