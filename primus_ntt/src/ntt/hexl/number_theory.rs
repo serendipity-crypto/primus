@@ -36,24 +36,24 @@ pub fn reduce_twice(mut x: u64, modulus: u64, twice_modulus: u64) -> u64 {
     x
 }
 
-/// Returns `x mod modulus`, assuming `x < 8 * modulus`.
-/// `twice_modulus` must equal `2 * modulus`, `four_times_modulus` must equal `4 * modulus`.
-#[inline]
-pub fn reduce_mod_8(mut x: u64, modulus: u64, twice_modulus: u64, four_times_modulus: u64) -> u64 {
-    debug_assert_eq!(twice_modulus, 2 * modulus);
-    debug_assert_eq!(four_times_modulus, 4 * modulus);
+// /// Returns `x mod modulus`, assuming `x < 8 * modulus`.
+// /// `twice_modulus` must equal `2 * modulus`, `four_times_modulus` must equal `4 * modulus`.
+// #[inline]
+// pub fn reduce_mod_8(mut x: u64, modulus: u64, twice_modulus: u64, four_times_modulus: u64) -> u64 {
+//     debug_assert_eq!(twice_modulus, 2 * modulus);
+//     debug_assert_eq!(four_times_modulus, 4 * modulus);
 
-    if x >= four_times_modulus {
-        x -= four_times_modulus;
-    }
-    if x >= twice_modulus {
-        x -= twice_modulus;
-    }
-    if x >= modulus {
-        x -= modulus;
-    }
-    x
-}
+//     if x >= four_times_modulus {
+//         x -= four_times_modulus;
+//     }
+//     if x >= twice_modulus {
+//         x -= twice_modulus;
+//     }
+//     if x >= modulus {
+//         x -= modulus;
+//     }
+//     x
+// }
 
 /// Computes `(x * y) mod modulus`, except the output is in `[0, 2 * modulus]`.
 ///
@@ -89,8 +89,6 @@ pub fn multiply_mod_lazy<const BIT_SHIFT: u32>(
 /// i.e. `(x * y) >> BIT_SHIFT`.
 #[inline]
 pub fn multiply_u64_hi<const BIT_SHIFT: u32>(x: u64, y: u64) -> u64 {
-    // In the C++ code, BIT_SHIFT is used as a right-shift amount.
-    debug_assert!(BIT_SHIFT <= 128, "BIT_SHIFT must be <= 128");
     let product: u128 = (x as u128) * (y as u128);
     (product >> BIT_SHIFT) as u64
 }

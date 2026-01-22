@@ -7,11 +7,7 @@ use primus_reduce::FieldContext;
 use crate::{
     NttError, NttTable, PrimitiveRoot,
     ntt::hexl::{
-        fwd::forward_transform_to_bit_reverse_avx512,
-        internal::{
-            DEFAULT_SHIFT_BITS, IFMA_SHIFT_BITS, MAX_FWD_32_MODULUS, MAX_FWD_IFMA_MODULUS,
-            MAX_INV_32_MODULUS, MAX_INV_IFMA_MODULUS, check_arguments,
-        },
+        fwd::forward_transform_to_bit_reverse_avx512, internal::*,
         inv::inverse_transform_from_bit_reverse_avx512,
         radix2::forward_transform_to_bit_reverse_radix2_inplace,
     },

@@ -3,13 +3,17 @@ pub struct MultiplyFactor {
     barrett_factor: u64,
 }
 
+/// Pre-computes a Barrett factor with which modular multiplication can
+/// be performed more efficiently
 impl MultiplyFactor {
-    /// Computes and stores the Barrett factor floor((operand << bit_shift)
-    /// / modulus). This is useful when modular multiplication of the form
-    /// (x * operand) mod modulus is performed with same modulus and operand
-    /// several times. Note, passing operand=1 can be used to pre-compute a
-    /// Barrett factor for multiplications of the form (x * y) mod modulus, where
-    /// only the modulus is re-used across calls to modular multiplication.
+    /// Computes and stores the Barrett factor `floor((operand << bit_shift) / modulus)`.
+    ///
+    /// This is useful when modular multiplications of the form `(x * operand) mod modulus`
+    /// are performed many times with the same `modulus` and `operand`.
+    ///
+    /// Note: passing `operand = 1` can be used to precompute a Barrett factor for
+    /// multiplications of the form `(x * y) mod modulus`, where only the `modulus`
+    /// is reused across calls.
     pub fn new(operand: u64, bit_shift: u32, modulus: u64) -> Self {
         assert!(
             operand <= modulus,
@@ -20,7 +24,7 @@ impl MultiplyFactor {
             "Unsupported BitShift {bit_shift}"
         );
 
-        let op_hi = operand >> (64 - bit_shift);
+        let op_hi = operand >> (64u32 - bit_shift);
         let op_lo = if bit_shift == 64 {
             0
         } else {
