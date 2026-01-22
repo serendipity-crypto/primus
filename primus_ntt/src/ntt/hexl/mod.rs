@@ -1,3 +1,5 @@
+use std::sync::LazyLock;
+
 use aligned_vec::{AVec, avec};
 use primus_factor::{FactorMul, MultiplyFactor, ShoupFactor};
 use primus_integer::{DataMut, RawData};
@@ -28,6 +30,9 @@ mod utils;
 type Factor = ShoupFactor<u64>;
 
 pub use utils::CmpInt;
+
+static HAS_AVX512IFMA: LazyLock<bool> = LazyLock::new(|| is_x86_feature_detected!("avx512ifma"));
+static HAS_AVX512DQ: LazyLock<bool> = LazyLock::new(|| is_x86_feature_detected!("avx512dq"));
 
 /// Performs negacyclic forward and inverse number-theoretic transforms (NTT),
 /// commonly used in RLWE cryptography.
@@ -235,14 +240,14 @@ impl NttTable for HexlNttTable {
         let precon32_root_of_unity_powers = compute_barrett_vector(&root_of_unity_powers, 32);
         let precon64_root_of_unity_powers = compute_barrett_vector(&root_of_unity_powers, 64);
 
-        let avx512_precon52_root_of_unity_powers = if is_x86_feature_detected!("avx512ifma") {
+        let avx512_precon52_root_of_unity_powers = if *HAS_AVX512IFMA {
             compute_barrett_vector(&avx512_root_of_unity_powers, 52)
         } else {
             AVec::new(0)
         };
 
         let (avx512_precon32_root_of_unity_powers, avx512_precon64_root_of_unity_powers) =
-            if is_x86_feature_detected!("avx512dq") {
+            if *HAS_AVX512DQ {
                 (
                     compute_barrett_vector(&avx512_root_of_unity_powers, 32),
                     compute_barrett_vector(&avx512_root_of_unity_powers, 64),
@@ -256,7 +261,7 @@ impl NttTable for HexlNttTable {
             compute_barrett_vector(&inv_root_of_unity_powers, 32);
 
         // 52-bit preconditioned inverse root of unity powers
-        let precon52_inv_root_of_unity_powers = if is_x86_feature_detected!("avx512ifma") {
+        let precon52_inv_root_of_unity_powers = if *HAS_AVX512IFMA {
             compute_barrett_vector(&inv_root_of_unity_powers, 52)
         } else {
             AVec::new(0)
@@ -393,7 +398,7 @@ impl NttTable for HexlNttTable {
         values: &mut [<Self as NttTable>::ValueT],
     ) {
         if degree == 0 {
-            values.fill(0);
+            values.fill(1);
             return;
         }
 
@@ -465,7 +470,7 @@ impl HexlNttTable {
         );
         debug_assert_eq!(operand.len(), self.n, "operand length must be n={}", self.n);
 
-        if is_x86_feature_detected!("avx512ifma") && self.q < MAX_FWD_IFMA_MODULUS && self.n >= 16 {
+        if *HAS_AVX512IFMA && self.q < MAX_FWD_IFMA_MODULUS && self.n >= 16 {
             let root_of_unity_powers = self.avx512_root_of_unity_powers();
             let precon_root_of_unity_powers = self.avx512_precon52_root_of_unity_powers();
 
@@ -484,7 +489,7 @@ impl HexlNttTable {
             return;
         }
 
-        if is_x86_feature_detected!("avx512dq") && self.n >= 16 {
+        if *HAS_AVX512DQ && self.n >= 16 {
             if self.q < MAX_FWD_32_MODULUS {
                 let root_of_unity_powers = self.avx512_root_of_unity_powers();
                 let precon_root_of_unity_powers = self.avx512_precon32_root_of_unity_powers();
@@ -558,7 +563,7 @@ impl HexlNttTable {
             "output_mod_factor must be 1 or 2; got {output_mod_factor}",
         );
 
-        if is_x86_feature_detected!("avx512ifma") && self.q < MAX_INV_IFMA_MODULUS && self.n >= 16 {
+        if *HAS_AVX512IFMA && self.q < MAX_INV_IFMA_MODULUS && self.n >= 16 {
             let inv_root_of_unity_powers = self.inv_root_of_unity_powers();
             let precon_inv_root_of_unity_powers = self.precon52_inv_root_of_unity_powers();
 
@@ -579,7 +584,7 @@ impl HexlNttTable {
             return;
         }
 
-        if is_x86_feature_detected!("avx512dq") && self.n >= 16 {
+        if *HAS_AVX512DQ && self.n >= 16 {
             if self.q < MAX_INV_32_MODULUS {
                 let inv_root_of_unity_powers = self.inv_root_of_unity_powers();
                 let precon_inv_root_of_unity_powers = self.precon32_inv_root_of_unity_powers();
