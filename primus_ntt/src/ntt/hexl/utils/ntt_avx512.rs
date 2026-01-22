@@ -198,7 +198,6 @@ pub fn write_inv_interleaved_t4(arg1: __m512i, arg2: __m512i, out: &mut [u64; 16
 }
 
 // Returns `_mm512_set_epi64(arg[3], arg[3], arg[2], arg[2], arg[1], arg[1], arg[0], arg[0])`
-#[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx512f,avx2")]
 #[inline]
 pub fn load_w_op_t2(arg: &[u64; 4]) -> __m512i {
@@ -209,7 +208,6 @@ pub fn load_w_op_t2(arg: &[u64; 4]) -> __m512i {
 }
 
 // Returns `_mm512_set_epi64(arg[1], arg[1], arg[1], arg[1], arg[0], arg[0], arg[0], arg[0])`
-#[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx512dq,avx512f,sse2")]
 #[inline]
 pub fn load_w_op_t4(arg: &[u64; 2]) -> __m512i {

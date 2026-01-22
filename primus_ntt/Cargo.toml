@@ -16,7 +16,14 @@ rand = { workspace = true }
 concrete-ntt = { git = "https://github.com/primus-labs/concrete-ntt", branch = "dev", default-features = false, optional = true }
 aligned-vec = "0.6.4"
 
+[dev-dependencies]
+criterion = { workspace = true }
+
 [features]
 default = ["concrete-ntt"]
 concrete-ntt = ["dep:concrete-ntt", "concrete-ntt/std"]
 nightly = ["concrete-ntt?/nightly"]
+
+[[bench]]
+name = "ntt"
+harness = false
