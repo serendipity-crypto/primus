@@ -1,15 +1,19 @@
-#![cfg(target_arch = "x86_64")]
-
 use aligned_vec::{AVec, avec};
 use primus_factor::{FactorMul, MultiplyFactor, ShoupFactor};
+use primus_integer::{DataMut, RawData};
+use primus_poly::{NttPolynomial, Polynomial};
 use primus_reduce::FieldContext;
 
 use crate::{
     NttError, NttTable, PrimitiveRoot,
     ntt::hexl::{
-        fwd::forward_transform_to_bit_reverse_avx512, internal::*,
+        fwd::forward_transform_to_bit_reverse_avx512,
+        internal::*,
         inv::inverse_transform_from_bit_reverse_avx512,
-        radix2::forward_transform_to_bit_reverse_radix2_inplace,
+        radix2::{
+            forward_transform_to_bit_reverse_radix2_inplace,
+            inverse_transform_from_bit_reverse_radix2_inplace,
+        },
     },
     reverse::ReverseLsbs,
 };
@@ -23,12 +27,13 @@ mod utils;
 
 type Factor = ShoupFactor<u64>;
 
-/// Performs negacyclic forward and inverse number-theoretic transform
-/// (NTT), commonly used in RLWE cryptography.
+pub use utils::CmpInt;
+
+/// Performs negacyclic forward and inverse number-theoretic transforms (NTT),
+/// commonly used in RLWE cryptography.
 ///
-/// The number-theoretic transform (NTT) specializes the discrete
-/// Fourier transform (DFT) to the finite field \f$ \mathbb{Z}_q[X] / (X^N + 1)
-/// \f$.
+/// The number-theoretic transform (NTT) specializes the discrete Fourier
+/// transform (DFT) to the finite field `Z_q[X] / (X^N + 1)`.
 pub struct HexlNttTable {
     /// size of NTT transform, should be power of 2
     n: usize,
@@ -65,6 +70,9 @@ pub struct HexlNttTable {
     precon64_inv_root_of_unity_powers: AVec<u64>,
 
     inv_root_of_unity_powers: AVec<u64>,
+
+    ordinal_root_powers: Vec<u64>,
+    reverse_lsbs: Vec<usize>,
 }
 
 impl HexlNttTable {
@@ -277,6 +285,8 @@ impl NttTable for HexlNttTable {
             precon52_inv_root_of_unity_powers,
             precon64_inv_root_of_unity_powers,
             inv_root_of_unity_powers,
+            ordinal_root_powers,
+            reverse_lsbs,
         })
     }
 
@@ -284,63 +294,148 @@ impl NttTable for HexlNttTable {
         self.n
     }
 
-    fn transform_inplace<
-        S: primus_integer::RawData<Elem = Self::ValueT> + primus_integer::DataMut,
-    >(
+    #[inline]
+    fn transform_inplace<S: RawData<Elem = Self::ValueT> + DataMut>(
         &self,
-        _poly: primus_poly::Polynomial<S>,
-    ) -> primus_poly::NttPolynomial<S> {
-        todo!()
+        mut poly: Polynomial<S>,
+    ) -> NttPolynomial<S> {
+        self.transform_slice(poly.as_mut_slice());
+        NttPolynomial::new(poly.0)
     }
 
-    fn inverse_transform_inplace<
-        S: primus_integer::RawData<Elem = Self::ValueT> + primus_integer::DataMut,
-    >(
+    #[inline]
+    fn inverse_transform_inplace<S: RawData<Elem = Self::ValueT> + DataMut>(
         &self,
-        _values: primus_poly::NttPolynomial<S>,
-    ) -> primus_poly::Polynomial<S> {
-        todo!()
+        mut values: NttPolynomial<S>,
+    ) -> Polynomial<S> {
+        self.inverse_transform_slice(values.as_mut_slice());
+        Polynomial::new(values.0)
     }
 
-    fn lazy_transform_slice(&self, _poly: &mut [<Self as NttTable>::ValueT]) {
-        todo!()
+    #[inline]
+    fn lazy_transform_slice(&self, poly: &mut [<Self as NttTable>::ValueT]) {
+        self.compute_forward(poly, 1, 4);
     }
 
-    fn transform_slice(&self, _poly: &mut [<Self as NttTable>::ValueT]) {
-        todo!()
+    #[inline]
+    fn transform_slice(&self, poly: &mut [<Self as NttTable>::ValueT]) {
+        self.compute_forward(poly, 1, 1);
     }
 
-    fn lazy_inverse_transform_slice(&self, _values: &mut [<Self as NttTable>::ValueT]) {
-        todo!()
+    #[inline]
+    fn lazy_inverse_transform_slice(&self, values: &mut [<Self as NttTable>::ValueT]) {
+        self.compute_inverse(values, 1, 2);
     }
 
-    fn inverse_transform_slice(&self, _values: &mut [<Self as NttTable>::ValueT]) {
-        todo!()
+    #[inline]
+    fn inverse_transform_slice(&self, values: &mut [<Self as NttTable>::ValueT]) {
+        self.compute_inverse(values, 1, 1);
     }
 
+    #[inline]
     fn transform_monomial(
         &self,
-        _coeff: Self::ValueT,
-        _degree: usize,
-        _values: &mut [<Self as NttTable>::ValueT],
+        coeff: Self::ValueT,
+        degree: usize,
+        values: &mut [<Self as NttTable>::ValueT],
     ) {
-        todo!()
+        if coeff == 0 {
+            values.fill(0);
+            return;
+        }
+
+        if degree == 0 {
+            values.fill(coeff);
+            return;
+        }
+
+        let n = self.n;
+        let log_n = self.log_n;
+        debug_assert_eq!(values.len(), n);
+        let modulus = self.q;
+
+        let mask = usize::MAX >> (usize::BITS - log_n - 1);
+
+        if coeff == 1 {
+            values
+                .iter_mut()
+                .zip(&self.reverse_lsbs)
+                .for_each(|(v, &i)| {
+                    let index = ((2 * i + 1) * degree) & mask;
+                    *v = unsafe { *self.ordinal_root_powers.get_unchecked(index) };
+                });
+        } else if coeff == self.q - 1 {
+            values
+                .iter_mut()
+                .zip(&self.reverse_lsbs)
+                .for_each(|(v, &i)| {
+                    let index = (((2 * i + 1) * degree) & mask) ^ n;
+                    *v = unsafe { *self.ordinal_root_powers.get_unchecked(index) };
+                });
+        } else {
+            let mf_coeff = MultiplyFactor::new(coeff, 64, modulus);
+
+            values
+                .iter_mut()
+                .zip(&self.reverse_lsbs)
+                .for_each(|(v, &i)| {
+                    let index = ((2 * i + 1) * degree) & mask;
+                    let t = unsafe { *self.ordinal_root_powers.get_unchecked(index) };
+                    *v = mf_coeff.mul_modulo::<64>(t, modulus);
+                });
+        }
     }
 
+    #[inline]
     fn transform_coeff_one_monomial(
         &self,
-        _degree: usize,
-        _values: &mut [<Self as NttTable>::ValueT],
+        degree: usize,
+        values: &mut [<Self as NttTable>::ValueT],
     ) {
-        todo!()
+        if degree == 0 {
+            values.fill(0);
+            return;
+        }
+
+        let n = self.n;
+        let log_n = self.log_n;
+        debug_assert_eq!(values.len(), n);
+
+        let mask = usize::MAX >> (usize::BITS - log_n - 1);
+
+        values
+            .iter_mut()
+            .zip(&self.reverse_lsbs)
+            .for_each(|(v, &i)| {
+                let index = ((2 * i + 1) * degree) & mask;
+                *v = unsafe { *self.ordinal_root_powers.get_unchecked(index) };
+            });
     }
 
+    #[inline]
     fn transform_coeff_minus_one_monomial(
         &self,
-        _degree: usize,
-        _values: &mut [<Self as NttTable>::ValueT],
+        degree: usize,
+        values: &mut [<Self as NttTable>::ValueT],
     ) {
-        todo!()
+        if degree == 0 {
+            values.fill(self.q - 1);
+            return;
+        }
+
+        let n = self.n;
+        let log_n = self.log_n;
+        debug_assert_eq!(values.len(), n);
+
+        let mask = usize::MAX >> (usize::BITS - log_n - 1);
+
+        values
+            .iter_mut()
+            .zip(&self.reverse_lsbs)
+            .for_each(|(v, &i)| {
+                let index = (((2 * i + 1) * degree) & mask) ^ n;
+                *v = unsafe { *self.ordinal_root_powers.get_unchecked(index) };
+            });
     }
 }
 
@@ -521,10 +616,17 @@ impl HexlNttTable {
             return;
         }
 
-        let _inv_root_of_unity_powers = self.inv_root_of_unity_powers();
-        let _precon_inv_root_of_unity_powers = self.precon64_inv_root_of_unity_powers();
+        let inv_root_of_unity_powers = self.inv_root_of_unity_powers();
+        let precon_inv_root_of_unity_powers = self.precon64_inv_root_of_unity_powers();
 
-        todo!()
+        inverse_transform_from_bit_reverse_radix2_inplace(
+            operand,
+            self.q,
+            self.inv_n,
+            inv_root_of_unity_powers,
+            precon_inv_root_of_unity_powers,
+            output_mod_factor as u32,
+        );
     }
 }
 

@@ -13,7 +13,7 @@ mod primitive;
 pub use concrete::prime32::Concrete32Table;
 #[cfg(feature = "concrete-ntt")]
 pub use concrete::prime64::Concrete64Table;
-pub use hexl::HexlNttTable;
+pub use hexl::{CmpInt, HexlNttTable};
 pub use primitive::UintNttTable;
 
 /// An abstract for Number Theory Transform.

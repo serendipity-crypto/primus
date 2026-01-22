@@ -2,6 +2,8 @@ use core::arch::x86_64::*;
 
 use primus_factor::MultiplyFactor;
 
+use crate::ntt::hexl::internal::{check_arguments, max_inv_modulus};
+
 use super::utils::*;
 
 /// The Harvey butterfly: assume `X`, `Y` in `[0, 2q)`, and return `X'`, `Y'` in
@@ -69,7 +71,6 @@ pub unsafe fn inv_butterfly<const BIT_SHIFT: u32, const INPUT_LESS_THAN_MOD: boo
             *y = _mm512_hexl_mullo_add_lo_epi_64(q_p, w, t);
             // Reduce Y to range [0, 2q)
             *y = _mm512_hexl_small_mod_epu64_2(*y, twice_modulus);
-            todo!()
         }
     } else {
         debug_assert!(false, "Invalid BitShift {BIT_SHIFT}")
@@ -77,26 +78,24 @@ pub unsafe fn inv_butterfly<const BIT_SHIFT: u32, const INPUT_LESS_THAN_MOD: boo
 }
 
 pub fn inv_t1<const BIT_SHIFT: u32, const INPUT_LESS_THAN_MOD: bool>(
-    operand: &mut [u64],
+    x: &mut [u64],
     v_neg_modulus: __m512i,
     v_twice_mod: __m512i,
     w: &[u64],
     w_precon: &[u64],
 ) {
-    let mut v_w_pt: *const __m512i = w.as_ptr().cast();
-    let mut v_w_precon_pt: *const __m512i = w_precon.as_ptr().cast();
-
     // n >= 16 and n is power of 2
-    for chunk in unsafe { operand.as_chunks_unchecked_mut::<16>() } {
-        let v_x_pt: *mut __m512i = chunk.as_mut_ptr().cast();
-
-        unsafe {
+    unsafe {
+        for ((chunk, w_chunk), w_precon_chunk) in x
+            .as_chunks_unchecked_mut::<16>()
+            .iter_mut()
+            .zip(w.as_chunks_unchecked::<8>())
+            .zip(w_precon.as_chunks_unchecked::<8>())
+        {
             let (mut v_x, mut v_y) = load_inv_interleaved_t1(chunk);
 
-            let v_w = _mm512_loadu_si512(v_w_pt);
-            v_w_pt = v_w_pt.add(1);
-            let v_w_precon = _mm512_loadu_si512(v_w_precon_pt);
-            v_w_precon_pt = v_w_precon_pt.add(1);
+            let v_w = _mm512_loadu_si512(w_chunk.as_ptr().cast());
+            let v_w_precon = _mm512_loadu_si512(w_precon_chunk.as_ptr().cast());
 
             inv_butterfly::<BIT_SHIFT, INPUT_LESS_THAN_MOD>(
                 &mut v_x,
@@ -106,6 +105,8 @@ pub fn inv_t1<const BIT_SHIFT: u32, const INPUT_LESS_THAN_MOD: bool>(
                 v_neg_modulus,
                 v_twice_mod,
             );
+
+            let v_x_pt: *mut __m512i = chunk.as_mut_ptr().cast();
 
             _mm512_storeu_si512(v_x_pt, v_x);
             _mm512_storeu_si512(v_x_pt.add(1), v_y);
@@ -121,14 +122,13 @@ pub fn inv_t2<const BIT_SHIFT: u32>(
     w_precon: &[u64],
 ) {
     // n >= 16 and n is power of 2
-    for ((chunk, w_chunk), w_precon_chunk) in unsafe { x.as_chunks_unchecked_mut::<16>() }
-        .iter_mut()
-        .zip(unsafe { w.as_chunks_unchecked::<4>() })
-        .zip(unsafe { w_precon.as_chunks_unchecked::<4>() })
-    {
-        let v_x_pt: *mut __m512i = chunk.as_mut_ptr().cast();
-
-        unsafe {
+    unsafe {
+        for ((chunk, w_chunk), w_precon_chunk) in x
+            .as_chunks_unchecked_mut::<16>()
+            .iter_mut()
+            .zip(w.as_chunks_unchecked::<4>())
+            .zip(w_precon.as_chunks_unchecked::<4>())
+        {
             let (mut v_x, mut v_y) = load_inv_interleaved_t2(chunk);
 
             let v_w = load_w_op_t2(w_chunk);
@@ -142,6 +142,8 @@ pub fn inv_t2<const BIT_SHIFT: u32>(
                 v_neg_modulus,
                 v_twice_mod,
             );
+
+            let v_x_pt: *mut __m512i = chunk.as_mut_ptr().cast();
 
             _mm512_storeu_si512(v_x_pt, v_x);
             _mm512_storeu_si512(v_x_pt.add(1), v_y);
@@ -157,12 +159,13 @@ pub fn inv_t4<const BIT_SHIFT: u32>(
     w_precon: &[u64],
 ) {
     // n >= 16 and n is power of 2
-    for ((chunk, w_chunk), w_precon_chunk) in unsafe { x.as_chunks_unchecked_mut::<16>() }
-        .iter_mut()
-        .zip(unsafe { w.as_chunks_unchecked::<2>() })
-        .zip(unsafe { w_precon.as_chunks_unchecked::<2>() })
-    {
-        unsafe {
+    unsafe {
+        for ((chunk, w_chunk), w_precon_chunk) in x
+            .as_chunks_unchecked_mut::<16>()
+            .iter_mut()
+            .zip(w.as_chunks_unchecked::<2>())
+            .zip(w_precon.as_chunks_unchecked::<2>())
+        {
             let (mut v_x, mut v_y) = load_inv_interleaved_t4(chunk);
 
             let v_w = load_w_op_t4(w_chunk);
@@ -238,10 +241,15 @@ pub unsafe fn inverse_transform_from_bit_reverse_avx512<const BIT_SHIFT: u32>(
 ) {
     let n = operand.len();
 
-    debug_assert!(n.is_power_of_two());
+    check_arguments(n, modulus);
     debug_assert!(
         n >= 16,
         "inverse_transform_from_bit_reverse_avx512 doesn't support small transforms. Need n >= 16, got n = {n}"
+    );
+    debug_assert!(
+        modulus < max_inv_modulus(BIT_SHIFT),
+        "modulus {modulus} too large for BitShift {BIT_SHIFT} => maximum value {}",
+        max_inv_modulus(BIT_SHIFT)
     );
 
     debug_assert!(
@@ -270,8 +278,8 @@ pub unsafe fn inverse_transform_from_bit_reverse_avx512<const BIT_SHIFT: u32>(
         // Extract t=1, t=2, t=4 loops separately
         {
             // t = 1
-            let w = &inv_root_of_unity_powers[w_idx..];
-            let w_precon = &precon_inv_root_of_unity_powers[w_idx..];
+            let w = &inv_root_of_unity_powers[w_idx..w_idx + m];
+            let w_precon = &precon_inv_root_of_unity_powers[w_idx..w_idx + m];
 
             if input_mod_factor == 1 && recursion_depth == 0 {
                 inv_t1::<BIT_SHIFT, true>(operand, v_neg_modulus, v_twice_mod, w, w_precon);
@@ -285,8 +293,8 @@ pub unsafe fn inverse_transform_from_bit_reverse_avx512<const BIT_SHIFT: u32>(
             w_idx += w_idx_delta;
 
             // t = 2
-            let w = &inv_root_of_unity_powers[w_idx..];
-            let w_precon = &precon_inv_root_of_unity_powers[w_idx..];
+            let w = &inv_root_of_unity_powers[w_idx..w_idx + m];
+            let w_precon = &precon_inv_root_of_unity_powers[w_idx..w_idx + m];
             inv_t2::<BIT_SHIFT>(operand, v_neg_modulus, v_twice_mod, w, w_precon);
 
             t <<= 1;
@@ -295,8 +303,8 @@ pub unsafe fn inverse_transform_from_bit_reverse_avx512<const BIT_SHIFT: u32>(
             w_idx += w_idx_delta;
 
             // t = 4
-            let w = &inv_root_of_unity_powers[w_idx..];
-            let w_precon = &precon_inv_root_of_unity_powers[w_idx..];
+            let w = &inv_root_of_unity_powers[w_idx..w_idx + m];
+            let w_precon = &precon_inv_root_of_unity_powers[w_idx..w_idx + m];
             inv_t4::<BIT_SHIFT>(operand, v_neg_modulus, v_twice_mod, w, w_precon);
 
             t <<= 1;
@@ -306,8 +314,8 @@ pub unsafe fn inverse_transform_from_bit_reverse_avx512<const BIT_SHIFT: u32>(
 
             // t >= 8
             while m > 1 {
-                let w = &inv_root_of_unity_powers[w_idx..];
-                let w_precon = &precon_inv_root_of_unity_powers[w_idx..];
+                let w = &inv_root_of_unity_powers[w_idx..w_idx + m];
+                let w_precon = &precon_inv_root_of_unity_powers[w_idx..w_idx + m];
                 inv_t8::<BIT_SHIFT>(operand, v_neg_modulus, v_twice_mod, t, w, w_precon);
                 t <<= 1;
                 m >>= 1;
@@ -350,11 +358,11 @@ pub unsafe fn inverse_transform_from_bit_reverse_avx512<const BIT_SHIFT: u32>(
             w_idx += w_idx_delta;
         }
         if m == 2 {
-            let w = &inv_root_of_unity_powers[w_idx..];
-            let w_precon = &precon_inv_root_of_unity_powers[w_idx..];
+            let w = &inv_root_of_unity_powers[w_idx..w_idx + m];
+            let w_precon = &precon_inv_root_of_unity_powers[w_idx..w_idx + m];
             inv_t8::<BIT_SHIFT>(operand, v_neg_modulus, v_twice_mod, t, w, w_precon);
-            t <<= 1;
-            m >>= 1;
+            // t <<= 1;
+            // m >>= 1;
             w_idx_delta >>= 1;
             w_idx += w_idx_delta;
         }
@@ -396,13 +404,13 @@ pub unsafe fn inverse_transform_from_bit_reverse_avx512<const BIT_SHIFT: u32>(
 
                 if BIT_SHIFT == 32 {
                     let mut q1 = _mm512_hexl_mullo_epi_64(v_inv_n_prime, x_plus_y_mod2q);
-                    q1 = _mm512_srli_epi64(q1, 32);
+                    q1 = _mm512_srli_epi64::<32>(q1);
                     // X = inv_N * X_plus_Y_mod2q - Q1 * modulus;
                     let inv_n_tx = _mm512_hexl_mullo_epi_64(v_inv_n, x_plus_y_mod2q);
                     v_x = _mm512_hexl_mullo_add_lo_epi_64(inv_n_tx, q1, v_neg_modulus);
 
                     let mut q2 = _mm512_hexl_mullo_epi_64(v_inv_n_w_prime, t);
-                    q2 = _mm512_srli_epi64(q2, 32);
+                    q2 = _mm512_srli_epi64::<32>(q2);
 
                     // Y = inv_N_W * T - Q2 * modulus;
                     let inv_n_w_t = _mm512_hexl_mullo_epi_64(v_inv_n_w, t);

@@ -1,10 +1,11 @@
+/// Pre-computes a Barrett factor with which modular multiplication can
+/// be performed more efficiently
+#[derive(Clone, Copy)]
 pub struct MultiplyFactor {
     operand: u64,
     barrett_factor: u64,
 }
 
-/// Pre-computes a Barrett factor with which modular multiplication can
-/// be performed more efficiently
 impl MultiplyFactor {
     /// Computes and stores the Barrett factor `floor((operand << bit_shift) / modulus)`.
     ///
