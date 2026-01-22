@@ -44,9 +44,7 @@ pub fn forward_transform_to_bit_reverse_radix2_inplace(
 ) {
     let n = operand.len();
 
-    debug_assert!(n.is_power_of_two());
-    let log_n = n.trailing_zeros();
-    check_arguments(log_n, modulus);
+    check_arguments(n, modulus);
 
     debug_assert!(
         output_mod_factor == 1 || output_mod_factor == 4,

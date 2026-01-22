@@ -4,6 +4,21 @@ use crate::ntt::hexl::internal::{check_arguments, max_fwd_modulus};
 
 use super::utils::*;
 
+/// The Harvey butterfly: assume `X`, `Y` in `[0, 4q)`, and return `X'`, `Y'` in
+/// `[0, 4q)` such that
+/// `X' = X + W*Y (mod q)`, `Y' = X - W*Y (mod q)`.
+///
+/// # Parameters
+/// - `X`: Input/output representing 8 64-bit signed integers in SIMD form.
+/// - `Y`: Input/output representing 8 64-bit signed integers in SIMD form.
+/// - `W`: Root of unity represented as 8 64-bit signed integers in SIMD form.
+/// - `W_precon`: Preconditioned `W` for `BitShift`-bit Barrett reduction.
+/// - `neg_modulus`: Negative modulus, i.e. `(-q)` represented as 8 64-bit signed integers in SIMD form.
+/// - `twice_modulus`: Twice the modulus, i.e. `2*q` represented as 8 64-bit signed integers in SIMD form.
+/// - `input_less_than_mod`: If `true`, assumes `X, Y < q`. Otherwise assumes `X, Y < 4*q`.
+///
+/// # Details
+/// See Algorithm 4 of https://arxiv.org/pdf/1205.2926.pdf
 pub unsafe fn fwd_butterfly<const BIT_SHIFT: u32, const INPUT_LESS_THAN_MOD: bool>(
     x: &mut __m512i,
     y: &mut __m512i,
@@ -52,83 +67,10 @@ pub unsafe fn fwd_butterfly<const BIT_SHIFT: u32, const INPUT_LESS_THAN_MOD: boo
     }
 }
 
-#[target_feature(enable = "avx512dq")]
-pub fn fwd_butterfly_32<const INPUT_LESS_THAN_MOD: bool>(
-    x: &mut __m512i,
-    y: &mut __m512i,
-    w: __m512i,
-    w_precon: __m512i,
-    neg_modulus: __m512i,
-    twice_modulus: __m512i,
-) {
-    if !INPUT_LESS_THAN_MOD {
-        *x = _mm512_hexl_small_mod_epu64_2(*x, twice_modulus);
-    }
-
-    let mut q = _mm512_hexl_mullo_epi_64(w_precon, *y);
-    q = _mm512_srli_epi64::<32>(q);
-    let w_y = _mm512_hexl_mullo_epi_64(w, *y);
-    let t = _mm512_hexl_mullo_add_lo_epi_64(w_y, q, neg_modulus);
-
-    let twice_mod_minus_t = _mm512_sub_epi64(twice_modulus, t);
-    *y = _mm512_add_epi64(*x, twice_mod_minus_t);
-    *x = _mm512_add_epi64(*x, t);
-}
-
-#[target_feature(enable = "avx512ifma")]
-pub fn fwd_butterfly_52<const INPUT_LESS_THAN_MOD: bool>(
-    x: &mut __m512i,
-    y: &mut __m512i,
-    w: __m512i,
-    w_precon: __m512i,
-    neg_modulus: __m512i,
-    twice_modulus: __m512i,
-) {
-    if !INPUT_LESS_THAN_MOD {
-        *x = _mm512_hexl_small_mod_epu64_2(*x, twice_modulus);
-    }
-
-    let q = _mm512_hexl_mulhi_epi_52(w_precon, *y);
-    let w_y = _mm512_hexl_mullo_epi_52(w, *y);
-    let t = _mm512_hexl_mullo_add_lo_epi_52(w_y, q, neg_modulus);
-
-    let twice_mod_minus_t = _mm512_sub_epi64(twice_modulus, t);
-    *y = _mm512_add_epi64(*x, twice_mod_minus_t);
-    *x = _mm512_add_epi64(*x, t);
-}
-
-#[target_feature(enable = "avx512dq")]
-pub fn fwd_butterfly_64<const INPUT_LESS_THAN_MOD: bool>(
-    x: &mut __m512i,
-    y: &mut __m512i,
-    w: __m512i,
-    w_precon: __m512i,
-    neg_modulus: __m512i,
-    twice_modulus: __m512i,
-) {
-    if !INPUT_LESS_THAN_MOD {
-        *x = _mm512_hexl_small_mod_epu64_2(*x, twice_modulus);
-    }
-
-    // Perform approximate computation of Q, as described in page 7 of
-    // https://arxiv.org/pdf/2003.04510.pdf
-    let q = _mm512_hexl_mulhi_approx_epi_64(w_precon, *y);
-    let w_y = _mm512_hexl_mullo_epi_64(w, *y);
-    // Compute T in range [0, 4q)
-    let t = _mm512_hexl_mullo_add_lo_epi_64(w_y, q, neg_modulus);
-    // Reduce T to range [0, 2q)
-    let t = _mm512_hexl_small_mod_epu64_2(t, twice_modulus);
-
-    let twice_mod_minus_t = _mm512_sub_epi64(twice_modulus, t);
-    *y = _mm512_add_epi64(*x, twice_mod_minus_t);
-    *x = _mm512_add_epi64(*x, t);
-}
-
 pub fn fwd_t1<const BIT_SHIFT: u32>(
     operand: &mut [u64],
     v_neg_modulus: __m512i,
     v_twice_mod: __m512i,
-    _m: usize,
     w: &[u64],
     w_precon: &[u64],
 ) {
@@ -162,7 +104,6 @@ pub fn fwd_t2<const BIT_SHIFT: u32>(
     operand: &mut [u64],
     v_neg_modulus: __m512i,
     v_twice_mod: __m512i,
-    _m: usize,
     w: &[u64],
     w_precon: &[u64],
 ) {
@@ -199,7 +140,6 @@ pub fn fwd_t4<const BIT_SHIFT: u32>(
     operand: &mut [u64],
     v_neg_modulus: __m512i,
     v_twice_mod: __m512i,
-    _m: usize,
     w: &[u64],
     w_precon: &[u64],
 ) {
@@ -237,27 +177,27 @@ pub fn fwd_t8_inplace<const BIT_SHIFT: u32, const INPUT_LESS_THAN_MOD: bool>(
     v_neg_modulus: __m512i,
     v_twice_mod: __m512i,
     t: usize,
-    m: usize,
     w: &[u64],
     w_precon: &[u64],
 ) {
-    let mut j1 = 0;
     let mut w_iter = w.iter().copied();
     let mut w_precon_iter = w_precon.iter().copied();
 
-    for _i in 0..m {
-        let mut v_x_op_pt: *mut __m512i = operand[j1..].as_mut_ptr().cast();
-        let mut v_y_op_pt: *mut __m512i = operand[j1 + t..].as_mut_ptr().cast();
-
+    for chunk in operand.chunks_exact_mut(t << 1) {
         unsafe {
+            let (x, y) = chunk.split_at_mut_unchecked(t);
+
             // Weights and weights' preconditions
             let v_w: __m512i = _mm512_set1_epi64(w_iter.next().unwrap() as i64);
             let v_w_precon: __m512i = _mm512_set1_epi64(w_precon_iter.next().unwrap() as i64);
 
-            // assume 8 | t
-            for _j in 0..t / 8 {
-                let mut v_x = _mm512_loadu_si512(v_x_op_pt);
-                let mut v_y = _mm512_loadu_si512(v_y_op_pt);
+            for (x_chunk, y_chunk) in x
+                .as_chunks_unchecked_mut::<8>()
+                .iter_mut()
+                .zip(y.as_chunks_unchecked_mut::<8>())
+            {
+                let mut v_x = _mm512_loadu_si512(x_chunk.as_ptr().cast());
+                let mut v_y = _mm512_loadu_si512(y_chunk.as_ptr().cast());
 
                 fwd_butterfly::<BIT_SHIFT, INPUT_LESS_THAN_MOD>(
                     &mut v_x,
@@ -268,20 +208,15 @@ pub fn fwd_t8_inplace<const BIT_SHIFT: u32, const INPUT_LESS_THAN_MOD: bool>(
                     v_twice_mod,
                 );
 
-                _mm512_storeu_si512(v_x_op_pt, v_x);
-                _mm512_storeu_si512(v_y_op_pt, v_y);
-
-                v_x_op_pt = v_x_op_pt.add(1);
-                v_y_op_pt = v_y_op_pt.add(1);
+                _mm512_storeu_si512(x_chunk.as_mut_ptr().cast(), v_x);
+                _mm512_storeu_si512(y_chunk.as_mut_ptr().cast(), v_y);
             }
         }
-        j1 += t << 1;
     }
 }
 
 pub unsafe fn forward_transform_to_bit_reverse_avx512<const BIT_SHIFT: u32>(
     operand: &mut [u64],
-    n: usize,
     modulus: u64,
     root_of_unity_powers: &[u64],
     precon_root_of_unity_powers: &[u64],
@@ -290,16 +225,14 @@ pub unsafe fn forward_transform_to_bit_reverse_avx512<const BIT_SHIFT: u32>(
     recursion_depth: usize,
     recursion_half: usize,
 ) {
-    debug_assert!(n.is_power_of_two());
-    let log_n = n.trailing_zeros();
-    check_arguments(log_n, modulus);
+    let n = operand.len();
 
+    check_arguments(n, modulus);
     debug_assert!(
         modulus < max_fwd_modulus(BIT_SHIFT),
         "modulus {modulus} too large for BitShift {BIT_SHIFT} => maximum value {}",
         max_fwd_modulus(BIT_SHIFT)
     );
-
     debug_assert!(
         n >= 16,
         "Don't support small transforms. Need n >= 16, got n = {n}"
@@ -329,8 +262,8 @@ pub unsafe fn forward_transform_to_bit_reverse_avx512<const BIT_SHIFT: u32>(
 
         // First iteration assumes input in [0,p)
         if m < (n >> 3) {
-            let w = &root_of_unity_powers[w_idx..];
-            let w_precon = &precon_root_of_unity_powers[w_idx..];
+            let w = &root_of_unity_powers[w_idx..w_idx + m];
+            let w_precon = &precon_root_of_unity_powers[w_idx..w_idx + m];
 
             if input_mod_factor <= 2 && recursion_depth == 0 {
                 fwd_t8_inplace::<BIT_SHIFT, true>(
@@ -338,7 +271,6 @@ pub unsafe fn forward_transform_to_bit_reverse_avx512<const BIT_SHIFT: u32>(
                     v_neg_modulus,
                     v_twice_mod,
                     t,
-                    m,
                     w,
                     w_precon,
                 );
@@ -348,7 +280,6 @@ pub unsafe fn forward_transform_to_bit_reverse_avx512<const BIT_SHIFT: u32>(
                     v_neg_modulus,
                     v_twice_mod,
                     t,
-                    m,
                     w,
                     w_precon,
                 );
@@ -360,18 +291,10 @@ pub unsafe fn forward_transform_to_bit_reverse_avx512<const BIT_SHIFT: u32>(
         }
 
         while m < (n >> 3) {
-            let w = &root_of_unity_powers[w_idx..];
-            let w_precon = &precon_root_of_unity_powers[w_idx..];
+            let w = &root_of_unity_powers[w_idx..w_idx + m];
+            let w_precon = &precon_root_of_unity_powers[w_idx..w_idx + m];
 
-            fwd_t8_inplace::<BIT_SHIFT, false>(
-                operand,
-                v_neg_modulus,
-                v_twice_mod,
-                t,
-                m,
-                w,
-                w_precon,
-            );
+            fwd_t8_inplace::<BIT_SHIFT, false>(operand, v_neg_modulus, v_twice_mod, t, w, w_precon);
 
             t >>= 1;
             m <<= 1;
@@ -412,38 +335,36 @@ pub unsafe fn forward_transform_to_bit_reverse_avx512<const BIT_SHIFT: u32>(
             };
 
             let mut new_w_idx = compute_new_w_idx(w_idx);
-            let mut w = &root_of_unity_powers[new_w_idx..];
-            let mut w_precon = &precon_root_of_unity_powers[new_w_idx..];
-            fwd_t4::<BIT_SHIFT>(operand, v_neg_modulus, v_twice_mod, m, w, w_precon);
+            let mut w = &root_of_unity_powers[new_w_idx..new_w_idx + m];
+            let mut w_precon = &precon_root_of_unity_powers[new_w_idx..new_w_idx + m];
+            fwd_t4::<BIT_SHIFT>(operand, v_neg_modulus, v_twice_mod, w, w_precon);
 
             m <<= 1;
             w_idx <<= 1;
             new_w_idx = compute_new_w_idx(w_idx);
-            w = &root_of_unity_powers[new_w_idx..];
-            w_precon = &precon_root_of_unity_powers[new_w_idx..];
-            fwd_t2::<BIT_SHIFT>(operand, v_neg_modulus, v_twice_mod, m, w, w_precon);
+            w = &root_of_unity_powers[new_w_idx..new_w_idx + m];
+            w_precon = &precon_root_of_unity_powers[new_w_idx..new_w_idx + m];
+            fwd_t2::<BIT_SHIFT>(operand, v_neg_modulus, v_twice_mod, w, w_precon);
 
             m <<= 1;
             w_idx <<= 1;
             new_w_idx = compute_new_w_idx(w_idx);
-            w = &root_of_unity_powers[new_w_idx..];
-            w_precon = &precon_root_of_unity_powers[new_w_idx..];
-            fwd_t1::<BIT_SHIFT>(operand, v_neg_modulus, v_twice_mod, m, w, w_precon);
+            w = &root_of_unity_powers[new_w_idx..new_w_idx + m];
+            w_precon = &precon_root_of_unity_powers[new_w_idx..new_w_idx + m];
+            fwd_t1::<BIT_SHIFT>(operand, v_neg_modulus, v_twice_mod, w, w_precon);
         }
 
         if output_mod_factor == 1 {
             // n power of two at least 8 => n divisible by 8
-            let mut v_x_pt: *mut __m512i = operand.as_mut_ptr().cast();
-            for _i in (0..n).step_by(8) {
-                let mut v_x = unsafe { _mm512_loadu_si512(v_x_pt) };
+            unsafe {
+                for chunk in operand.as_chunks_unchecked_mut::<8>() {
+                    let mut v_x = _mm512_loadu_si512(chunk.as_ptr().cast());
 
-                // Reduce from [0, 4q) to [0, q)
-                v_x = unsafe { _mm512_hexl_small_mod_epu64_2(v_x, v_twice_mod) };
-                v_x = unsafe { _mm512_hexl_small_mod_epu64_2(v_x, v_modulus) };
+                    // Reduce from [0, 4q) to [0, q)
+                    v_x = _mm512_hexl_small_mod_epu64_2(v_x, v_twice_mod);
+                    v_x = _mm512_hexl_small_mod_epu64_2(v_x, v_modulus);
 
-                unsafe {
-                    _mm512_storeu_si512(v_x_pt, v_x);
-                    v_x_pt = v_x_pt.add(1);
+                    _mm512_storeu_si512(chunk.as_mut_ptr().cast(), v_x);
                 }
             }
         }
@@ -451,17 +372,16 @@ pub unsafe fn forward_transform_to_bit_reverse_avx512<const BIT_SHIFT: u32>(
         // Perform depth-first NTT via recursive call
         let t = n >> 1;
         let w_idx = (1 << recursion_depth) + recursion_half;
-        let w = &root_of_unity_powers[w_idx..];
-        let w_precon = &precon_root_of_unity_powers[w_idx..];
+        let w = &root_of_unity_powers[w_idx..w_idx + 1];
+        let w_precon = &precon_root_of_unity_powers[w_idx..w_idx + 1];
 
-        fwd_t8_inplace::<BIT_SHIFT, false>(operand, v_neg_modulus, v_twice_mod, t, 1, w, w_precon);
-
-        let (left, right) = operand.split_at_mut(n / 2);
+        fwd_t8_inplace::<BIT_SHIFT, false>(operand, v_neg_modulus, v_twice_mod, t, w, w_precon);
 
         unsafe {
+            let (left, right) = operand.split_at_mut_unchecked(n / 2);
+
             forward_transform_to_bit_reverse_avx512::<BIT_SHIFT>(
                 left,
-                n / 2,
                 modulus,
                 root_of_unity_powers,
                 precon_root_of_unity_powers,
@@ -473,7 +393,6 @@ pub unsafe fn forward_transform_to_bit_reverse_avx512<const BIT_SHIFT: u32>(
 
             forward_transform_to_bit_reverse_avx512::<BIT_SHIFT>(
                 right,
-                n / 2,
                 modulus,
                 root_of_unity_powers,
                 precon_root_of_unity_powers,

@@ -57,15 +57,16 @@ pub(crate) fn max_inv_modulus(bit_shift: u32) -> u64 {
     }
 }
 
-pub fn check_arguments(log_n: u32, modulus: u64) {
+pub fn check_arguments(n: usize, modulus: u64) {
+    debug_assert!(n.is_power_of_two(), "n {n} is not a power of 2");
     debug_assert!(
-        log_n <= MAX_DEGREE_BITS,
-        "log_n should be less than {MAX_DEGREE_BITS} got {log_n}"
+        n <= (1usize << MAX_DEGREE_BITS),
+        "n should be less than 2^{MAX_DEGREE_BITS} got {n}"
     );
     debug_assert!(
         modulus <= (1u64 << MAX_MODULUS_BITS) - 1,
         "modulus should be less than 2^{MAX_MODULUS_BITS} got {modulus}",
     );
-    debug_assert!(modulus % (1u64 << (log_n + 1)) == 1, "modulus mod 2n != 1",);
+    debug_assert!(modulus % (2 * n as u64) == 1, "modulus mod 2n != 1",);
     // TODO: check if modulus is prime
 }

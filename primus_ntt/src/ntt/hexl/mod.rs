@@ -149,7 +149,7 @@ impl NttTable for HexlNttTable {
     {
         let q = modulus.value_unchecked();
         let n = 1usize << log_n;
-        check_arguments(log_n, q);
+        check_arguments(n, q);
 
         let root = <u64 as PrimitiveRoot>::try_minimal_primitive_root(log_n + 1, modulus)?;
 
@@ -345,12 +345,21 @@ impl NttTable for HexlNttTable {
 }
 
 impl HexlNttTable {
+    /// Computes the forward NTT. Results are bit-reversed.
+    ///
+    /// # Parameters
+    /// - `operand`: Input data on which to compute the NTT.
+    /// - `input_mod_factor`: Assumes `operand` values are in `[0, input_mod_factor * q)`.
+    ///   Must be 1, 2, or 4.
+    /// - `output_mod_factor`: Returns values in `[0, output_mod_factor * q)`.
+    ///   Must be 1 or 4.
     pub fn compute_forward(
         &self,
         operand: &mut [u64],
         input_mod_factor: u64,
         output_mod_factor: u64,
     ) {
+        debug_assert_eq!(operand.len(), self.n);
         debug_assert!(
             input_mod_factor == 1 || input_mod_factor == 2 || input_mod_factor == 4,
             "input_mod_factor must be 1, 2 or 4; got {input_mod_factor}",
@@ -368,7 +377,6 @@ impl HexlNttTable {
             unsafe {
                 forward_transform_to_bit_reverse_avx512::<IFMA_SHIFT_BITS>(
                     operand,
-                    self.n,
                     self.q,
                     root_of_unity_powers,
                     precon_root_of_unity_powers,
@@ -389,7 +397,6 @@ impl HexlNttTable {
                 unsafe {
                     forward_transform_to_bit_reverse_avx512::<32>(
                         operand,
-                        self.n,
                         self.q,
                         root_of_unity_powers,
                         precon_root_of_unity_powers,
@@ -406,7 +413,6 @@ impl HexlNttTable {
                 unsafe {
                     forward_transform_to_bit_reverse_avx512::<DEFAULT_SHIFT_BITS>(
                         operand,
-                        self.n,
                         self.q,
                         root_of_unity_powers,
                         precon_root_of_unity_powers,
