@@ -6,9 +6,9 @@ mod tests {
     use primus_ntt::{HexlNttTable, NttTable, UintNttTable};
     use rand::distr::{Distribution, Uniform};
 
-    // const N: usize = 512;
+    const N: usize = 512;
     // const N: usize = 1024;
-    const N: usize = 2048;
+    // const N: usize = 2048;
     // const N: usize = 4096;
     const LOG_N: u32 = N.trailing_zeros();
 

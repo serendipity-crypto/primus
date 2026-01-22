@@ -74,17 +74,17 @@ pub fn fwd_t1<const BIT_SHIFT: u32>(
     w: &[u64],
     w_precon: &[u64],
 ) {
-    let mut v_w_pt: *const __m512i = w.as_ptr().cast();
-    let mut v_w_precon_pt: *const __m512i = w_precon.as_ptr().cast();
-
-    for x in unsafe { operand.as_chunks_unchecked_mut::<16>() } {
-        unsafe {
+    unsafe {
+        for ((x, v_w), v_w_precon) in operand
+            .as_chunks_unchecked_mut::<16>()
+            .iter_mut()
+            .zip(w.as_chunks_unchecked::<8>())
+            .zip(w_precon.as_chunks_unchecked::<8>())
+        {
             let (mut v_x, mut v_y) = load_fwd_interleaved_t1(x);
 
-            let v_w = _mm512_loadu_si512(v_w_pt);
-            v_w_pt = v_w_pt.add(1);
-            let v_w_precon = _mm512_loadu_si512(v_w_precon_pt);
-            v_w_precon_pt = v_w_precon_pt.add(1);
+            let v_w = _mm512_loadu_si512(v_w.as_ptr().cast());
+            let v_w_precon = _mm512_loadu_si512(v_w_precon.as_ptr().cast());
 
             fwd_butterfly::<BIT_SHIFT, false>(
                 &mut v_x,
@@ -107,19 +107,17 @@ pub fn fwd_t2<const BIT_SHIFT: u32>(
     w: &[u64],
     w_precon: &[u64],
 ) {
-    let mut v_w_pt: *const __m512i = w.as_ptr().cast();
-    let mut v_w_precon_pt: *const __m512i = w_precon.as_ptr().cast();
-
-    for x in unsafe { operand.as_chunks_unchecked_mut::<16>() } {
-        let v_x_pt: *mut __m512i = x.as_mut_ptr().cast();
-
-        unsafe {
+    unsafe {
+        for ((x, v_w), v_w_precon) in operand
+            .as_chunks_unchecked_mut::<16>()
+            .iter_mut()
+            .zip(w.as_chunks_unchecked::<8>())
+            .zip(w_precon.as_chunks_unchecked::<8>())
+        {
             let (mut v_x, mut v_y) = load_fwd_interleaved_t2(x);
 
-            let v_w = _mm512_loadu_si512(v_w_pt);
-            v_w_pt = v_w_pt.add(1);
-            let v_w_precon = _mm512_loadu_si512(v_w_precon_pt);
-            v_w_precon_pt = v_w_precon_pt.add(1);
+            let v_w = _mm512_loadu_si512(v_w.as_ptr().cast());
+            let v_w_precon = _mm512_loadu_si512(v_w_precon.as_ptr().cast());
 
             fwd_butterfly::<BIT_SHIFT, false>(
                 &mut v_x,
@@ -129,6 +127,8 @@ pub fn fwd_t2<const BIT_SHIFT: u32>(
                 v_neg_modulus,
                 v_twice_mod,
             );
+
+            let v_x_pt: *mut __m512i = x.as_mut_ptr().cast();
 
             _mm512_storeu_si512(v_x_pt, v_x);
             _mm512_storeu_si512(v_x_pt.add(1), v_y);
@@ -143,19 +143,17 @@ pub fn fwd_t4<const BIT_SHIFT: u32>(
     w: &[u64],
     w_precon: &[u64],
 ) {
-    let mut v_w_pt: *const __m512i = w.as_ptr().cast();
-    let mut v_w_precon_pt: *const __m512i = w_precon.as_ptr().cast();
-
-    for x in unsafe { operand.as_chunks_unchecked_mut::<16>() } {
-        let v_x_pt: *mut __m512i = x.as_mut_ptr().cast();
-
-        unsafe {
+    unsafe {
+        for ((x, v_w), v_w_precon) in operand
+            .as_chunks_unchecked_mut::<16>()
+            .iter_mut()
+            .zip(w.as_chunks_unchecked::<8>())
+            .zip(w_precon.as_chunks_unchecked::<8>())
+        {
             let (mut v_x, mut v_y) = load_fwd_interleaved_t4(x);
 
-            let v_w = _mm512_loadu_si512(v_w_pt);
-            v_w_pt = v_w_pt.add(1);
-            let v_w_precon = _mm512_loadu_si512(v_w_precon_pt);
-            v_w_precon_pt = v_w_precon_pt.add(1);
+            let v_w = _mm512_loadu_si512(v_w.as_ptr().cast());
+            let v_w_precon = _mm512_loadu_si512(v_w_precon.as_ptr().cast());
 
             fwd_butterfly::<BIT_SHIFT, false>(
                 &mut v_x,
@@ -165,6 +163,8 @@ pub fn fwd_t4<const BIT_SHIFT: u32>(
                 v_neg_modulus,
                 v_twice_mod,
             );
+
+            let v_x_pt: *mut __m512i = x.as_mut_ptr().cast();
 
             _mm512_storeu_si512(v_x_pt, v_x);
             _mm512_storeu_si512(v_x_pt.add(1), v_y);
@@ -335,15 +335,15 @@ pub unsafe fn forward_transform_to_bit_reverse_avx512<const BIT_SHIFT: u32>(
             };
 
             let mut new_w_idx = compute_new_w_idx(w_idx);
-            let mut w = &root_of_unity_powers[new_w_idx..new_w_idx + m];
-            let mut w_precon = &precon_root_of_unity_powers[new_w_idx..new_w_idx + m];
+            let mut w = &root_of_unity_powers[new_w_idx..new_w_idx + m * 4];
+            let mut w_precon = &precon_root_of_unity_powers[new_w_idx..new_w_idx + m * 4];
             fwd_t4::<BIT_SHIFT>(operand, v_neg_modulus, v_twice_mod, w, w_precon);
 
             m <<= 1;
             w_idx <<= 1;
             new_w_idx = compute_new_w_idx(w_idx);
-            w = &root_of_unity_powers[new_w_idx..new_w_idx + m];
-            w_precon = &precon_root_of_unity_powers[new_w_idx..new_w_idx + m];
+            w = &root_of_unity_powers[new_w_idx..new_w_idx + m * 2];
+            w_precon = &precon_root_of_unity_powers[new_w_idx..new_w_idx + m * 2];
             fwd_t2::<BIT_SHIFT>(operand, v_neg_modulus, v_twice_mod, w, w_precon);
 
             m <<= 1;

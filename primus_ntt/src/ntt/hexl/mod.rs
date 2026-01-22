@@ -439,6 +439,14 @@ impl HexlNttTable {
         );
     }
 
+    /// Computes the inverse NTT.
+    ///
+    /// # Parameters
+    /// - `operand`: Input data on which to compute the INTT.
+    /// - `input_mod_factor`: Assumes `operand` values are in `[0, input_mod_factor * q)`.
+    ///   Must be 1 or 2.
+    /// - `output_mod_factor`: Returns `result` values in `[0, output_mod_factor * q)`.
+    ///   Must be 1 or 2.
     pub fn compute_inverse(
         &self,
         operand: &mut [u64],

@@ -20,6 +20,21 @@ use crate::ntt::hexl::{
 //     *y_r = tx + twice_modulus - t;
 // }
 
+/// Out-of-place Harvey butterfly: assume `X`, `Y` in `[0, 4q)`, and return
+/// `X`, `Y` in `[0, 4q)` such that
+/// `X = X + W*Y (mod q)`, `Y = X - W*Y (mod q)`.
+///
+/// # Parameters
+/// - `X`: Input butterfly data.
+/// - `Y`: Input butterfly data.
+/// - `W`: Root of unity.
+/// - `W_precon`: Preconditioned `W` for `BitShift`-bit Barrett reduction.
+/// - `modulus`: Negative modulus, i.e. `(-q)` represented as 8 64-bit signed integers in SIMD form.
+/// - `twice_modulus`: Twice the modulus, i.e. `2*q` represented as 8 64-bit signed integers in SIMD form.
+///
+/// # Details
+/// See Algorithm 4 of https://arxiv.org/pdf/1205.2926.pdf
+#[inline]
 pub fn fwd_butterfly_radix2(
     x: &mut u64,
     y: &mut u64,
@@ -64,7 +79,7 @@ pub fn forward_transform_to_bit_reverse_radix2_inplace(
     while m < n {
         match t {
             8 => {
-                let (chunks, _) = operand.as_chunks_mut::<16>();
+                let chunks = unsafe { operand.as_chunks_unchecked_mut::<16>() };
                 for chunk in chunks {
                     let w = w_iter.next().unwrap();
                     let w_precon = w_precon_iter.next().unwrap();
@@ -99,7 +114,7 @@ pub fn forward_transform_to_bit_reverse_radix2_inplace(
                 }
             }
             4 => {
-                let (chunks, _) = operand.as_chunks_mut::<8>();
+                let chunks = unsafe { operand.as_chunks_unchecked_mut::<8>() };
                 for chunk in chunks {
                     let w = w_iter.next().unwrap();
                     let w_precon = w_precon_iter.next().unwrap();
@@ -113,7 +128,7 @@ pub fn forward_transform_to_bit_reverse_radix2_inplace(
                 }
             }
             2 => {
-                let (chunks, _) = operand.as_chunks_mut::<4>();
+                let chunks = unsafe { operand.as_chunks_unchecked_mut::<4>() };
                 for chunk in chunks {
                     let w = w_iter.next().unwrap();
                     let w_precon = w_precon_iter.next().unwrap();
@@ -125,7 +140,7 @@ pub fn forward_transform_to_bit_reverse_radix2_inplace(
                 }
             }
             1 => {
-                let (chunks, _) = operand.as_chunks_mut::<2>();
+                let chunks = unsafe { operand.as_chunks_unchecked_mut::<2>() };
                 for chunk in chunks {
                     let w = w_iter.next().unwrap();
                     let w_precon = w_precon_iter.next().unwrap();
@@ -142,8 +157,8 @@ pub fn forward_transform_to_bit_reverse_radix2_inplace(
 
                     let (x, y) = chunk.split_at_mut(t);
 
-                    let (x_chunks, _) = x.as_chunks_mut::<8>();
-                    let (y_chunks, _) = y.as_chunks_mut::<8>();
+                    let x_chunks = unsafe { x.as_chunks_unchecked_mut::<8>() };
+                    let y_chunks = unsafe { y.as_chunks_unchecked_mut::<8>() };
 
                     for (x_chunk, y_chunk) in x_chunks.iter_mut().zip(y_chunks.iter_mut()) {
                         let [x_r0, x_r1, x_r2, x_r3, x_r4, x_r5, x_r6, x_r7] = x_chunk;
