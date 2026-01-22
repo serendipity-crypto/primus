@@ -128,18 +128,14 @@ pub fn fwd_t1<const BIT_SHIFT: u32>(
     operand: &mut [u64],
     v_neg_modulus: __m512i,
     v_twice_mod: __m512i,
-    m: usize,
+    _m: usize,
     w: &[u64],
     w_precon: &[u64],
 ) {
     let mut v_w_pt: *const __m512i = w.as_ptr().cast();
     let mut v_w_precon_pt: *const __m512i = w_precon.as_ptr().cast();
 
-    let mut j1 = 0;
-    for _i in 0..m / 8 {
-        let x: *mut u64 = operand[j1..].as_mut_ptr();
-        let v_x_pt: *mut __m512i = x.cast();
-
+    for x in unsafe { operand.as_chunks_unchecked_mut::<16>() } {
         unsafe {
             let (mut v_x, mut v_y) = load_fwd_interleaved_t1(x);
 
@@ -157,29 +153,24 @@ pub fn fwd_t1<const BIT_SHIFT: u32>(
                 v_twice_mod,
             );
 
-            write_fwd_interleaved_t1(v_x, v_y, v_x_pt);
+            write_fwd_interleaved_t1(v_x, v_y, x);
         }
-
-        j1 += 16;
     }
-    todo!()
 }
 
 pub fn fwd_t2<const BIT_SHIFT: u32>(
     operand: &mut [u64],
     v_neg_modulus: __m512i,
     v_twice_mod: __m512i,
-    m: usize,
+    _m: usize,
     w: &[u64],
     w_precon: &[u64],
 ) {
     let mut v_w_pt: *const __m512i = w.as_ptr().cast();
     let mut v_w_precon_pt: *const __m512i = w_precon.as_ptr().cast();
 
-    let mut j1 = 0;
-    for _i in 0..m / 4 {
-        let x: *mut u64 = operand[j1..].as_mut_ptr();
-        let v_x_pt: *mut __m512i = x.cast();
+    for x in unsafe { operand.as_chunks_unchecked_mut::<16>() } {
+        let v_x_pt: *mut __m512i = x.as_mut_ptr().cast();
 
         unsafe {
             let (mut v_x, mut v_y) = load_fwd_interleaved_t2(x);
@@ -201,7 +192,6 @@ pub fn fwd_t2<const BIT_SHIFT: u32>(
             _mm512_storeu_si512(v_x_pt, v_x);
             _mm512_storeu_si512(v_x_pt.add(1), v_y);
         }
-        j1 += 16;
     }
 }
 
@@ -209,17 +199,15 @@ pub fn fwd_t4<const BIT_SHIFT: u32>(
     operand: &mut [u64],
     v_neg_modulus: __m512i,
     v_twice_mod: __m512i,
-    m: usize,
+    _m: usize,
     w: &[u64],
     w_precon: &[u64],
 ) {
-    let mut j1 = 0;
     let mut v_w_pt: *const __m512i = w.as_ptr().cast();
     let mut v_w_precon_pt: *const __m512i = w_precon.as_ptr().cast();
 
-    for _i in 0..m / 2 {
-        let x: *mut u64 = operand[j1..].as_mut_ptr();
-        let v_x_pt: *mut __m512i = x.cast();
+    for x in unsafe { operand.as_chunks_unchecked_mut::<16>() } {
+        let v_x_pt: *mut __m512i = x.as_mut_ptr().cast();
 
         unsafe {
             let (mut v_x, mut v_y) = load_fwd_interleaved_t4(x);
@@ -241,7 +229,6 @@ pub fn fwd_t4<const BIT_SHIFT: u32>(
             _mm512_storeu_si512(v_x_pt, v_x);
             _mm512_storeu_si512(v_x_pt.add(1), v_y);
         }
-        j1 += 16;
     }
 }
 

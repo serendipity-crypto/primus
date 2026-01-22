@@ -162,8 +162,6 @@ pub fn inv_t4<const BIT_SHIFT: u32>(
         .zip(unsafe { w.as_chunks_unchecked::<2>() })
         .zip(unsafe { w_precon.as_chunks_unchecked::<2>() })
     {
-        let v_x_pt: *mut __m512i = chunk.as_mut_ptr().cast();
-
         unsafe {
             let (mut v_x, mut v_y) = load_inv_interleaved_t4(chunk);
 
@@ -179,7 +177,7 @@ pub fn inv_t4<const BIT_SHIFT: u32>(
                 v_twice_mod,
             );
 
-            write_inv_interleaved_t4(v_x, v_y, v_x_pt);
+            write_inv_interleaved_t4(v_x, v_y, chunk);
         }
     }
 }
