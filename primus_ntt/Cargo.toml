@@ -13,7 +13,7 @@ primus_poly = { path = "../primus_poly" }
 
 thiserror = { workspace = true }
 rand = { workspace = true }
-concrete-ntt = { git = "https://github.com/primus-labs/concrete-ntt", branch = "dev", default-features = false, optional = true }
+concrete-ntt = { git = "https://github.com/serendipity-crypto/concrete-ntt", branch = "sync_from_tfhe_ntt", optional = true }
 aligned-vec = "0.6.4"
 
 [dev-dependencies]
@@ -21,8 +21,7 @@ criterion = { workspace = true }
 
 [features]
 default = ["concrete-ntt"]
-concrete-ntt = ["dep:concrete-ntt", "concrete-ntt/std"]
-nightly = ["concrete-ntt?/nightly"]
+concrete-ntt = ["dep:concrete-ntt"]
 
 [[bench]]
 name = "ntt"

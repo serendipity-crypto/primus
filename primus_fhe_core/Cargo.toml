@@ -27,4 +27,4 @@ pretty_assertions = { workspace = true }
 indicatif = { workspace = true }
 
 [features]
-nightly = ["primus_ntt/nightly", "primus_lattice/nightly"]
+# nightly = ["primus_ntt/nightly", "primus_lattice/nightly"]
