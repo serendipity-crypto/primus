@@ -21,3 +21,9 @@ pub type CrtGlweCiphertext<T> = primus_lattice::glwe::CrtGlwe<T>;
 
 /// Ntt version Glwe Ciphertext
 pub type DcrtGlweCiphertext<T> = primus_lattice::glwe::DcrtGlwe<T>;
+
+/// Ntru Ciphertext
+pub type NtruCiphertext<T> = primus_lattice::ntru::Ntru<T>;
+
+/// Ntt version Ntru Ciphertext
+pub type NttNtruCiphertext<T> = primus_lattice::ntru::NttNtru<T>;

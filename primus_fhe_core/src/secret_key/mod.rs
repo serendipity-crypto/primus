@@ -1,5 +1,6 @@
 mod glwe;
 mod lwe;
+mod ntru;
 mod rlwe;
 
 /// The distribution type of the LWE Secret Key.
@@ -28,4 +29,5 @@ pub use glwe::{
     CrtGlweSecretKey, DcrtGlweDecryptContext, DcrtGlweSecretKey, GlweSecretKey, NttGlweSecretKey,
 };
 pub use lwe::LweSecretKey;
+pub use ntru::{NtruSecretKey, NttNtruSecretKey};
 pub use rlwe::{NttRlweSecretKey, RlweSecretKey};
