@@ -76,7 +76,7 @@ fn divide_u128_u64_lo(x1: u64, x0: u64, y: u64) -> u64 {
 
 #[cfg(test)]
 mod tests {
-    use rand::{Rng, distr::Uniform};
+    use rand::{RngExt, distr::Uniform};
 
     use super::*;
 

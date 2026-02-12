@@ -5,7 +5,7 @@ mod tests {
     use primus_integer::izip;
     use primus_modulus::BarrettModulus;
     use primus_reduce::ops::{ReduceAdd, ReduceMulAdd, ReduceSub};
-    use rand::{Rng, distr::Uniform};
+    use rand::{RngExt, distr::Uniform};
 
     type ValueT = u32;
     type SignedT = i64;

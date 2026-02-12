@@ -111,7 +111,7 @@ impl<T: UnsignedInteger> FactorMul<T> for ShoupFactor<T> {
 #[cfg(test)]
 mod tests {
     use rand::{
-        Rng,
+        RngExt,
         distr::{Distribution, Uniform},
     };
 

@@ -1,13 +1,16 @@
 use std::f64::consts::{FRAC_1_SQRT_2, FRAC_2_SQRT_PI};
 
 use primus_integer::UnsignedInteger;
-use rand::distr::{Distribution, Uniform};
+use rand::{
+    RngExt,
+    distr::{Distribution, Uniform},
+};
 
 #[derive(Clone, Copy)]
-enum SampleStrategy {
-    LeftRegion,   // x[i] + 1.0 <= std_dev
-    RightRegion,  // std_dev <= x[i-1]
-    MiddleRegion, // Other case
+enum FallRegion {
+    Left,   // x[i] + 1.0 <= std_dev
+    Right,  // std_dev <= x[i-1]
+    Middle, // Other case
 }
 
 /// Discrete Ziggurat
@@ -21,7 +24,7 @@ pub struct DiscreteZiggurat<T: UnsignedInteger> {
     slope: Vec<f64>,  // Precomputed (y[i] - y[i-1]) / (x[i] - x[i-1])
     sample_m: Uniform<usize>,
     sample_x: Vec<Uniform<T>>,
-    strategies: Vec<SampleStrategy>,
+    strategies: Vec<FallRegion>,
     modulus_minus_one: T,
 }
 
@@ -193,15 +196,15 @@ impl<T: UnsignedInteger> DiscreteZiggurat<T> {
                 .collect();
 
             let mut strategies = Vec::with_capacity(m + 1);
-            strategies.push(SampleStrategy::MiddleRegion);
+            strategies.push(FallRegion::Middle);
 
             for i in 1..=m {
                 let strategy = if x[i] + 1.0 <= std_dev {
-                    SampleStrategy::LeftRegion
+                    FallRegion::Left
                 } else if std_dev <= x[i - 1] {
-                    SampleStrategy::RightRegion
+                    FallRegion::Right
                 } else {
-                    SampleStrategy::MiddleRegion
+                    FallRegion::Middle
                 };
                 strategies.push(strategy);
             }
@@ -276,7 +279,7 @@ impl<T: UnsignedInteger> Distribution<T> for DiscreteZiggurat<T> {
                 let y = self.y_diff[i] * y_prime as f64;
 
                 match self.strategies[i] {
-                    SampleStrategy::LeftRegion => {
+                    FallRegion::Left => {
                         if y <= MASK * self.s_line(i, x_f)
                             || y <= MASK * (self.pdf(x_f) - self.y[i])
                         {
@@ -285,7 +288,7 @@ impl<T: UnsignedInteger> Distribution<T> for DiscreteZiggurat<T> {
                             continue;
                         }
                     }
-                    SampleStrategy::RightRegion => {
+                    FallRegion::Right => {
                         if y >= MASK * self.s_line(i, x_f - 1.0)
                             || y > MASK * (self.pdf(x_f) - self.y[i])
                         {
@@ -294,7 +297,7 @@ impl<T: UnsignedInteger> Distribution<T> for DiscreteZiggurat<T> {
                             return self.combine(sign, x);
                         }
                     }
-                    SampleStrategy::MiddleRegion => {
+                    FallRegion::Middle => {
                         if y <= MASK * (self.pdf(x_f) - self.y[i]) {
                             return self.combine(sign, x);
                         } else {

@@ -331,7 +331,7 @@ pub unsafe fn forward_transform_to_bit_reverse_avx512<const BIT_SHIFT: u32>(
                     return (idx - n / 4) * 2 + (5 * n / 8);
                 }
                 // FwdT1 range
-                return idx + (5 * n / 8);
+                idx + (5 * n / 8)
             };
 
             let mut new_w_idx = compute_new_w_idx(w_idx);

@@ -289,6 +289,7 @@ where
 
     /// Compares this big integer with another, returning an [`Ordering`].
     #[must_use]
+    #[allow(clippy::should_implement_trait)]
     #[inline]
     pub fn cmp<A>(&self, other: &BigUint<A>) -> Ordering
     where
@@ -1062,10 +1063,8 @@ pub fn multiply_many_values_except_inplace<T: UnsignedInteger>(
 
 #[cfg(test)]
 mod tests {
-    use rand::{
-        Rng,
-        distr::{Distribution, Uniform},
-    };
+    use rand::RngExt;
+    use rand::distr::{Distribution, Uniform};
 
     use super::*;
 

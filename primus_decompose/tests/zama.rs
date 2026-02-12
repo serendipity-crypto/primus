@@ -4,7 +4,7 @@ mod tests {
     use primus_decompose::zama::ApproxSignedBasis;
     use primus_modulus::BarrettModulus;
     use primus_reduce::ops::{ReduceMulAdd, ReduceSub};
-    use rand::{Rng, distr::Uniform};
+    use rand::{RngExt, distr::Uniform};
 
     type ValueT = u32;
     type SignedT = i64;

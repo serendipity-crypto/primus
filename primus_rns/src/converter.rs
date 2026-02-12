@@ -235,7 +235,7 @@ impl<T: UnsignedInteger, M: FieldContext<T>> BaseConverter<T, M> {
 mod tests {
     use primus_integer::BigUint;
     use primus_modulus::BarrettModulus;
-    use rand::Rng;
+    use rand::RngExt;
 
     use super::*;
 
@@ -266,7 +266,6 @@ mod tests {
             .iter()
             .copied()
             .map(<BarrettModulus<ValueT>>::new)
-            .into_iter()
             .collect();
         let dbasis = RNSBase::new(&basis).unwrap();
         println!("{:?}\n", dbasis.moduli_product());

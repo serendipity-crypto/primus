@@ -10,7 +10,7 @@ use primus_lattice::glwe::{CrtGlwe, DcrtGlwe};
 use primus_modulus::BarrettModulus;
 use primus_ntt::{DcrtTable, UintCrtNttTable};
 use primus_poly::{CrtPolynomial, Polynomial};
-use rand::Rng;
+use rand::RngExt;
 
 #[test]
 fn test_rns_glwe_auto() {

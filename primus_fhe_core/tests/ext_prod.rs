@@ -9,7 +9,7 @@ use primus_modulus::BarrettModulus;
 use primus_ntt::{DcrtTable, UintCrtNttTable};
 use primus_poly::{CrtPolynomial, Polynomial};
 use primus_reduce::ops::ReduceNegAssign;
-use rand::Rng;
+use rand::RngExt;
 
 #[test]
 fn test_external_product() {

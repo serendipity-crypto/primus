@@ -64,7 +64,7 @@ pub fn check_arguments(n: usize, modulus: u64) {
         "n should be less than 2^{MAX_DEGREE_BITS} got {n}"
     );
     debug_assert!(
-        modulus <= (1u64 << MAX_MODULUS_BITS) - 1,
+        modulus < (1u64 << MAX_MODULUS_BITS),
         "modulus should be less than 2^{MAX_MODULUS_BITS} got {modulus}",
     );
     debug_assert!(modulus % (2 * n as u64) == 1, "modulus mod 2n != 1",);

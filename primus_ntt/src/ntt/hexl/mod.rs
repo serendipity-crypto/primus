@@ -211,7 +211,7 @@ impl NttTable for HexlNttTable {
         // roots of unity;
         let w2_roots: Vec<u64> = root_of_unity_powers[n / 4..n / 2]
             .iter()
-            .flat_map(|&x| std::iter::repeat(x).take(2))
+            .flat_map(|&x| std::iter::repeat_n(x, 2))
             .collect();
 
         // Duplicate each root of unity at indices [N/8, N/4].
@@ -220,7 +220,7 @@ impl NttTable for HexlNttTable {
         // roots of unity
         let w4_roots: Vec<u64> = root_of_unity_powers[n / 8..n / 4]
             .iter()
-            .flat_map(|&x| std::iter::repeat(x).take(4))
+            .flat_map(|&x| std::iter::repeat_n(x, 4))
             .collect();
 
         avx512_root_of_unity_powers.extend_from_slice(&root_of_unity_powers[0..n / 8]);

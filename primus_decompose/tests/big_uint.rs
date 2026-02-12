@@ -6,8 +6,8 @@ mod tests {
     use primus_modulus::BarrettModulus;
     use primus_reduce::ops::*;
     use primus_rns::RNSBase;
-    use rand::distr::Distribution;
-    use rand::{Rng, distr::Uniform};
+    use rand::RngExt;
+    use rand::distr::{Distribution, Uniform};
     use rayon::prelude::*;
 
     type ValueT = u32;

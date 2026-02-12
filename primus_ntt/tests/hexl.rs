@@ -5,7 +5,7 @@ mod tests {
     use primus_modulus::BarrettModulus;
     use primus_ntt::{HexlNttTable, NttTable, UintNttTable};
     use rand::{
-        Rng,
+        RngExt,
         distr::{Distribution, Uniform},
     };
 
