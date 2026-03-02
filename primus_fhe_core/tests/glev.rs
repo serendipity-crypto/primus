@@ -88,7 +88,13 @@ fn test_rns_glev() {
 
     let mut c1: DcrtGlwe<Vec<ValueT>> = DcrtGlwe::zero(rns_glwe_len);
 
-    dcrt_sk.encrypt_dcrt_glev_inplace(&msg1, &mut dcrt_glev, &glev_params, &table, &mut rng);
+    dcrt_sk.encrypt_crt_msg_to_dcrt_glev_inplace(
+        &msg1,
+        &mut dcrt_glev,
+        &glev_params,
+        &table,
+        &mut rng,
+    );
 
     dcrt_glev.mul_big_uint_poly_inplace(
         &msg2_big_uint_poly,
@@ -172,7 +178,13 @@ fn test_key_switching() {
     msgs.iter()
         .zip(dcrt_glevs.iter_mut())
         .for_each(|(msg, glev)| {
-            dcrt_sk.encrypt_dcrt_glev_inplace(&msg, glev, &glev_params, &table, &mut rng);
+            dcrt_sk.encrypt_crt_msg_to_dcrt_glev_inplace(
+                &msg,
+                glev,
+                &glev_params,
+                &table,
+                &mut rng,
+            );
         });
 
     let mut cipher: Vec<DcrtPolynomial<Vec<ValueT>>> = (0..dimension)

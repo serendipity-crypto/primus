@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use primus_integer::{Data, DataMut, RawData, UnsignedInteger, izip};
-use primus_lattice::glev::DcrtGlevIter;
+use primus_lattice::glev::{DcrtGlevIter, DcrtGlevIterMut};
 use primus_modulus::PowOf2Modulus;
 use primus_ntt::DcrtTable;
-use primus_poly::DcrtPolynomial;
+use primus_poly::CrtPolynomial;
 use primus_reduce::FieldContext;
 use primus_reduce::ops::ReduceMul;
 use primus_rns::RNSBase;
@@ -14,7 +14,6 @@ use crate::{
 };
 
 use super::CrtGlweAutoContext;
-use super::ntt::NttAutoHelper;
 
 /// This defines the operation when perform automorphism on each coefficient.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -80,6 +79,49 @@ fn generate_permutate_ops(degree: usize, poly_length: usize) -> Vec<FromOp> {
     result
 }
 
+/// Generate automorphism key data in the coefficient domain: for each
+/// secret-key polynomial s_i, encrypt σ_k(s_i) under a GLEV ciphertext.
+fn generate_auto_key_data<T, M, Table, R>(
+    params: &CrtGlevParameters<T, M>,
+    coeff_auto_helper: &CoeffAutoHelper,
+    sk: &CrtGlweSecretKey<T>,
+    dcrt_sk: &DcrtGlweSecretKey<T>,
+    table: &Table,
+    rng: &mut R,
+) -> Vec<T>
+where
+    T: UnsignedInteger,
+    Table: DcrtTable<ValueT = T>,
+    R: rand::Rng + rand::CryptoRng,
+    M: FieldContext<T>,
+{
+    let poly_length = params.poly_length();
+    let rns_poly_len = params.rns_poly_len();
+    let dcrt_glev_len = params.rns_glev_len();
+    let moduli = params.cipher_moduli();
+
+    let mut key = vec![T::ZERO; params.dimension() * dcrt_glev_len];
+    let mut auto_si: CrtPolynomial<Vec<T>> = CrtPolynomial::zero(rns_poly_len);
+
+    let key_iter = DcrtGlevIterMut::new(key.as_mut_slice(), dcrt_glev_len);
+
+    sk.iter_crt_poly()
+        .zip(key_iter)
+        .for_each(|(si, mut dcrt_glev)| {
+            crt_poly_auto_inplace(si.0, &mut auto_si.0, coeff_auto_helper, poly_length, moduli);
+
+            dcrt_sk.encrypt_crt_msg_to_dcrt_glev_inplace(
+                &auto_si,
+                &mut dcrt_glev,
+                params,
+                table,
+                rng,
+            );
+        });
+
+    key
+}
+
 /// Automorphism key
 #[derive(Clone)]
 pub struct CrtGlweAutoKey<T, Table>
@@ -91,7 +133,6 @@ where
     degree: usize,
     rns_glev_len: usize,
     auto_helper: CoeffAutoHelper,
-    ntt_auto_helper: NttAutoHelper,
     table: Arc<Table>,
 }
 
@@ -116,17 +157,14 @@ where
         let dcrt_glev_len = params.rns_glev_len();
 
         let auto_helper = CoeffAutoHelper::new(degree, poly_length);
-        let ntt_auto_helper = NttAutoHelper::new(degree, poly_length);
 
-        let key =
-            super::generate_auto_key_data(params, &auto_helper, sk, dcrt_sk, table.as_ref(), rng);
+        let key = generate_auto_key_data(params, &auto_helper, sk, dcrt_sk, table.as_ref(), rng);
 
         Self {
             key,
             degree,
             rns_glev_len: dcrt_glev_len,
             auto_helper,
-            ntt_auto_helper,
             table: Arc::clone(&table),
         }
     }
@@ -167,7 +205,7 @@ where
 
         debug_assert_eq!(ciphertext.as_ref().len(), params.rns_glwe_len());
 
-        let (_, auto_crt_poly, glev_context) = context.as_mut();
+        let (auto_crt_poly, glev_context) = context.as_mut();
 
         result.set_zero();
         let mut temp = DcrtGlweCiphertext::new(result.as_mut());
@@ -210,71 +248,6 @@ where
         a_out.for_each(|mut ai| ai.neg_assign(poly_length, moduli));
 
         auto_crt_poly.sub_to_right(&mut b_out, poly_length, moduli);
-    }
-
-    pub fn automorphism_to_dcrt_glwe_inplace<M, A, B>(
-        &self,
-        ciphertext: &DcrtGlweCiphertext<A>,
-        result: &mut DcrtGlweCiphertext<B>,
-        params: &CrtGlevParameters<T, M>,
-        rns_base: &RNSBase<T, M>,
-        context: &mut CrtGlweAutoContext<T>,
-    ) where
-        M: FieldContext<T>,
-        A: RawData<Elem = T> + Data,
-        B: RawData<Elem = T> + DataMut,
-    {
-        let poly_length = params.poly_length();
-        let rns_glwe_mid = params.rns_glwe_mid();
-        let moduli = params.cipher_moduli();
-
-        let auto_helper = &self.auto_helper;
-
-        debug_assert_eq!(ciphertext.as_ref().len(), params.rns_glwe_len());
-
-        let (crt_poly, auto_crt_poly, glev_context) = context.as_mut();
-
-        result.set_zero();
-
-        let (a_in, b_in) = ciphertext.a_b(rns_glwe_mid);
-
-        self.iter_dcrt_glev()
-            .zip(a_in)
-            .for_each(|(auto_key_i, in_dcrt_poly)| {
-                crt_poly.as_mut().copy_from_slice(in_dcrt_poly.0);
-                self.table.inverse_transform_slice(crt_poly.as_mut());
-
-                crt_poly_auto_inplace(
-                    crt_poly.as_ref(),
-                    auto_crt_poly.as_mut(),
-                    auto_helper,
-                    poly_length,
-                    moduli,
-                );
-
-                result.add_dcrt_glev_mul_crt_poly_assign(
-                    &auto_key_i,
-                    auto_crt_poly,
-                    params.basis(),
-                    self.table(),
-                    rns_base,
-                    glev_context,
-                );
-            });
-
-        // b polynomial: NTT-domain permutation (avoids INTT → coeff_auto → NTT)
-        super::ntt::dcrt_poly_ntt_auto_inplace(
-            b_in.0,
-            auto_crt_poly.as_mut(),
-            &self.ntt_auto_helper,
-            poly_length,
-        );
-
-        let (a_out, mut b_out) = result.a_b_mut(rns_glwe_mid);
-
-        a_out.for_each(|mut ai| ai.neg_assign(poly_length, moduli));
-
-        DcrtPolynomial(auto_crt_poly.as_ref()).sub_to_right(&mut b_out, poly_length, moduli);
     }
 }
 

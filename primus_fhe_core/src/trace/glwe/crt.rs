@@ -8,7 +8,7 @@ use primus_rns::RNSBase;
 
 use crate::{
     CrtGlevParameters, CrtGlweAutoContext, CrtGlweAutoKey, CrtGlweCiphertext, CrtGlweSecretKey,
-    DcrtGlweCiphertext, DcrtGlweSecretKey,
+    DcrtGlweSecretKey,
 };
 
 pub struct CrtGlweTraceContext<T: UnsignedInteger> {
@@ -101,40 +101,6 @@ where
         for auto_key in self.auto_keys.iter() {
             auto_key.automorphism_inplace(result, crt_glwe, params, rns_base, auto_context);
             result.add_element_wise_assign(crt_glwe, poly_length, rns_poly_len, moduli);
-        }
-    }
-
-    pub fn trace_to_dcrt_glwe_inplace<M, A, B>(
-        &self,
-        ciphertext: &DcrtGlweCiphertext<A>,
-        result: &mut DcrtGlweCiphertext<B>,
-        params: &CrtGlevParameters<T, M>,
-        rns_base: &RNSBase<T, M>,
-        context: &mut CrtGlweTraceContext<T>,
-    ) where
-        M: FieldContext<T>,
-        A: RawData<Elem = T> + Data,
-        B: RawData<Elem = T> + DataMut,
-    {
-        let poly_length = params.poly_length();
-        let rns_poly_len = params.rns_poly_len();
-        let moduli = params.cipher_moduli();
-
-        let (crt_glwe, auto_context) = context.as_mut();
-
-        let dcrt_glwe = &mut DcrtGlweCiphertext::new(crt_glwe.as_mut());
-
-        result.as_mut().copy_from_slice(ciphertext.as_ref());
-
-        for auto_key in self.auto_keys.iter() {
-            auto_key.automorphism_to_dcrt_glwe_inplace(
-                result,
-                dcrt_glwe,
-                params,
-                rns_base,
-                auto_context,
-            );
-            result.add_element_wise_assign(dcrt_glwe, poly_length, rns_poly_len, moduli);
         }
     }
 

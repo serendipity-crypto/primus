@@ -4,7 +4,7 @@ use primus_lattice::glev::DcrtGlev;
 use primus_ntt::{DcrtTable, NttTable};
 use primus_poly::{
     CrtPolynomial, CrtPolynomialIter, CrtPolynomialIterMut, DcrtPolynomial, DcrtPolynomialIter,
-    NttPolynomial, NttPolynomialIter, Polynomial, PolynomialOwned,
+    DcrtPolynomialIterMut, NttPolynomial, NttPolynomialIter, Polynomial, PolynomialOwned,
 };
 use primus_reduce::FieldContext;
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -331,7 +331,11 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
         DcrtPolynomialIter::new(self.key.as_slice(), self.rns_poly_len)
     }
 
-    /// Creates a new [`NttGlweSecretKey`] from [`GlweSecretKey`].
+    pub fn iter_dcrt_poly_mut(&mut self) -> DcrtPolynomialIterMut<'_, T> {
+        DcrtPolynomialIterMut::new(self.key.as_mut_slice(), self.rns_poly_len)
+    }
+
+    /// Creates a new [`DcrtGlweSecretKey<T>`] from [`CrtGlweSecretKey<T>`].
     #[inline]
     pub fn from_coeff_secret_key<Table>(secret_key: &CrtGlweSecretKey<T>, table: &Table) -> Self
     where
@@ -428,9 +432,81 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
         });
     }
 
-    fn encrypt_custom_delta_dcrt_glwe_inplace<R, M, Table, A, B>(
+    fn encrypt_dcrt_msg_to_dcrt_glwe_inplace_with_custom_delta<R, M, Table, A, B>(
         &self,
-        msg: &CrtPolynomial<A>,
+        dcrt_msg: &DcrtPolynomial<A>,
+        delta_residues: &[T],
+        result: &mut DcrtGlweCiphertext<B>,
+        params: &CrtGlevParameters<T, M>,
+        table: &Table,
+        rng: &mut R,
+    ) where
+        R: rand::Rng + rand::CryptoRng,
+        M: FieldContext<T>,
+        Table: DcrtTable<ValueT = T>,
+        A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + DataMut,
+    {
+        let poly_length = params.poly_length();
+        let moduli = params.cipher_moduli();
+        let uniform_distrs = params.cipher_moduli_uniform_distr();
+
+        let (a, mut b) = result.a_b_mut(params.rns_glwe_mid());
+
+        primus_distr::sample_crt_gaussian_values_inplace(
+            b.0,
+            poly_length,
+            params.cipher_moduli_value(),
+            params.noise_distribution(),
+            &mut *rng,
+        );
+
+        table.transform_slice(b.0);
+        b.add_mul_scalar_assign(dcrt_msg, delta_residues, poly_length, moduli);
+
+        self.iter_dcrt_poly().zip(a).for_each(|(si, ai)| {
+            primus_distr::sample_crt_uniform_values_inplace(
+                ai.0,
+                poly_length,
+                uniform_distrs,
+                &mut *rng,
+            );
+            b.add_mul_assign(&ai, &si, poly_length, moduli);
+        });
+    }
+
+    pub fn encrypt_dcrt_msg_to_dcrt_glev_inplace<R, M, Table, A, B>(
+        &self,
+        dcrt_msg: &DcrtPolynomial<A>,
+        result: &mut DcrtGlev<B>,
+        params: &CrtGlevParameters<T, M>,
+        table: &Table,
+        rng: &mut R,
+    ) where
+        R: rand::Rng + rand::CryptoRng,
+        M: FieldContext<T>,
+        Table: DcrtTable<ValueT = T>,
+        A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + DataMut,
+    {
+        result
+            .iter_dcrt_glwe_mut(params.rns_glwe_len())
+            .zip(params.basis().iter_scalar_residues())
+            .for_each(|(mut dcrt_glwe, scalar_residues)| {
+                self.encrypt_dcrt_msg_to_dcrt_glwe_inplace_with_custom_delta(
+                    dcrt_msg,
+                    scalar_residues,
+                    &mut dcrt_glwe,
+                    params,
+                    table,
+                    rng,
+                );
+            });
+    }
+
+    fn encrypt_crt_msg_to_dcrt_glwe_inplace_with_custom_delta<R, M, Table, A, B>(
+        &self,
+        crt_msg: &CrtPolynomial<A>,
         delta_residues: &[T],
         result: &mut DcrtGlweCiphertext<B>,
         params: &CrtGlevParameters<T, M>,
@@ -458,7 +534,7 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
         );
 
         let mut b_crt_poly = CrtPolynomial(&mut *b.0);
-        b_crt_poly.add_mul_scalar_assign(msg, delta_residues, poly_length, moduli);
+        b_crt_poly.add_mul_scalar_assign(crt_msg, delta_residues, poly_length, moduli);
         table.transform_slice(b.0);
 
         self.iter_dcrt_poly().zip(a).for_each(|(si, ai)| {
@@ -472,9 +548,9 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
         });
     }
 
-    pub fn encrypt_dcrt_glev_inplace<R, M, Table, A, B>(
+    pub fn encrypt_crt_msg_to_dcrt_glev_inplace<R, M, Table, A, B>(
         &self,
-        msg: &CrtPolynomial<A>,
+        crt_msg: &CrtPolynomial<A>,
         result: &mut DcrtGlev<B>,
         params: &CrtGlevParameters<T, M>,
         table: &Table,
@@ -490,8 +566,8 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
             .iter_dcrt_glwe_mut(params.rns_glwe_len())
             .zip(params.basis().iter_scalar_residues())
             .for_each(|(mut dcrt_glwe, scalar_residues)| {
-                self.encrypt_custom_delta_dcrt_glwe_inplace(
-                    msg,
+                self.encrypt_crt_msg_to_dcrt_glwe_inplace_with_custom_delta(
+                    crt_msg,
                     scalar_residues,
                     &mut dcrt_glwe,
                     params,

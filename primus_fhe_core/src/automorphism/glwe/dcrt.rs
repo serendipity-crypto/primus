@@ -21,16 +21,16 @@
 use std::sync::Arc;
 
 use primus_integer::{Data, DataMut, RawData, UnsignedInteger};
-use primus_lattice::glev::DcrtGlevIter;
+use primus_lattice::glev::{DcrtGlevIter, DcrtGlevIterMut};
 use primus_modulus::PowOf2Modulus;
 use primus_ntt::{DcrtTable, ReverseLsbs};
 use primus_poly::DcrtPolynomial;
 use primus_reduce::{FieldContext, ops::ReduceMul};
 use primus_rns::RNSBase;
 
-use crate::{CrtGlevParameters, CrtGlweSecretKey, DcrtGlweCiphertext, DcrtGlweSecretKey};
+use crate::{CrtGlevParameters, DcrtGlweCiphertext, DcrtGlweSecretKey};
 
-use super::{CoeffAutoHelper, CrtGlweAutoContext};
+use super::CrtGlweAutoContext;
 
 // ---------------------------------------------------------------------------
 // NTT-domain permutation generation
@@ -132,6 +132,57 @@ pub fn dcrt_poly_ntt_auto_inplace<T: UnsignedInteger>(
 }
 
 // ---------------------------------------------------------------------------
+// NTT-domain auto key generation
+// ---------------------------------------------------------------------------
+
+/// Generate automorphism key data entirely in the NTT domain.
+///
+/// For each secret-key polynomial s_i (in NTT domain), apply NTT-domain
+/// permutation σ_k(s_i) and encrypt under a GLEV ciphertext.
+///
+/// Unlike [`super::crt::generate_auto_key_data`] which requires a coefficient-domain
+/// secret key, this only needs the NTT-domain secret key.
+fn generate_ntt_auto_key_data<T, M, Table, R>(
+    params: &CrtGlevParameters<T, M>,
+    ntt_auto_helper: &NttAutoHelper,
+    dcrt_sk: &DcrtGlweSecretKey<T>,
+    table: &Table,
+    rng: &mut R,
+) -> Vec<T>
+where
+    T: UnsignedInteger,
+    Table: DcrtTable<ValueT = T>,
+    R: rand::Rng + rand::CryptoRng,
+    M: FieldContext<T>,
+{
+    let poly_length = params.poly_length();
+    let rns_poly_len = params.rns_poly_len();
+    let dcrt_glev_len = params.rns_glev_len();
+
+    let mut key = vec![T::ZERO; params.dimension() * dcrt_glev_len];
+    let mut auto_si: DcrtPolynomial<Vec<T>> = DcrtPolynomial::zero(rns_poly_len);
+
+    let key_iter = DcrtGlevIterMut::new(key.as_mut_slice(), dcrt_glev_len);
+
+    dcrt_sk
+        .iter_dcrt_poly()
+        .zip(key_iter)
+        .for_each(|(si, mut dcrt_glev)| {
+            dcrt_poly_ntt_auto_inplace(si.0, auto_si.as_mut(), ntt_auto_helper, poly_length);
+
+            dcrt_sk.encrypt_dcrt_msg_to_dcrt_glev_inplace(
+                &auto_si,
+                &mut dcrt_glev,
+                params,
+                table,
+                rng,
+            );
+        });
+
+    key
+}
+
+// ---------------------------------------------------------------------------
 // DcrtGlweAutoKey (NTT-domain)
 // ---------------------------------------------------------------------------
 
@@ -166,14 +217,12 @@ where
 {
     /// Create a new NTT-domain automorphism key for the mapping x → x^degree.
     ///
-    /// Key generation applies the coefficient-domain automorphism to each secret
-    /// key polynomial and encrypts the result under a GLEV ciphertext—identical
-    /// to the coefficient-domain key. The NTT-domain permutation table is built
-    /// separately for use at evaluation time.
+    /// Key generation applies the NTT-domain permutation to each secret key
+    /// polynomial and encrypts the result under a GLEV ciphertext. Only the
+    /// NTT-domain secret key is needed.
     pub fn new<M, R>(
         params: &CrtGlevParameters<T, M>,
         degree: usize,
-        sk: &CrtGlweSecretKey<T>,
         dcrt_sk: &DcrtGlweSecretKey<T>,
         table: Arc<Table>,
         rng: &mut R,
@@ -185,20 +234,9 @@ where
         let poly_length = params.poly_length();
         let dcrt_glev_len = params.rns_glev_len();
 
-        // Coefficient-domain helper — used only for key generation.
-        let coeff_auto_helper = CoeffAutoHelper::new(degree, poly_length);
-
-        // NTT-domain helper — used at evaluation time.
         let auto_helper = NttAutoHelper::new(degree, poly_length);
 
-        let key = super::generate_auto_key_data(
-            params,
-            &coeff_auto_helper,
-            sk,
-            dcrt_sk,
-            table.as_ref(),
-            rng,
-        );
+        let key = generate_ntt_auto_key_data(params, &auto_helper, dcrt_sk, table.as_ref(), rng);
 
         Self {
             key,
@@ -246,7 +284,7 @@ where
 
         debug_assert_eq!(ciphertext.as_ref().len(), params.rns_glwe_len());
 
-        let (_, auto_dcrt_poly, glev_context) = context.as_mut();
+        let (auto_dcrt_poly, glev_context) = context.as_mut();
 
         result.set_zero();
 
@@ -302,6 +340,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::CoeffAutoHelper;
 
     #[test]
     fn test_ntt_permutation_identity() {
@@ -390,7 +429,7 @@ mod tests {
 
             // Path A: coeff_auto → NTT
             let mut path_a = vec![V::default(); crt_poly_len];
-            super::super::crt_poly_auto_inplace(
+            crate::automorphism::glwe::crt::crt_poly_auto_inplace(
                 &input,
                 &mut path_a,
                 &coeff_helper,
