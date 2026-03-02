@@ -9,6 +9,7 @@ mod ciphertext;
 mod plaintext;
 
 mod automorphism;
+mod expand_coeff;
 mod key_switch;
 mod trace;
 
@@ -23,5 +24,6 @@ pub use ciphertext::*;
 pub use plaintext::*;
 
 pub use automorphism::*;
+pub use expand_coeff::*;
 pub use key_switch::*;
 pub use trace::*;

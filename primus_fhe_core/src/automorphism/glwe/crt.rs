@@ -26,7 +26,7 @@ pub enum Op {
 /// when perform automorphism on each coefficient.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FromOp {
-    from: usize,
+    from: u32,
     op: Op,
 }
 
@@ -66,12 +66,12 @@ fn generate_permutate_ops(degree: usize, poly_length: usize) -> Vec<FromOp> {
         let to = modulus.reduce_mul(i, degree);
         if to < poly_length {
             result[to] = FromOp {
-                from: i,
+                from: i as u32,
                 op: Op::Add,
             };
         } else {
             result[to - poly_length] = FromOp {
-                from: i,
+                from: i as u32,
                 op: Op::Sub,
             };
         }
@@ -303,7 +303,7 @@ fn poly_auto_inplace_for_permutation<T, M>(
     M: FieldContext<T>,
 {
     for (d, from_op) in result.iter_mut().zip(from_ops.iter()) {
-        let c = unsafe { poly.get_unchecked(from_op.from) };
+        let c = unsafe { poly.get_unchecked(from_op.from as usize) };
         match from_op.op {
             Op::Add => {
                 *d = *c;

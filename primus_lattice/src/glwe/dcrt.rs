@@ -1,4 +1,5 @@
 use primus_decompose::big_integer::BigUintApproxSignedBasis;
+use primus_factor::ShoupFactor;
 use primus_integer::{Data, DataMut, DataOwned, RawData, UnsignedInteger, izip};
 use primus_ntt::DcrtTable;
 use primus_poly::{
@@ -262,6 +263,23 @@ where
     pub fn a_b(&self, mid: usize) -> (DcrtPolynomialIter<'_, T>, DcrtPolynomial<&[T]>) {
         let (a, b) = self.0.split_at(mid);
         (DcrtPolynomialIter::new(a, b.len()), DcrtPolynomial(b))
+    }
+
+    pub fn mul_factor_inplace<A>(
+        &self,
+        scalar: &[ShoupFactor<T>],
+        result: &mut DcrtGlwe<A>,
+        poly_length: usize,
+        dcrt_poly_len: usize,
+        moduli: &[T],
+    ) where
+        A: RawData<Elem = T> + DataMut,
+    {
+        self.iter_dcrt_poly(dcrt_poly_len)
+            .zip(result.iter_dcrt_poly_mut(dcrt_poly_len))
+            .for_each(|(in_dcrt_poly, mut out_dcrt_poly)| {
+                in_dcrt_poly.mul_factor_inplace(scalar, &mut out_dcrt_poly, poly_length, moduli);
+            });
     }
 
     /// Performs a multiplication on the `self` [`DcrtGlwe<S>`] with another `dcrt_polynomial` [`DcrtPolynomial<A>`],

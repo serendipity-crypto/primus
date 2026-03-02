@@ -40,11 +40,11 @@ use super::CrtGlweAutoContext;
 /// in **bit-reversed** storage order.
 ///
 /// Returns `perm` where `perm[dst] = src`, meaning `out[dst] = in[perm[dst]]`.
-fn generate_ntt_permutation(degree: usize, poly_length: usize) -> Vec<usize> {
+fn generate_ntt_permutation(degree: usize, poly_length: usize) -> Vec<u32> {
     let twice_n = poly_length << 1;
     let log_n = poly_length.trailing_zeros();
     let modulus = <PowOf2Modulus<usize>>::new(twice_n);
-    let mut perm = vec![0usize; poly_length];
+    let mut perm = vec![0u32; poly_length];
 
     for i in 0..poly_length {
         // Natural NTT index i → evaluation point ω^(2i+1).
@@ -56,7 +56,7 @@ fn generate_ntt_permutation(degree: usize, poly_length: usize) -> Vec<usize> {
         let out_br = i.reverse_lsbs(log_n);
         let in_br = target.reverse_lsbs(log_n);
 
-        perm[out_br] = in_br;
+        perm[out_br] = in_br as u32;
     }
 
     perm
@@ -73,7 +73,7 @@ fn generate_ntt_permutation(degree: usize, poly_length: usize) -> Vec<usize> {
 #[derive(Clone)]
 pub enum NttAutoHelper {
     /// Permutation table: `out[i] = in[perm[i]]` in bit-reversed storage.
-    Permutation(Vec<usize>),
+    Permutation(Vec<u32>),
     /// Identity mapping (degree = 1).
     Identity,
 }
@@ -104,7 +104,7 @@ fn ntt_poly_auto_inplace<T: UnsignedInteger>(
             debug_assert_eq!(poly.len(), perm.len());
             debug_assert_eq!(result.len(), perm.len());
             for (dst, &src) in result.iter_mut().zip(perm.iter()) {
-                *dst = unsafe { *poly.get_unchecked(src) };
+                *dst = unsafe { *poly.get_unchecked(src as usize) };
             }
         }
         NttAutoHelper::Identity => {
@@ -348,7 +348,7 @@ mod tests {
             let n = 1 << log_n;
             let perm = generate_ntt_permutation(1, n);
             for i in 0..n {
-                assert_eq!(perm[i], i, "identity failed at index {i} for N={n}");
+                assert_eq!(perm[i], i as u32, "identity failed at index {i} for N={n}");
             }
         }
     }
@@ -372,6 +372,7 @@ mod tests {
             // Every source index must appear exactly once (valid permutation).
             let mut seen = vec![false; n];
             for &src in &perm {
+                let src = src as usize;
                 assert!(
                     src < n,
                     "out-of-range index {src} for degree={degree}, N={n}"
