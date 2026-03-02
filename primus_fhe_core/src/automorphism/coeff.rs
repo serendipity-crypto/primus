@@ -50,6 +50,36 @@ impl CoeffAutoHelper {
     }
 }
 
+#[inline]
+fn generate_permutate_ops(degree: usize, poly_length: usize) -> Vec<FromOp> {
+    let twice_poly_length = poly_length << 1;
+    let modulus = <PowOf2Modulus<usize>>::new(twice_poly_length);
+
+    let mut result = vec![
+        FromOp {
+            from: 0,
+            op: Op::Add
+        };
+        poly_length
+    ];
+
+    for i in 0..poly_length {
+        let to = modulus.reduce_mul(i, degree);
+        if to < poly_length {
+            result[to] = FromOp {
+                from: i,
+                op: Op::Add,
+            };
+        } else {
+            result[to - poly_length] = FromOp {
+                from: i,
+                op: Op::Sub,
+            };
+        }
+    }
+    result
+}
+
 /// Automorphism key
 #[derive(Clone)]
 pub struct CrtGlweAutoKey<T, Table>
@@ -246,36 +276,6 @@ where
 
         DcrtPolynomial(auto_crt_poly.as_ref()).sub_to_right(&mut b_out, poly_length, moduli);
     }
-}
-
-#[inline]
-fn generate_permutate_ops(degree: usize, poly_length: usize) -> Vec<FromOp> {
-    let twice_poly_length = poly_length << 1;
-    let modulus = <PowOf2Modulus<usize>>::new(twice_poly_length);
-
-    let mut result = vec![
-        FromOp {
-            from: 0,
-            op: Op::Add
-        };
-        poly_length
-    ];
-
-    for i in 0..poly_length {
-        let to = modulus.reduce_mul(i, degree);
-        if to < poly_length {
-            result[to] = FromOp {
-                from: i,
-                op: Op::Add,
-            };
-        } else {
-            result[to - poly_length] = FromOp {
-                from: i,
-                op: Op::Sub,
-            };
-        }
-    }
-    result
 }
 
 pub fn crt_poly_auto_inplace<T, M>(

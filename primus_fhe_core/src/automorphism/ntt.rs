@@ -16,15 +16,16 @@
 //! This codebase uses **bit-reversed** NTT output. In natural order, index `i`
 //! corresponds to evaluation point ω^(2i+1). In bit-reversed storage, index
 //! `br(i)` stores the evaluation at ω^(2i+1). The permutation table accounts
-//! for this: `out[br(i')] = in[br(i)]` where `i' = ((k·(2i+1)) mod 2N − 1) / 2`.
+//! for this: `out[br(i)] = in[br(i')]` where `i' = ((k·(2i+1)) mod 2N − 1) / 2`.
 
 use std::sync::Arc;
 
 use primus_integer::{Data, DataMut, RawData, UnsignedInteger};
 use primus_lattice::glev::DcrtGlevIter;
+use primus_modulus::PowOf2Modulus;
 use primus_ntt::{DcrtTable, ReverseLsbs};
 use primus_poly::DcrtPolynomial;
-use primus_reduce::FieldContext;
+use primus_reduce::{FieldContext, ops::ReduceMul};
 use primus_rns::RNSBase;
 
 use crate::{CrtGlevParameters, CrtGlweSecretKey, DcrtGlweCiphertext, DcrtGlweSecretKey};
@@ -42,12 +43,13 @@ use super::{CoeffAutoHelper, CrtGlweAutoContext};
 fn generate_ntt_permutation(degree: usize, poly_length: usize) -> Vec<usize> {
     let twice_n = poly_length << 1;
     let log_n = poly_length.trailing_zeros();
+    let modulus = <PowOf2Modulus<usize>>::new(twice_n);
     let mut perm = vec![0usize; poly_length];
 
     for i in 0..poly_length {
         // Natural NTT index i → evaluation point ω^(2i+1).
         // NTT(σ_k(f))[i] = f(ω^(k·(2i+1) mod 2N)) = NTT(f)[target].
-        let j = (degree * (2 * i + 1)) % twice_n;
+        let j = modulus.reduce_mul(degree, 2 * i + 1);
         let target = (j - 1) / 2;
 
         // In bit-reversed storage: out[br(i)] = in[br(target)].
@@ -130,7 +132,7 @@ pub fn dcrt_poly_ntt_auto_inplace<T: UnsignedInteger>(
 }
 
 // ---------------------------------------------------------------------------
-// CrtGlweAutoKey (NTT-domain)
+// DcrtGlweAutoKey (NTT-domain)
 // ---------------------------------------------------------------------------
 
 /// Automorphism key for NTT-domain automorphism.
@@ -244,7 +246,7 @@ where
 
         debug_assert_eq!(ciphertext.as_ref().len(), params.rns_glwe_len());
 
-        let (_, auto_crt_poly, glev_context) = context.as_mut();
+        let (_, auto_dcrt_poly, glev_context) = context.as_mut();
 
         result.set_zero();
 
@@ -257,18 +259,18 @@ where
                 // 1. NTT-domain permutation (evaluation-point reordering)
                 dcrt_poly_ntt_auto_inplace(
                     in_dcrt_poly.0,
-                    auto_crt_poly.as_mut(),
+                    auto_dcrt_poly.as_mut(),
                     &self.auto_helper,
                     poly_length,
                 );
 
                 // 2. INTT → coefficient domain (required for key-switch decomposition)
-                self.table.inverse_transform_slice(auto_crt_poly.as_mut());
+                self.table.inverse_transform_slice(auto_dcrt_poly.as_mut());
 
                 // 3. Key switch via external product
                 result.add_dcrt_glev_mul_crt_poly_assign(
                     &auto_key_i,
-                    auto_crt_poly,
+                    auto_dcrt_poly,
                     params.basis(),
                     self.table(),
                     rns_base,
@@ -279,7 +281,7 @@ where
         // ----- Process b polynomial: NTT permutation only (no transform needed) -----
         dcrt_poly_ntt_auto_inplace(
             b_in.0,
-            auto_crt_poly.as_mut(),
+            auto_dcrt_poly.as_mut(),
             &self.auto_helper,
             poly_length,
         );
@@ -289,7 +291,7 @@ where
 
         a_out.for_each(|mut ai| ai.neg_assign(poly_length, moduli));
 
-        DcrtPolynomial(auto_crt_poly.as_ref()).sub_to_right(&mut b_out, poly_length, moduli);
+        DcrtPolynomial(auto_dcrt_poly.as_ref()).sub_to_right(&mut b_out, poly_length, moduli);
     }
 }
 
