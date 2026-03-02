@@ -67,6 +67,30 @@ where
             .zip(rhs)
             .for_each(|(a, &b)| modulus.reduce_mul_assign(a, b));
     }
+
+    /// Inverse butterfly: `(self[i], result[i]) = (self[i] + rhs[i], (self[i] - rhs[i]) * w[i])`
+    #[inline]
+    pub fn butterfly_mul_element_wise_inplace<M, A, B, C>(
+        &mut self,
+        rhs: &ArrayBase<A>,
+        w: &ArrayBase<B>,
+        result: &mut ArrayBase<C>,
+        modulus: M,
+    ) where
+        M: Copy + ReduceAdd<T, Output = T> + ReduceSub<T, Output = T> + ReduceMul<T, Output = T>,
+        A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + Data,
+        C: RawData<Elem = T> + DataMut,
+    {
+        debug_assert_eq!(self.len(), rhs.len());
+        debug_assert_eq!(self.len(), w.len());
+        debug_assert_eq!(self.len(), result.len());
+        izip!(self, rhs, w, result.iter_mut()).for_each(|(a, &s, &w, b)| {
+            let a_orig = *a;
+            *a = modulus.reduce_add(a_orig, s);
+            *b = modulus.reduce_mul(modulus.reduce_sub(a_orig, s), w);
+        });
+    }
 }
 
 impl<S, T> ArrayBase<S>

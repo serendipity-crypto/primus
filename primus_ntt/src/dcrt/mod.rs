@@ -100,4 +100,30 @@ pub trait DcrtTable: Sized {
     ///
     /// * `values` - inputs in bit-reversed order, outputs in normal order
     fn inverse_transform_slice(&self, poly: &mut [Self::ValueT]);
+
+    /// NTT of monomial `coeff * X^degree` across all moduli.
+    fn transform_monomial(&self, coeff: Self::ValueT, degree: usize, values: &mut [Self::ValueT]) {
+        let poly_length = self.poly_length();
+        self.iter()
+            .zip(values.chunks_exact_mut(poly_length))
+            .for_each(|(ntt_table, values)| ntt_table.transform_monomial(coeff, degree, values))
+    }
+
+    /// NTT of monomial `X^degree` across all moduli.
+    fn transform_coeff_one_monomial(&self, degree: usize, values: &mut [Self::ValueT]) {
+        let poly_length = self.poly_length();
+        self.iter()
+            .zip(values.chunks_exact_mut(poly_length))
+            .for_each(|(ntt_table, values)| ntt_table.transform_coeff_one_monomial(degree, values))
+    }
+
+    /// NTT of monomial `-X^degree` across all moduli.
+    fn transform_coeff_minus_one_monomial(&self, degree: usize, values: &mut [Self::ValueT]) {
+        let poly_length = self.poly_length();
+        self.iter()
+            .zip(values.chunks_exact_mut(poly_length))
+            .for_each(|(ntt_table, values)| {
+                ntt_table.transform_coeff_minus_one_monomial(degree, values)
+            })
+    }
 }

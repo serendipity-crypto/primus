@@ -100,6 +100,30 @@ where
             });
     }
 
+    /// Inverse butterfly with monomial multiply.
+    /// `(self, result) = (self + rhs, (self_orig - rhs) * dcrt_poly)`
+    pub fn butterfly_mul_dcrt_polynomial_inplace<M, A, B, C>(
+        &mut self,
+        rhs: &DcrtGlwe<A>,
+        dcrt_poly: &DcrtPolynomial<B>,
+        result: &mut DcrtGlwe<C>,
+        poly_length: usize,
+        moduli: &[M],
+    ) where
+        M: FieldContext<T>,
+        A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + Data,
+        C: RawData<Elem = T> + DataMut,
+    {
+        let dcrt_poly_len = dcrt_poly.dcrt_poly_len();
+        self.iter_dcrt_poly_mut(dcrt_poly_len)
+            .zip(rhs.iter_dcrt_poly(dcrt_poly_len))
+            .zip(result.iter_dcrt_poly_mut(dcrt_poly_len))
+            .for_each(|((mut a, s), mut b)| {
+                a.butterfly_mul_inplace(&s, dcrt_poly, &mut b, poly_length, moduli);
+            });
+    }
+
     pub fn add_dcrt_glev_mul_crt_poly_assign<M, Table, A, B>(
         &mut self,
         dcrt_glev: &DcrtGlev<A>,

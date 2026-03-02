@@ -2,44 +2,16 @@ use std::sync::Arc;
 
 use primus_factor::ShoupFactor;
 use primus_integer::{AsInto, BigUint, Data, DataMut, RawData, UnsignedInteger};
-use primus_ntt::{DcrtTable, NttTable};
+use primus_ntt::DcrtTable;
 use primus_poly::DcrtPolynomial;
 use primus_reduce::FieldContext;
 use primus_rns::RNSBase;
 
 use crate::{
-    CrtGlevParameters, CrtGlweAutoContext, DcrtGlweAutoKey, DcrtGlweCiphertext, DcrtGlweSecretKey,
+    CrtGlevParameters, DcrtGlweAutoKey, DcrtGlweCiphertext, DcrtGlweSecretKey, DcrtGlweTraceContext,
 };
 
-pub struct DcrtGlweExpandCoeffContext<T: UnsignedInteger> {
-    dcrt_glwe: DcrtGlweCiphertext<Vec<T>>,
-    auto_context: CrtGlweAutoContext<T>,
-}
-
-impl<T: UnsignedInteger> DcrtGlweExpandCoeffContext<T> {
-    pub fn new(
-        dimension: usize,
-        poly_length: usize,
-        crt_poly_len: usize,
-        big_uint_poly_len: usize,
-    ) -> Self {
-        let dcrt_glwe = DcrtGlweCiphertext::zero((dimension + 1) * crt_poly_len);
-        let auto_context = CrtGlweAutoContext::new(poly_length, crt_poly_len, big_uint_poly_len);
-        Self {
-            dcrt_glwe,
-            auto_context,
-        }
-    }
-
-    pub fn as_mut(
-        &mut self,
-    ) -> (
-        &mut primus_lattice::glwe::DcrtGlwe<Vec<T>>,
-        &mut CrtGlweAutoContext<T>,
-    ) {
-        (&mut self.dcrt_glwe, &mut self.auto_context)
-    }
-}
+pub type DcrtGlweExpandCoeffContext<T> = DcrtGlweTraceContext<T>;
 
 pub struct DcrtGlweExpandCoeffContextPool<T: UnsignedInteger> {
     contexts: Vec<DcrtGlweExpandCoeffContext<T>>,
@@ -145,12 +117,7 @@ where
             .map(|i| {
                 let degree = twice_poly_length - (1 << i);
                 let mut monomial_ntt = vec![T::ZERO; rns_poly_len];
-                table
-                    .iter()
-                    .zip(monomial_ntt.chunks_exact_mut(poly_length))
-                    .for_each(|(ntt_table, values)| {
-                        ntt_table.transform_coeff_one_monomial(degree, values);
-                    });
+                table.transform_coeff_one_monomial(degree, &mut monomial_ntt);
                 monomial_ntt
             })
             .collect()
@@ -248,15 +215,13 @@ where
             x.iter_mut().zip(y.iter_mut()).for_each(|(a_0, b_0)| {
                 auto_key.automorphism_inplace(a_0, dcrt_glwe, params, rns_base, auto_context);
 
-                a_0.sub_element_wise_inplace(dcrt_glwe, b_0, poly_length, rns_poly_len, moduli);
-
-                DcrtGlweCiphertext::new(b_0.as_mut())
-                    .iter_dcrt_poly_mut(rns_poly_len)
-                    .for_each(|mut dcrt_poly| {
-                        dcrt_poly.mul_assign(&monomial_ntt_poly, poly_length, moduli);
-                    });
-
-                a_0.add_element_wise_assign(dcrt_glwe, poly_length, rns_poly_len, moduli);
+                a_0.butterfly_mul_dcrt_polynomial_inplace(
+                    dcrt_glwe,
+                    &monomial_ntt_poly,
+                    b_0,
+                    poly_length,
+                    moduli,
+                );
             });
         }
     }
