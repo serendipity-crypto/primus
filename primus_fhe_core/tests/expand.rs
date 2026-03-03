@@ -285,8 +285,13 @@ fn test_dcrt_glwe_expand_coefficients_parallel() {
     );
     let table = expand_key.table();
 
-    let context_pool =
-        DcrtGlweExpandCoeffSyncPool::new(dimension, poly_length, rns_poly_len, big_uint_poly_len);
+    let context_pool = DcrtGlweExpandCoeffSyncPool::with_capacity(
+        poly_length.trailing_zeros() as usize,
+        dimension,
+        poly_length,
+        rns_poly_len,
+        big_uint_poly_len,
+    );
 
     let mut input1: Polynomial<Vec<ValueT>> = Polynomial::random(poly_length, mod_t, &mut rng);
     let mut msg1: CrtPolynomial<Vec<ValueT>> = CrtPolynomial::zero(rns_poly_len);

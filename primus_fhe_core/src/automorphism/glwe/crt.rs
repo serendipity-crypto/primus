@@ -15,19 +15,26 @@ use crate::{
 
 use super::CrtGlweAutoContext;
 
-/// This defines the operation when perform automorphism on each coefficient.
+/// Packed source index + negate flag for coefficient automorphism.
+/// The high bit stores the negate flag; the lower 31 bits store the source index.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Op {
-    Add,
-    Sub,
-}
+pub struct FromOp(u32);
 
-/// This defines the operation and the source index
-/// when perform automorphism on each coefficient.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct FromOp {
-    from: u32,
-    op: Op,
+impl FromOp {
+    const NEG_FLAG: u32 = 1 << 31;
+
+    fn new(index: usize, negate: bool) -> Self {
+        debug_assert!(index < Self::NEG_FLAG as usize);
+        Self(index as u32 | if negate { Self::NEG_FLAG } else { 0 })
+    }
+
+    fn index(self) -> usize {
+        (self.0 & !Self::NEG_FLAG) as usize
+    }
+
+    fn is_neg(self) -> bool {
+        self.0 & Self::NEG_FLAG != 0
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -54,26 +61,14 @@ fn generate_permutate_ops(degree: usize, poly_length: usize) -> Vec<FromOp> {
     let twice_poly_length = poly_length << 1;
     let modulus = <PowOf2Modulus<usize>>::new(twice_poly_length);
 
-    let mut result = vec![
-        FromOp {
-            from: 0,
-            op: Op::Add
-        };
-        poly_length
-    ];
+    let mut result = vec![FromOp::new(0, false); poly_length];
 
     for i in 0..poly_length {
         let to = modulus.reduce_mul(i, degree);
         if to < poly_length {
-            result[to] = FromOp {
-                from: i as u32,
-                op: Op::Add,
-            };
+            result[to] = FromOp::new(i, false);
         } else {
-            result[to - poly_length] = FromOp {
-                from: i as u32,
-                op: Op::Sub,
-            };
+            result[to - poly_length] = FromOp::new(i, true);
         }
     }
     result
@@ -303,14 +298,11 @@ fn poly_auto_inplace_for_permutation<T, M>(
     M: FieldContext<T>,
 {
     for (d, from_op) in result.iter_mut().zip(from_ops.iter()) {
-        let c = unsafe { poly.get_unchecked(from_op.from as usize) };
-        match from_op.op {
-            Op::Add => {
-                *d = *c;
-            }
-            Op::Sub => {
-                *d = modulus.reduce_neg(*c);
-            }
+        let c = unsafe { poly.get_unchecked(from_op.index()) };
+        if from_op.is_neg() {
+            *d = modulus.reduce_neg(*c);
+        } else {
+            *d = *c;
         }
     }
 }
