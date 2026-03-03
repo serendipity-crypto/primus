@@ -74,7 +74,7 @@ pub trait Integer:
     + ShrAssign<u32>
     + Pow<u32, Output = Self>
     + Pow<usize, Output = Self>
-    + SampleUniform<Sampler: Copy>
+    + SampleUniform<Sampler: Copy + Send + Sync>
     + Serialize
     + for<'de> Deserialize<'de>
     + Zeroize

@@ -14,7 +14,7 @@ pub use concrete::prime32::CrtConcrete32Table;
 pub use concrete::prime64::CrtConcrete64Table;
 pub use primitive::UintCrtNttTable;
 
-pub trait DcrtTable: Sized {
+pub trait DcrtTable: Sized + Send + Sync {
     /// The value type.
     type ValueT: PrimitiveRoot;
 

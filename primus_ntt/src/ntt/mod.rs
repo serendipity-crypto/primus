@@ -17,7 +17,7 @@ pub use hexl::{CmpInt, HexlNttTable};
 pub use primitive::UintNttTable;
 
 /// An abstract for Number Theory Transform.
-pub trait NttTable: Sized {
+pub trait NttTable: Sized + Send + Sync {
     /// The value type.
     type ValueT: PrimitiveRoot;
 

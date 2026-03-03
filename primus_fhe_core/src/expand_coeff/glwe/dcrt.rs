@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use primus_factor::ShoupFactor;
 use primus_integer::{AsInto, BigUint, Data, DataMut, RawData, UnsignedInteger};
@@ -6,10 +6,34 @@ use primus_ntt::DcrtTable;
 use primus_poly::DcrtPolynomial;
 use primus_reduce::FieldContext;
 use primus_rns::RNSBase;
+use rayon::prelude::*;
 
 use crate::{
     CrtGlevParameters, DcrtGlweAutoKey, DcrtGlweCiphertext, DcrtGlweSecretKey, DcrtGlweTraceContext,
 };
+
+/// Wrapper that asserts `Sync` for shared immutable references in parallel contexts.
+///
+/// # Safety
+///
+/// The wrapped reference must only be used for immutable access. The non-`Sync` fields
+/// (e.g., `rand::Uniform` samplers within `CrtGlevParameters`) must not be accessed
+/// concurrently through this wrapper.
+struct SyncRef<'a, T: ?Sized>(&'a T);
+
+// Safety: The wrapped reference is only shared immutably across threads.
+// `CrtGlevParameters` contains `SignedDiscreteGaussian` whose `rand::Uniform` sampler
+// doesn't implement `Sync` due to overly conservative generic bounds in the `rand` crate,
+// but the sampler fields are never accessed during the parallel coefficient expansion.
+unsafe impl<T: ?Sized> Sync for SyncRef<'_, T> {}
+unsafe impl<T: ?Sized> Send for SyncRef<'_, T> {}
+
+impl<T: ?Sized> std::ops::Deref for SyncRef<'_, T> {
+    type Target = T;
+    fn deref(&self) -> &T {
+        self.0
+    }
+}
 
 pub type DcrtGlweExpandCoeffContext<T> = DcrtGlweTraceContext<T>;
 
@@ -53,6 +77,53 @@ impl<T: UnsignedInteger> DcrtGlweExpandCoeffContextPool<T> {
 
     pub fn is_empty(&self) -> bool {
         self.contexts.is_empty()
+    }
+}
+
+/// Thread-safe context pool for parallel coefficient expansion.
+///
+/// Contexts are lazily allocated on demand and reused via `acquire`/`release`.
+/// The pool grows up to the number of concurrent worker threads.
+pub struct DcrtGlweExpandCoeffSyncPool<T: UnsignedInteger> {
+    contexts: Mutex<Vec<DcrtGlweExpandCoeffContext<T>>>,
+    dimension: usize,
+    poly_length: usize,
+    crt_poly_len: usize,
+    big_uint_poly_len: usize,
+}
+
+impl<T: UnsignedInteger> DcrtGlweExpandCoeffSyncPool<T> {
+    /// Creates an empty pool. Contexts are allocated lazily on first [`Self::acquire`].
+    pub fn new(
+        dimension: usize,
+        poly_length: usize,
+        crt_poly_len: usize,
+        big_uint_poly_len: usize,
+    ) -> Self {
+        Self {
+            contexts: Mutex::new(Vec::new()),
+            dimension,
+            poly_length,
+            crt_poly_len,
+            big_uint_poly_len,
+        }
+    }
+
+    /// Pop a context from the pool, or create a new one if empty.
+    pub fn acquire(&self) -> DcrtGlweExpandCoeffContext<T> {
+        self.contexts.lock().unwrap().pop().unwrap_or_else(|| {
+            DcrtGlweExpandCoeffContext::new(
+                self.dimension,
+                self.poly_length,
+                self.crt_poly_len,
+                self.big_uint_poly_len,
+            )
+        })
+    }
+
+    /// Return a context to the pool for reuse.
+    pub fn release(&self, ctx: DcrtGlweExpandCoeffContext<T>) {
+        self.contexts.lock().unwrap().push(ctx);
     }
 }
 
@@ -223,6 +294,103 @@ where
                     moduli,
                 );
             });
+        }
+    }
+
+    /// Parallel Coefficient Expansion Algorithm.
+    ///
+    /// Expands all `poly_length` coefficients using rayon parallelism.
+    /// (Alg. 1)<https://eprint.iacr.org/2024/266.pdf>
+    pub fn expand_coefficients_inplace_parallel<M, A, B>(
+        &self,
+        ciphertext: &DcrtGlweCiphertext<A>,
+        result: &mut [DcrtGlweCiphertext<B>],
+        params: &CrtGlevParameters<T, M>,
+        rns_base: &RNSBase<T, M>,
+        context_pool: &DcrtGlweExpandCoeffSyncPool<T>,
+    ) where
+        M: FieldContext<T> + Sync,
+        A: RawData<Elem = T> + Data + Sync,
+        B: RawData<Elem = T> + DataMut + Send,
+        Table: Send + Sync,
+    {
+        debug_assert_eq!(result.len(), params.poly_length());
+        self.expand_partial_coefficients_inplace_parallel(
+            ciphertext,
+            result,
+            params,
+            rns_base,
+            context_pool,
+        );
+    }
+
+    /// Parallel Coefficient Expansion Algorithm.
+    ///
+    /// (Alg. 1)<https://eprint.iacr.org/2024/266.pdf>
+    pub fn expand_partial_coefficients_inplace_parallel<M, A, B>(
+        &self,
+        ciphertext: &DcrtGlweCiphertext<A>,
+        result: &mut [DcrtGlweCiphertext<B>],
+        params: &CrtGlevParameters<T, M>,
+        rns_base: &RNSBase<T, M>,
+        context_pool: &DcrtGlweExpandCoeffSyncPool<T>,
+    ) where
+        M: FieldContext<T> + Sync,
+        A: RawData<Elem = T> + Data + Sync,
+        B: RawData<Elem = T> + DataMut + Send,
+        Table: Send + Sync,
+    {
+        let poly_length = params.poly_length();
+        let count = result.len();
+        assert!(count.is_power_of_two() && count <= poly_length);
+
+        let rns_poly_len = params.rns_poly_len();
+        let moduli = params.cipher_moduli();
+        let moduli_value = params.cipher_moduli_value();
+
+        let log_d = count.trailing_zeros() as usize;
+        debug_assert!(log_d <= self.monomial_ntt_by_level.len());
+        debug_assert!(log_d < self.inv_n_residue_by_log_count.len());
+
+        ciphertext.mul_factor_inplace(
+            &self.inv_n_residue_by_log_count[log_d],
+            &mut result[0],
+            poly_length,
+            rns_poly_len,
+            moduli_value,
+        );
+
+        // Wrap params and rns_base in SyncRef to allow sharing across rayon threads.
+        // CrtGlevParameters contains SignedDiscreteGaussian whose rand::Uniform sampler
+        // doesn't implement Sync due to generic bounds in the rand crate, but those
+        // fields are never accessed during the parallel butterfly computation.
+        let params = SyncRef(params);
+        let rns_base = SyncRef(rns_base);
+
+        for (i, auto_key) in self.auto_keys.iter().enumerate().take(log_d) {
+            let two_pow_i = 1 << i;
+            let monomial_ntt_poly = DcrtPolynomial(self.monomial_ntt_by_level[i].as_slice());
+
+            let (x, y) = unsafe { result[..two_pow_i * 2].split_at_mut_unchecked(two_pow_i) };
+
+            x.par_iter_mut()
+                .zip(y.par_iter_mut())
+                .for_each(|(a_0, b_0)| {
+                    let mut ctx = context_pool.acquire();
+                    let (dcrt_glwe, auto_context) = ctx.as_mut();
+
+                    auto_key.automorphism_inplace(a_0, dcrt_glwe, &params, &rns_base, auto_context);
+
+                    a_0.butterfly_mul_dcrt_polynomial_inplace(
+                        dcrt_glwe,
+                        &monomial_ntt_poly,
+                        b_0,
+                        poly_length,
+                        moduli,
+                    );
+
+                    context_pool.release(ctx);
+                });
         }
     }
 }
