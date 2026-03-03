@@ -12,73 +12,7 @@ use crate::{
     CrtGlevParameters, DcrtGlweAutoKey, DcrtGlweCiphertext, DcrtGlweSecretKey, DcrtGlweTraceContext,
 };
 
-/// Wrapper that asserts `Sync` for shared immutable references in parallel contexts.
-///
-/// # Safety
-///
-/// The wrapped reference must only be used for immutable access. The non-`Sync` fields
-/// (e.g., `rand::Uniform` samplers within `CrtGlevParameters`) must not be accessed
-/// concurrently through this wrapper.
-struct SyncRef<'a, T: ?Sized>(&'a T);
-
-// Safety: The wrapped reference is only shared immutably across threads.
-// `CrtGlevParameters` contains `SignedDiscreteGaussian` whose `rand::Uniform` sampler
-// doesn't implement `Sync` due to overly conservative generic bounds in the `rand` crate,
-// but the sampler fields are never accessed during the parallel coefficient expansion.
-unsafe impl<T: ?Sized> Sync for SyncRef<'_, T> {}
-unsafe impl<T: ?Sized> Send for SyncRef<'_, T> {}
-
-impl<T: ?Sized> std::ops::Deref for SyncRef<'_, T> {
-    type Target = T;
-    fn deref(&self) -> &T {
-        self.0
-    }
-}
-
 pub type DcrtGlweExpandCoeffContext<T> = DcrtGlweTraceContext<T>;
-
-pub struct DcrtGlweExpandCoeffContextPool<T: UnsignedInteger> {
-    contexts: Vec<DcrtGlweExpandCoeffContext<T>>,
-}
-
-impl<T: UnsignedInteger> DcrtGlweExpandCoeffContextPool<T> {
-    pub fn new(
-        size: usize,
-        dimension: usize,
-        poly_length: usize,
-        crt_poly_len: usize,
-        big_uint_poly_len: usize,
-    ) -> Self {
-        assert!(size > 0);
-        let contexts = (0..size)
-            .map(|_| {
-                DcrtGlweExpandCoeffContext::new(
-                    dimension,
-                    poly_length,
-                    crt_poly_len,
-                    big_uint_poly_len,
-                )
-            })
-            .collect();
-        Self { contexts }
-    }
-
-    pub fn get_mut(&mut self, idx: usize) -> &mut DcrtGlweExpandCoeffContext<T> {
-        &mut self.contexts[idx]
-    }
-
-    pub fn as_mut_slice(&mut self) -> &mut [DcrtGlweExpandCoeffContext<T>] {
-        self.contexts.as_mut_slice()
-    }
-
-    pub fn len(&self) -> usize {
-        self.contexts.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.contexts.is_empty()
-    }
-}
 
 /// Thread-safe context pool for parallel coefficient expansion.
 ///
@@ -133,8 +67,8 @@ where
     Table: DcrtTable<ValueT = T>,
 {
     auto_keys: Vec<DcrtGlweAutoKey<T, Table>>,
-    monomial_ntt_by_level: Vec<Vec<T>>,
-    inv_n_residue_by_log_count: Vec<Vec<ShoupFactor<T>>>,
+    ntt_monomials: Vec<Vec<T>>,
+    inv_count_residues_by_level: Vec<Vec<ShoupFactor<T>>>,
     table: Arc<Table>,
 }
 
@@ -165,8 +99,8 @@ where
 
         Self {
             auto_keys,
-            monomial_ntt_by_level,
-            inv_n_residue_by_log_count,
+            ntt_monomials: monomial_ntt_by_level,
+            inv_count_residues_by_level: inv_n_residue_by_log_count,
             table,
         }
     }
@@ -264,11 +198,11 @@ where
         let moduli_value = params.cipher_moduli_value();
 
         let log_d = count.trailing_zeros() as usize;
-        debug_assert!(log_d <= self.monomial_ntt_by_level.len());
-        debug_assert!(log_d < self.inv_n_residue_by_log_count.len());
+        debug_assert!(log_d <= self.ntt_monomials.len());
+        debug_assert!(log_d < self.inv_count_residues_by_level.len());
 
         ciphertext.mul_factor_inplace(
-            &self.inv_n_residue_by_log_count[log_d],
+            &self.inv_count_residues_by_level[log_d],
             &mut result[0],
             poly_length,
             rns_poly_len,
@@ -277,9 +211,15 @@ where
 
         let (dcrt_glwe, auto_context) = context.as_mut();
 
-        for (i, auto_key) in self.auto_keys.iter().enumerate().take(log_d) {
+        for (i, (auto_key, ntt_monomial)) in self
+            .auto_keys
+            .iter()
+            .zip(self.ntt_monomials.iter())
+            .enumerate()
+            .take(log_d)
+        {
             let two_pow_i = 1 << i;
-            let monomial_ntt_poly = DcrtPolynomial(self.monomial_ntt_by_level[i].as_slice());
+            let monomial_ntt_poly = DcrtPolynomial(ntt_monomial.as_slice());
 
             let (x, y) = unsafe { result[..two_pow_i * 2].split_at_mut_unchecked(two_pow_i) };
 
@@ -349,27 +289,26 @@ where
         let moduli_value = params.cipher_moduli_value();
 
         let log_d = count.trailing_zeros() as usize;
-        debug_assert!(log_d <= self.monomial_ntt_by_level.len());
-        debug_assert!(log_d < self.inv_n_residue_by_log_count.len());
+        debug_assert!(log_d <= self.ntt_monomials.len());
+        debug_assert!(log_d < self.inv_count_residues_by_level.len());
 
         ciphertext.mul_factor_inplace(
-            &self.inv_n_residue_by_log_count[log_d],
+            &self.inv_count_residues_by_level[log_d],
             &mut result[0],
             poly_length,
             rns_poly_len,
             moduli_value,
         );
 
-        // Wrap params and rns_base in SyncRef to allow sharing across rayon threads.
-        // CrtGlevParameters contains SignedDiscreteGaussian whose rand::Uniform sampler
-        // doesn't implement Sync due to generic bounds in the rand crate, but those
-        // fields are never accessed during the parallel butterfly computation.
-        let params = SyncRef(params);
-        let rns_base = SyncRef(rns_base);
-
-        for (i, auto_key) in self.auto_keys.iter().enumerate().take(log_d) {
+        for (i, (auto_key, ntt_monomial)) in self
+            .auto_keys
+            .iter()
+            .zip(self.ntt_monomials.iter())
+            .enumerate()
+            .take(log_d)
+        {
             let two_pow_i = 1 << i;
-            let monomial_ntt_poly = DcrtPolynomial(self.monomial_ntt_by_level[i].as_slice());
+            let ntt_monomial_poly = DcrtPolynomial(ntt_monomial.as_slice());
 
             let (x, y) = unsafe { result[..two_pow_i * 2].split_at_mut_unchecked(two_pow_i) };
 
@@ -383,7 +322,7 @@ where
 
                     a_0.butterfly_mul_dcrt_polynomial_inplace(
                         dcrt_glwe,
-                        &monomial_ntt_poly,
+                        &ntt_monomial_poly,
                         b_0,
                         poly_length,
                         moduli,

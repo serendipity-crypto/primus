@@ -1,6 +1,3 @@
 mod dcrt;
 
-pub use dcrt::{
-    DcrtGlweExpandCoeffContext, DcrtGlweExpandCoeffContextPool, DcrtGlweExpandCoeffKey,
-    DcrtGlweExpandCoeffSyncPool,
-};
+pub use dcrt::{DcrtGlweExpandCoeffContext, DcrtGlweExpandCoeffKey, DcrtGlweExpandCoeffSyncPool};
