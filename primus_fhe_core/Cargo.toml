@@ -27,6 +27,19 @@ zeroize = { workspace = true }
 [dev-dependencies]
 pretty_assertions = { workspace = true }
 indicatif = { workspace = true }
+criterion = { workspace = true }
+
+[[bench]]
+name = "automorphism"
+harness = false
+
+[[bench]]
+name = "trace"
+harness = false
+
+[[bench]]
+name = "expand_coeff"
+harness = false
 
 [features]
 # nightly = ["primus_ntt/nightly", "primus_lattice/nightly"]
