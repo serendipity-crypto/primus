@@ -43,8 +43,38 @@ impl<T: UnsignedInteger> DcrtGlweExpandCoeffSyncPool<T> {
         }
     }
 
+    /// Creates a pre-warmed pool with `capacity` contexts already allocated.
+    ///
+    /// Use `rayon::current_num_threads()` as `capacity` to avoid any allocation
+    /// during parallel computation.
+    pub fn with_capacity(
+        capacity: usize,
+        dimension: usize,
+        poly_length: usize,
+        crt_poly_len: usize,
+        big_uint_poly_len: usize,
+    ) -> Self {
+        let contexts = (0..capacity)
+            .map(|_| {
+                DcrtGlweExpandCoeffContext::new(
+                    dimension,
+                    poly_length,
+                    crt_poly_len,
+                    big_uint_poly_len,
+                )
+            })
+            .collect();
+        Self {
+            contexts: Mutex::new(contexts),
+            dimension,
+            poly_length,
+            crt_poly_len,
+            big_uint_poly_len,
+        }
+    }
+
     /// Pop a context from the pool, or create a new one if empty.
-    pub fn acquire(&self) -> DcrtGlweExpandCoeffContext<T> {
+    fn acquire(&self) -> DcrtGlweExpandCoeffContext<T> {
         self.contexts.lock().unwrap().pop().unwrap_or_else(|| {
             DcrtGlweExpandCoeffContext::new(
                 self.dimension,
@@ -56,8 +86,44 @@ impl<T: UnsignedInteger> DcrtGlweExpandCoeffSyncPool<T> {
     }
 
     /// Return a context to the pool for reuse.
-    pub fn release(&self, ctx: DcrtGlweExpandCoeffContext<T>) {
+    fn release(&self, ctx: DcrtGlweExpandCoeffContext<T>) {
         self.contexts.lock().unwrap().push(ctx);
+    }
+
+    /// Acquire a context wrapped in a guard that auto-releases on drop.
+    fn acquire_guard(&self) -> PoolGuard<'_, T> {
+        PoolGuard {
+            ctx: Some(self.acquire()),
+            pool: self,
+        }
+    }
+}
+
+/// RAII guard that automatically releases a context back to the pool on drop.
+///
+/// Each rayon worker thread holds one guard (via `for_each_init`), so the total
+/// number of mutex lock operations per level is O(threads) instead of O(pairs).
+struct PoolGuard<'a, T: UnsignedInteger> {
+    ctx: Option<DcrtGlweExpandCoeffContext<T>>,
+    pool: &'a DcrtGlweExpandCoeffSyncPool<T>,
+}
+
+impl<T: UnsignedInteger> PoolGuard<'_, T> {
+    fn as_mut(
+        &mut self,
+    ) -> (
+        &mut primus_lattice::glwe::DcrtGlwe<Vec<T>>,
+        &mut crate::CrtGlweAutoContext<T>,
+    ) {
+        self.ctx.as_mut().unwrap().as_mut()
+    }
+}
+
+impl<T: UnsignedInteger> Drop for PoolGuard<'_, T> {
+    fn drop(&mut self) {
+        if let Some(ctx) = self.ctx.take() {
+            self.pool.release(ctx);
+        }
     }
 }
 
@@ -94,13 +160,13 @@ where
             .map(|degree| DcrtGlweAutoKey::new(params, degree, dcrt_sk, Arc::clone(&table), rng))
             .collect();
 
-        let monomial_ntt_by_level = Self::precompute_monomials(params, table.as_ref());
-        let inv_n_residue_by_log_count = Self::precompute_inv_n_residue(params, rns_base);
+        let ntt_monomials = Self::precompute_monomials(params, table.as_ref());
+        let inv_count_residues_by_level = Self::precompute_inv_count_residues(params, rns_base);
 
         Self {
             auto_keys,
-            ntt_monomials: monomial_ntt_by_level,
-            inv_count_residues_by_level: inv_n_residue_by_log_count,
+            ntt_monomials,
+            inv_count_residues_by_level,
             table,
         }
     }
@@ -128,7 +194,7 @@ where
             .collect()
     }
 
-    fn precompute_inv_n_residue<M>(
+    fn precompute_inv_count_residues<M>(
         params: &CrtGlevParameters<T, M>,
         rns_base: &RNSBase<T, M>,
     ) -> Vec<Vec<ShoupFactor<T>>>
@@ -219,8 +285,10 @@ where
             .take(log_d)
         {
             let two_pow_i = 1 << i;
-            let monomial_ntt_poly = DcrtPolynomial(ntt_monomial.as_slice());
+            let ntt_monomial_poly = DcrtPolynomial(ntt_monomial.as_slice());
 
+            // SAFETY: `i < log_d` guarantees `two_pow_i * 2 <= count == result.len()`,
+            // and `two_pow_i <= two_pow_i * 2`, so the split point is within bounds.
             let (x, y) = unsafe { result[..two_pow_i * 2].split_at_mut_unchecked(two_pow_i) };
 
             x.iter_mut().zip(y.iter_mut()).for_each(|(a_0, b_0)| {
@@ -228,7 +296,7 @@ where
 
                 a_0.butterfly_mul_dcrt_polynomial_inplace(
                     dcrt_glwe,
-                    &monomial_ntt_poly,
+                    &ntt_monomial_poly,
                     b_0,
                     poly_length,
                     moduli,
@@ -310,15 +378,16 @@ where
             let two_pow_i = 1 << i;
             let ntt_monomial_poly = DcrtPolynomial(ntt_monomial.as_slice());
 
+            // SAFETY: `i < log_d` guarantees `two_pow_i * 2 <= count == result.len()`,
+            // and `two_pow_i <= two_pow_i * 2`, so the split point is within bounds.
             let (x, y) = unsafe { result[..two_pow_i * 2].split_at_mut_unchecked(two_pow_i) };
 
-            x.par_iter_mut()
-                .zip(y.par_iter_mut())
-                .for_each(|(a_0, b_0)| {
-                    let mut ctx = context_pool.acquire();
-                    let (dcrt_glwe, auto_context) = ctx.as_mut();
+            x.par_iter_mut().zip(y.par_iter_mut()).for_each_init(
+                || context_pool.acquire_guard(),
+                |guard, (a_0, b_0)| {
+                    let (dcrt_glwe, auto_context) = guard.as_mut();
 
-                    auto_key.automorphism_inplace(a_0, dcrt_glwe, &params, &rns_base, auto_context);
+                    auto_key.automorphism_inplace(a_0, dcrt_glwe, params, rns_base, auto_context);
 
                     a_0.butterfly_mul_dcrt_polynomial_inplace(
                         dcrt_glwe,
@@ -327,9 +396,8 @@ where
                         poly_length,
                         moduli,
                     );
-
-                    context_pool.release(ctx);
-                });
+                },
+            );
         }
     }
 }

@@ -159,7 +159,7 @@ impl<T: UnsignedInteger> BigUintApproxSignedBasis<T> {
         let moduli_count = rns_base.moduli_count();
         let mut scalars_residue = vec![T::ZERO; moduli_count * decompose_length];
 
-        BigUintIter::new(&mut scalars, modulus_value_len)
+        BigUintIter::new(&scalars, modulus_value_len)
             .zip(scalars_residue.chunks_exact_mut(moduli_count))
             .for_each(|(scalar, residues)| {
                 rns_base.decompose_inplace(scalar, residues);
