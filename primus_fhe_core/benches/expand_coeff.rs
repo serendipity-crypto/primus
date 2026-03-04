@@ -11,7 +11,7 @@ use primus_fhe_core::{
 };
 use primus_lattice::glwe::{CrtGlwe, DcrtGlwe};
 use primus_modulus::BarrettModulus;
-use primus_ntt::{DcrtTable, UintCrtNttTable};
+use primus_ntt::{CrtConcrete64Table, DcrtTable};
 use primus_poly::{CrtPolynomial, Polynomial};
 
 fn bench_expand_coeff(c: &mut Criterion) {
@@ -36,7 +36,7 @@ fn bench_expand_coeff(c: &mut Criterion) {
 
     for log_n in [10u32, 11, 12] {
         let poly_length = 1usize << log_n;
-        let table = UintCrtNttTable::new(log_n, &moduli).unwrap();
+        let table = CrtConcrete64Table::new(log_n, &moduli).unwrap();
 
         let glwe_params = CrtGlweParameters::new(
             dimension,
