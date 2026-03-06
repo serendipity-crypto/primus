@@ -215,6 +215,7 @@ pub fn fwd_t8_inplace<const BIT_SHIFT: u32, const INPUT_LESS_THAN_MOD: bool>(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub unsafe fn forward_transform_to_bit_reverse_avx512<const BIT_SHIFT: u32>(
     operand: &mut [u64],
     modulus: u64,

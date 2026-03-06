@@ -80,6 +80,21 @@ where
             });
     }
 
+    /// Performs `self *= scalar` according to `moduli`.
+    #[inline]
+    pub fn mul_factor_assign(
+        &mut self,
+        scalar: &[ShoupFactor<T>],
+        poly_length: usize,
+        dcrt_poly_len: usize,
+        moduli: &[T],
+    ) {
+        self.iter_dcrt_poly_mut(dcrt_poly_len)
+            .for_each(|mut dcrt_poly| {
+                dcrt_poly.mul_factor_assign(scalar, poly_length, moduli);
+            });
+    }
+
     pub fn add_dcrt_glwe_mul_dcrt_polynomial_assign<M, A, B>(
         &mut self,
         dcrt_glwe: &DcrtGlwe<A>,
@@ -190,7 +205,7 @@ where
 
                 self.add_dcrt_glwe_mul_dcrt_polynomial_assign(
                     &dcrt_glwe,
-                    &DcrtPolynomial(multi_residues.as_ref()),
+                    &DcrtPolynomial(&*multi_residues),
                     poly_length,
                     moduli,
                 );
@@ -263,7 +278,7 @@ where
 
                 self.add_dcrt_glwe_mul_dcrt_polynomial_assign(
                     &dcrt_glwe,
-                    &DcrtPolynomial(multi_residues.as_ref()),
+                    &DcrtPolynomial(&*multi_residues),
                     poly_length,
                     moduli,
                 );

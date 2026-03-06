@@ -228,6 +228,7 @@ pub fn inv_t8<const BIT_SHIFT: u32>(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub unsafe fn inverse_transform_from_bit_reverse_avx512<const BIT_SHIFT: u32>(
     operand: &mut [u64],
     modulus: u64,

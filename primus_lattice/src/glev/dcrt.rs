@@ -93,7 +93,7 @@ where
 
                 result.add_dcrt_glwe_mul_dcrt_polynomial_assign(
                     &dcrt_glwe,
-                    &DcrtPolynomial(multi_residues.as_ref()),
+                    &DcrtPolynomial(&*multi_residues),
                     poly_length,
                     moduli,
                 );
@@ -153,7 +153,7 @@ where
 
                 result.add_dcrt_glwe_mul_dcrt_polynomial_assign(
                     &dcrt_glwe,
-                    &DcrtPolynomial(multi_residues.as_ref()),
+                    &DcrtPolynomial(&*multi_residues),
                     poly_length,
                     moduli,
                 );
