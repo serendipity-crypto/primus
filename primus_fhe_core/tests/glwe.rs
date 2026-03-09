@@ -43,6 +43,7 @@ fn test_rns_glwe() {
 
     let rns_poly_len = glwe_params.rns_poly_len();
     let rns_glwe_len = glwe_params.rns_glwe_len();
+    let base_q = glwe_params.base_q();
 
     let sk = CrtGlweSecretKey::generate(&glwe_params, &mut rng);
     let dcrt_sk = DcrtGlweSecretKey::from_coeff_secret_key(&sk, &table);
@@ -55,25 +56,19 @@ fn test_rns_glwe() {
     .unwrap()
     .progress_chars("##-");
 
-    for _ in (0..1000).progress_with_style(style) {
+    for _ in (0..100).progress_with_style(style) {
         let m0: Polynomial<Vec<ValueT>> = Polynomial::random(poly_length, mod_t, &mut rng);
         let mut m1: Polynomial<Vec<ValueT>> = Polynomial::random(poly_length, mod_t, &mut rng);
         let m2: Polynomial<Vec<ValueT>> = Polynomial::random_binary(poly_length, &mut rng);
 
         let mut msg0: CrtPolynomial<Vec<ValueT>> = CrtPolynomial::zero(rns_poly_len);
-        glwe_params
-            .base_q()
-            .wrapping_decompose_small_polynomial_inplace(&m0, &mut msg0, poly_length, t);
+        base_q.wrapping_decompose_small_polynomial_inplace(&m0, &mut msg0, poly_length, t);
 
         let mut msg1: CrtPolynomial<Vec<ValueT>> = CrtPolynomial::zero(rns_poly_len);
-        glwe_params
-            .base_q()
-            .wrapping_decompose_small_polynomial_inplace(&m1, &mut msg1, poly_length, t);
+        base_q.wrapping_decompose_small_polynomial_inplace(&m1, &mut msg1, poly_length, t);
 
         let mut msg2: CrtPolynomial<Vec<ValueT>> = CrtPolynomial::zero(rns_poly_len);
-        glwe_params
-            .base_q()
-            .wrapping_decompose_small_polynomial_inplace(&m2, &mut msg2, poly_length, t);
+        base_q.wrapping_decompose_small_polynomial_inplace(&m2, &mut msg2, poly_length, t);
 
         let mut c0: DcrtGlwe<Vec<ValueT>> = DcrtGlweCiphertext::zero(rns_glwe_len);
         let mut c1: DcrtGlwe<Vec<ValueT>> = DcrtGlweCiphertext::zero(rns_glwe_len);

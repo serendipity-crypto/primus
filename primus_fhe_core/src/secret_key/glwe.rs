@@ -237,6 +237,15 @@ impl<T: UnsignedInteger> CrtGlweSecretKey<T> {
         }
     }
 
+    #[inline]
+    pub fn zero(dimension: usize, crt_poly_len: usize, distr: RingSecretKeyType) -> Self {
+        Self {
+            key: vec![T::ZERO; dimension * crt_poly_len],
+            distr,
+            rns_poly_len: crt_poly_len,
+        }
+    }
+
     pub fn key(&self) -> &[T] {
         &self.key
     }
@@ -318,6 +327,14 @@ impl<T: UnsignedInteger> Zeroize for DcrtGlweSecretKey<T> {
 impl<T: UnsignedInteger> ZeroizeOnDrop for DcrtGlweSecretKey<T> {}
 
 impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
+    pub fn zero(dimension: usize, crt_poly_len: usize, distr: RingSecretKeyType) -> Self {
+        Self {
+            key: vec![T::ZERO; dimension * crt_poly_len],
+            distr,
+            rns_poly_len: crt_poly_len,
+        }
+    }
+
     pub fn key(&self) -> &[T] {
         &self.key
     }

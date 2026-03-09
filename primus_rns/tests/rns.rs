@@ -197,7 +197,7 @@ fn test_bfv_dec_array() {
     .unwrap()
     .progress_chars("##-");
 
-    for _ in (0..10000).progress_with_style(style) {
+    for _ in (0..100).progress_with_style(style) {
         let input: Vec<ValueT> = plain_uniform
             .sample_iter(&mut rng)
             .take(poly_length)

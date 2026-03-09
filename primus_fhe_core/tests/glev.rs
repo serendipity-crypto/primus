@@ -44,12 +44,12 @@ fn test_rns_glev() {
     let moduli_count = glwe_params.cipher_moduli_count();
     let rns_poly_len = glwe_params.rns_poly_len();
     let big_uint_poly_len = glwe_params.big_uint_poly_len();
+    let base_q = glwe_params.base_q();
 
     let sk = CrtGlweSecretKey::generate(&glwe_params, &mut rng);
     let dcrt_sk = DcrtGlweSecretKey::from_coeff_secret_key(&sk, &table);
 
-    let basis =
-        BigUintApproxSignedBasis::new(glwe_params.cipher_modulus(), 20, None, glwe_params.base_q());
+    let basis = BigUintApproxSignedBasis::new(glwe_params.cipher_modulus(), 20, None, base_q);
     let glev_params = CrtGlevParameters::with_glwe_params(&glwe_params, basis);
     let rns_glev_len = glev_params.rns_glev_len();
 
@@ -72,19 +72,13 @@ fn test_rns_glev() {
     let mut msg1: CrtPolynomial<Vec<ValueT>> = CrtPolynomial::zero(rns_poly_len);
     let mut msg2: CrtPolynomial<Vec<ValueT>> = CrtPolynomial::zero(rns_poly_len);
 
-    glwe_params
-        .base_q()
-        .wrapping_decompose_small_polynomial_inplace(&input1, &mut msg1, poly_length, t);
+    base_q.wrapping_decompose_small_polynomial_inplace(&input1, &mut msg1, poly_length, t);
 
-    glwe_params
-        .base_q()
-        .wrapping_decompose_small_polynomial_inplace(&input2, &mut msg2, poly_length, t);
+    base_q.wrapping_decompose_small_polynomial_inplace(&input2, &mut msg2, poly_length, t);
 
     msg2.mul_scalar_assign(glwe_params.delta_mod_q(), poly_length, &moduli);
 
-    glwe_params
-        .base_q()
-        .compose_polynomial_inplace(&msg2, &mut msg2_big_uint_poly, poly_length);
+    base_q.compose_polynomial_inplace(&msg2, &mut msg2_big_uint_poly, poly_length);
 
     let mut c1: DcrtGlwe<Vec<ValueT>> = DcrtGlwe::zero(rns_glwe_len);
 
@@ -101,7 +95,7 @@ fn test_rns_glev() {
         &mut c1,
         glev_params.basis(),
         &table,
-        glwe_params.base_q(),
+        base_q,
         &mut glev_context,
     );
 

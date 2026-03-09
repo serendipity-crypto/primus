@@ -45,6 +45,7 @@ fn test_rns_glwe_ksk() {
     let big_uint_poly_len = glwe_params.big_uint_poly_len();
     let rns_poly_len = glwe_params.rns_poly_len();
     let rns_glwe_len = glwe_params.rns_glwe_len();
+    let base_q = glwe_params.base_q();
 
     let sk_1 = CrtGlweSecretKey::generate(&glwe_params, &mut rng);
     let dcrt_sk_1 = DcrtGlweSecretKey::from_coeff_secret_key(&sk_1, &table);
@@ -52,8 +53,7 @@ fn test_rns_glwe_ksk() {
     let sk_2 = CrtGlweSecretKey::generate(&glwe_params, &mut rng);
     let dcrt_sk_2 = DcrtGlweSecretKey::from_coeff_secret_key(&sk_2, &table);
 
-    let basis =
-        BigUintApproxSignedBasis::new(glwe_params.cipher_modulus(), 20, None, glwe_params.base_q());
+    let basis = BigUintApproxSignedBasis::new(glwe_params.cipher_modulus(), 20, None, base_q);
     let glev_params = CrtGlevParameters::with_glwe_params(&glwe_params, basis);
 
     let key_switching_key = CrtGlweKeySwitchingKey::new(
@@ -74,9 +74,7 @@ fn test_rns_glwe_ksk() {
         CrtGlweKeySwitchingContext::new(poly_length, rns_poly_len, big_uint_poly_len);
     let mut decrypt_context = DcrtGlweDecryptContext::new(moduli_count, poly_length);
 
-    glwe_params
-        .base_q()
-        .wrapping_decompose_small_polynomial_inplace(&input, &mut msg, poly_length, t);
+    base_q.wrapping_decompose_small_polynomial_inplace(&input, &mut msg, poly_length, t);
 
     dcrt_sk_1.encrypt_inplace(&msg, &mut c1, &glwe_params, &table, &mut rng);
 
@@ -90,7 +88,7 @@ fn test_rns_glwe_ksk() {
         &mut c2,
         glev_params.basis(),
         &table,
-        glwe_params.base_q(),
+        base_q,
         &mut ksk_context,
     );
 

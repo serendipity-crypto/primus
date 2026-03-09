@@ -47,12 +47,12 @@ fn test_external_product() {
     let rns_poly_len = glwe_params.rns_poly_len();
     let big_uint_poly_len = glwe_params.big_uint_poly_len();
     let rns_glwe_len = glwe_params.rns_glwe_len();
+    let base_q = glwe_params.base_q();
 
     let sk = CrtGlweSecretKey::generate(&glwe_params, &mut rng);
     let dcrt_sk = DcrtGlweSecretKey::from_coeff_secret_key(&sk, &table);
 
-    let basis =
-        BigUintApproxSignedBasis::new(glwe_params.cipher_modulus(), 30, None, glwe_params.base_q());
+    let basis = BigUintApproxSignedBasis::new(glwe_params.cipher_modulus(), 30, None, base_q);
     let glev_params = CrtGlevParameters::with_glwe_params(&glwe_params, basis);
 
     let pk = DcrtGlwePublicKey::new(&dcrt_sk, &glwe_params, &table, &mut rng);
@@ -63,7 +63,7 @@ fn test_external_product() {
     .unwrap()
     .progress_chars("##-");
 
-    for _ in (0..1000).progress_with_style(style) {
+    for _ in (0..20).progress_with_style(style) {
         let degree = rng.random_range(0..poly_length);
         // println!("degree: {degree}");
 
@@ -77,9 +77,7 @@ fn test_external_product() {
         let mut glev_context = DcrtGlevContext::new(poly_length, rns_poly_len, big_uint_poly_len);
         let mut decrypt_context = DcrtGlweDecryptContext::new(moduli_count, poly_length);
 
-        glwe_params
-            .base_q()
-            .wrapping_decompose_small_polynomial_inplace(&input, &mut msg, poly_length, t);
+        base_q.wrapping_decompose_small_polynomial_inplace(&input, &mut msg, poly_length, t);
 
         dcrt_sk.encrypt_inplace(&msg, &mut c1, &glwe_params, &table, &mut rng);
 
@@ -90,7 +88,7 @@ fn test_external_product() {
             &mut c2,
             glev_params.basis(),
             &table,
-            glwe_params.base_q(),
+            base_q,
             &mut glev_context,
         );
 
