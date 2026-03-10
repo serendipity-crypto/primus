@@ -51,16 +51,12 @@ fn bench_expand_coeff(c: &mut Criterion) {
         let crt_poly_len = glwe_params.rns_poly_len();
         let big_uint_poly_len = glwe_params.big_uint_poly_len();
         let rns_glwe_len = glwe_params.rns_glwe_len();
+        let base_q = glwe_params.base_q();
 
         let sk = CrtGlweSecretKey::generate(&glwe_params, &mut rng);
         let dcrt_sk = DcrtGlweSecretKey::from_coeff_secret_key(&sk, &table);
 
-        let basis = BigUintApproxSignedBasis::new(
-            glwe_params.cipher_modulus(),
-            20,
-            None,
-            glwe_params.base_q(),
-        );
+        let basis = BigUintApproxSignedBasis::new(glwe_params.cipher_modulus(), 20, None, base_q);
         let glev_params = CrtGlevParameters::with_glwe_params(&glwe_params, basis);
 
         let table = Arc::new(table);
@@ -68,7 +64,7 @@ fn bench_expand_coeff(c: &mut Criterion) {
         // Expand keys
         let crt_expand_key = CrtGlweExpandCoeffKey::new(
             &glev_params,
-            glwe_params.base_q(),
+            base_q,
             &sk,
             &dcrt_sk,
             Arc::clone(&table),
@@ -77,7 +73,7 @@ fn bench_expand_coeff(c: &mut Criterion) {
 
         let dcrt_expand_key = DcrtGlweExpandCoeffKey::new(
             &glev_params,
-            glwe_params.base_q(),
+            base_q,
             &dcrt_sk,
             Arc::clone(&table),
             &mut rng,
@@ -90,9 +86,7 @@ fn bench_expand_coeff(c: &mut Criterion) {
         let mut msg: CrtPolynomial<Vec<V>> = CrtPolynomial::zero(crt_poly_len);
         let mut c_ntt: DcrtGlwe<Vec<V>> = DcrtGlweCiphertext::zero(rns_glwe_len);
 
-        glwe_params
-            .base_q()
-            .wrapping_decompose_small_polynomial_inplace(&input, &mut msg, poly_length, t);
+        base_q.wrapping_decompose_small_polynomial_inplace(&input, &mut msg, poly_length, t);
         dcrt_sk.encrypt_inplace(&msg, &mut c_ntt, &glwe_params, table_ref, &mut rng);
 
         let c_coeff: CrtGlwe<Vec<V>> = {
@@ -138,7 +132,7 @@ fn bench_expand_coeff(c: &mut Criterion) {
                     black_box(&c_coeff),
                     black_box(&mut crt_result),
                     &glev_params,
-                    glwe_params.base_q(),
+                    base_q,
                     &mut crt_ctx,
                 );
             });
@@ -150,7 +144,7 @@ fn bench_expand_coeff(c: &mut Criterion) {
                     black_box(&c_ntt),
                     black_box(&mut dcrt_result),
                     &glev_params,
-                    glwe_params.base_q(),
+                    base_q,
                     &mut dcrt_ctx,
                 );
             });
@@ -163,7 +157,7 @@ fn bench_expand_coeff(c: &mut Criterion) {
                     black_box(&c_coeff),
                     black_box(&mut crt_result),
                     &glev_params,
-                    glwe_params.base_q(),
+                    base_q,
                     &crt_pool,
                 );
             });
@@ -175,7 +169,7 @@ fn bench_expand_coeff(c: &mut Criterion) {
                     black_box(&c_ntt),
                     black_box(&mut dcrt_result),
                     &glev_params,
-                    glwe_params.base_q(),
+                    base_q,
                     &dcrt_pool,
                 );
             });
