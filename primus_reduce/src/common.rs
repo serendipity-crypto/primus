@@ -32,7 +32,6 @@ pub trait RingContext<T>:
     + ReduceExp<T>
     + ReduceExpPowOf2<T>
     + ReduceDotProduct<T>
-    + TryReduceInv<T, Output = T>
 {
 }
 
@@ -63,7 +62,6 @@ impl<T: UnsignedInteger, M> RingContext<T> for M where
         + ReduceExp<T>
         + ReduceExpPowOf2<T>
         + ReduceDotProduct<T>
-        + TryReduceInv<T, Output = T>
 {
 }
 
@@ -78,6 +76,7 @@ pub trait FieldContext<T>:
     + LazyReduceMulAddAssign<T>
     + for<'a> LazyReduce<&'a [T], Output = T>
     + for<'a> Reduce<&'a [T], Output = T>
+    + TryReduceInv<T, Output = T>
     + ReduceInv<T, Output = T>
     + ReduceInvAssign<T>
     + ReduceDiv<T, Output = T>
@@ -95,6 +94,7 @@ impl<T: UnsignedInteger, M> FieldContext<T> for M where
         + LazyReduceMulAddAssign<T>
         + for<'a> LazyReduce<&'a [T], Output = T>
         + for<'a> Reduce<&'a [T], Output = T>
+        + TryReduceInv<T, Output = T>
         + ReduceInv<T, Output = T>
         + ReduceInvAssign<T>
         + ReduceDiv<T, Output = T>

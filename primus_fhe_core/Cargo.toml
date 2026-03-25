@@ -30,6 +30,10 @@ indicatif = { workspace = true }
 criterion = { workspace = true }
 
 [[bench]]
+name = "lwe_enc"
+harness = false
+
+[[bench]]
 name = "automorphism"
 harness = false
 
