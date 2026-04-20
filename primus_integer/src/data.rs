@@ -141,6 +141,8 @@ pub trait DataMut: Data {
 }
 
 pub trait DataOwned: Data + FromIterator<<Self as RawData>::Elem> {
+    type IntoIter: Iterator<Item = <Self as RawData>::Elem>;
+
     fn from_slice(data: &[<Self as RawData>::Elem]) -> Self
     where
         <Self as RawData>::Elem: Clone;
@@ -148,7 +150,7 @@ pub trait DataOwned: Data + FromIterator<<Self as RawData>::Elem> {
     fn from_vec(data: Vec<<Self as RawData>::Elem>) -> Self;
 
     /// Creates a consuming iterator, that is, one that moves each value out of the vector (from start to end).
-    fn into_iter(self) -> std::vec::IntoIter<<Self as RawData>::Elem>;
+    fn into_iter(self) -> Self::IntoIter;
 }
 
 impl<T> RawData for &[T] {
@@ -431,6 +433,8 @@ impl<T> DataMut for Vec<T> {
 }
 
 impl<T> DataOwned for Vec<T> {
+    type IntoIter = std::vec::IntoIter<T>;
+
     #[inline(always)]
     fn from_slice(data: &[T]) -> Self
     where
@@ -445,7 +449,7 @@ impl<T> DataOwned for Vec<T> {
     }
 
     #[inline(always)]
-    fn into_iter(self) -> std::vec::IntoIter<T> {
+    fn into_iter(self) -> Self::IntoIter {
         <Vec<T> as IntoIterator>::into_iter(self)
     }
 }
@@ -530,6 +534,8 @@ impl<T> DataMut for Box<[T]> {
 }
 
 impl<T> DataOwned for Box<[T]> {
+    type IntoIter = <Box<[T]> as IntoIterator>::IntoIter;
+
     #[inline(always)]
     fn from_slice(data: &[T]) -> Self
     where
@@ -544,7 +550,7 @@ impl<T> DataOwned for Box<[T]> {
     }
 
     #[inline(always)]
-    fn into_iter(self) -> std::vec::IntoIter<T> {
+    fn into_iter(self) -> Self::IntoIter {
         <Box<[T]> as IntoIterator>::into_iter(self)
     }
 }
