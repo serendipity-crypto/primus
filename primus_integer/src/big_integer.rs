@@ -1054,7 +1054,6 @@ pub fn multiply_many_values<T: UnsignedInteger>(values: &[T]) -> BigUint<Vec<T>>
             result.0.push(carry);
         }
     }
-    result.0.shrink_to_fit();
     result
 }
 
@@ -1073,7 +1072,6 @@ pub fn multiply_many_values_except<T: UnsignedInteger>(values: &[T], except: usi
         }
     }
 
-    result.0.shrink_to_fit();
     result.0
 }
 
