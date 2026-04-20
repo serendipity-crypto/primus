@@ -10,6 +10,26 @@ use crate::{Data, DataMut, RawData, UnsignedInteger, impl_iters, izip};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[repr(transparent)]
+/// A big unsigned integer backed by externally provided limb storage.
+///
+/// `BigUint<S>` is designed to work as a lightweight view or container over an
+/// existing limb buffer instead of as a normalized arbitrary-precision integer.
+/// The storage backend `S` can therefore be borrowed or owned, for example:
+///
+/// - `BigUint<&[T]>`
+/// - `BigUint<&mut [T]>`
+/// - `BigUint<Vec<T>>`
+/// - `BigUint<Box<[T]>>`
+///
+/// The limb order is little-endian: index `0` stores the least significant
+/// limb.
+///
+/// # Design note
+///
+/// Most arithmetic and comparison methods in this type are intended for
+/// buffer-based, fixed-width style usage in higher-level crates, where
+/// operands are expected to have the same limb length. This type does not try
+/// to canonicalize away leading zero limbs automatically.
 pub struct BigUint<S>(pub S)
 where
     S: RawData,
@@ -97,28 +117,37 @@ where
     S: Data<Elem = T>,
     T: UnsignedInteger,
 {
+    /// Returns the number of limbs in the backing storage.
+    ///
+    /// This is the storage length, not the effective mathematical bit length.
     #[allow(clippy::len_without_is_empty)]
     #[inline(always)]
     pub fn len(&self) -> usize {
         self.0.len()
     }
 
+    /// Returns the limbs as a slice in little-endian order.
     #[inline(always)]
     pub fn digits(&self) -> &[T] {
         self.0.as_slice()
     }
 
+    /// Returns an iterator over the limbs from least significant to most
+    /// significant.
     #[inline(always)]
     pub fn iter<'a>(&'a self) -> std::slice::Iter<'a, T> {
         self.0.iter()
     }
 
+    /// Returns `true` if all limbs are zero.
     #[inline]
     pub fn is_zero(&self) -> bool {
         self.iter().all(T::is_zero)
     }
 
-    /// Gets the bits count of the big unsigned integer.
+    /// Returns the effective bit width of the represented value.
+    ///
+    /// Leading zero limbs are ignored.
     #[must_use]
     #[inline]
     pub fn bits_count(&self) -> u32 {
@@ -129,6 +158,7 @@ where
             .map_or(0, |(i, v)| T::BITS * (i as u32 + 1) - v.leading_zeros())
     }
 
+    /// Borrows the same value as an immutable slice-backed [`BigUint`].
     #[inline(always)]
     pub fn view(&self) -> BigUint<&[T]> {
         BigUint(self.0.as_slice())
@@ -380,21 +410,26 @@ where
     S: DataMut<Elem = T>,
     T: UnsignedInteger,
 {
+    /// Returns the limbs as a mutable slice in little-endian order.
     #[inline(always)]
     pub fn digits_mut(&mut self) -> &mut [T] {
         self.0.as_mut_slice()
     }
 
+    /// Returns a mutable iterator over the limbs from least significant to most
+    /// significant.
     #[inline(always)]
     pub fn iter_mut<'a>(&'a mut self) -> std::slice::IterMut<'a, T> {
         self.0.iter_mut()
     }
 
+    /// Sets all limbs to zero.
     #[inline(always)]
     pub fn set_zero(&mut self) {
         self.0.fill(T::ZERO);
     }
 
+    /// Borrows the same value as a mutable slice-backed [`BigUint`].
     #[inline(always)]
     pub fn view_mut(&mut self) -> BigUint<&mut [T]> {
         BigUint(self.0.as_mut_slice())
