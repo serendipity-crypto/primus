@@ -54,7 +54,7 @@ where
         if moduli_values
             .iter()
             .tuple_combinations()
-            .any(|(&a, &b)| a.not_coprime(b))
+            .any(|(&a, &b)| !a.is_coprime(b))
         {
             return Err(RNSError::CoPrimeError);
         }

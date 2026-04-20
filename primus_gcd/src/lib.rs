@@ -9,10 +9,7 @@ pub trait Xgcd: Sized {
     fn gcd(self, other: Self) -> Self;
 
     /// Check whether two numbers are coprime.
-    fn coprime(self, other: Self) -> bool;
-
-    /// Check whether two numbers are not coprime.
-    fn not_coprime(self, other: Self) -> bool;
+    fn is_coprime(self, other: Self) -> bool;
 
     /// Returns the greatest common divisor `g` of `x` and `y` and unsigned
     /// values `a` and `b` such that `a x - b y = g`. We require `x ≥ y`.
@@ -82,13 +79,8 @@ macro_rules! impl_extended_gcd {
             }
 
             #[inline(always)]
-            fn coprime(self, other: Self) -> bool {
+            fn is_coprime(self, other: Self) -> bool {
                 self.gcd(other) <= 1
-            }
-
-            #[inline(always)]
-            fn not_coprime(self, other: Self) -> bool {
-                self.gcd(other) > 1
             }
 
             #[inline]
