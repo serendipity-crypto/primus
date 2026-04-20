@@ -27,7 +27,7 @@ where
 
     /// Generate a random [`NttPolynomial<S>`]  with a specified distribution `distribution`.
     #[inline]
-    pub fn random_with_distribution<R, D>(poly_length: usize, distribution: D, rng: &mut R) -> Self
+    pub fn random_with_distribution<R, D>(poly_length: usize, distribution: &D, rng: &mut R) -> Self
     where
         R: rand::Rng + rand::CryptoRng,
         D: Distribution<T>,

@@ -46,15 +46,16 @@ where
 {
     /// Performs `result = self + rhs` according to `moduli`.
     #[inline]
-    pub fn add_inplace<M, A>(
+    pub fn add_inplace<M, A, B>(
         &self,
-        rhs: &Self,
-        result: &mut DcrtPolynomial<A>,
+        rhs: &DcrtPolynomial<A>,
+        result: &mut DcrtPolynomial<B>,
         poly_length: usize,
         moduli: &[M],
     ) where
         M: Copy + ReduceAdd<T, Output = T>,
-        A: RawData<Elem = T> + DataMut,
+        A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + DataMut,
     {
         izip!(
             self.iter_each_modulus(poly_length),

@@ -166,7 +166,7 @@ where
     }
 
     #[inline]
-    pub fn dcrt_poly_len(&self) -> usize {
+    pub fn dcrt_poly_length(&self) -> usize {
         self.0.len()
     }
 }

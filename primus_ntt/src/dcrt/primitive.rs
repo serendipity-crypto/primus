@@ -92,7 +92,10 @@ impl<T: UnsignedInteger> DcrtTable for UintCrtNttTable<T> {
     ) -> CrtPolynomial<S> {
         let poly_length = self.poly_length();
 
-        debug_assert_eq!(poly_length * self.moduli_count, dcrt_poly.dcrt_poly_len());
+        debug_assert_eq!(
+            poly_length * self.moduli_count,
+            dcrt_poly.dcrt_poly_length()
+        );
 
         self.iter()
             .zip(dcrt_poly.iter_each_modulus_mut(poly_length))

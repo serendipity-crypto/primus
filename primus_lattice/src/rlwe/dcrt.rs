@@ -47,7 +47,7 @@ where
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + DataMut,
     {
-        let dcrt_poly_len = dcrt_poly.dcrt_poly_len();
+        let dcrt_poly_len = dcrt_poly.dcrt_poly_length();
 
         self.iter_dcrt_poly(dcrt_poly_len)
             .zip(result.iter_dcrt_poly_mut(dcrt_poly_len))

@@ -38,6 +38,20 @@ where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
 {
+    /// Performs `rhs = self - rhs` according to `modulus`.
+    #[inline]
+    pub fn sub_to_right<M, A>(&self, rhs: &mut Polynomial<A>, modulus: M)
+    where
+        M: Copy + ReduceSub<T, Output = T>,
+        A: RawData<Elem = T> + DataMut,
+    {
+        debug_assert_eq!(self.poly_length(), rhs.poly_length());
+
+        self.iter()
+            .zip(rhs.iter_mut())
+            .for_each(|(&a, b)| *b = modulus.reduce_sub(a, *b))
+    }
+
     /// Performs `result = self - rhs` according to `modulus`.
     #[inline]
     pub fn sub_inplace<M, A, B>(&self, rhs: &Polynomial<A>, result: &mut Polynomial<B>, modulus: M)

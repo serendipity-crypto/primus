@@ -12,7 +12,7 @@ where
 {
     /// Performs `self - rhs` according to `moduli`.
     #[inline]
-    pub fn sub<M, A>(mut self, rhs: &Self, poly_length: usize, moduli: &[M]) -> Self
+    pub fn sub<M, A>(mut self, rhs: &DcrtPolynomial<A>, poly_length: usize, moduli: &[M]) -> Self
     where
         M: Copy + ReduceSubAssign<T>,
         A: RawData<Elem = T> + Data,

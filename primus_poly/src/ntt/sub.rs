@@ -38,7 +38,7 @@ where
     S: RawData<Elem = T> + Data,
     T: UnsignedInteger,
 {
-    /// Performs `rhs = self - rhs` according to `moduli`.
+    /// Performs `rhs = self - rhs` according to `modulus`.
     #[inline]
     pub fn sub_to_right<M, A>(&self, rhs: &mut NttPolynomial<A>, modulus: M)
     where
@@ -52,7 +52,7 @@ where
             .for_each(|(&a, b)| *b = modulus.reduce_sub(a, *b))
     }
 
-    /// Performs `result = self - rhs` according to `moduli`.
+    /// Performs `result = self - rhs` according to `modulus`.
     #[inline]
     pub fn sub_inplace<M, A, B>(
         &self,
