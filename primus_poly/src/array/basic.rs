@@ -146,7 +146,7 @@ where
 {
     type Item = T;
 
-    type IntoIter = std::vec::IntoIter<T>;
+    type IntoIter = S::IntoIter;
 
     #[inline]
     fn into_iter(self) -> Self::IntoIter {

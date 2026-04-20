@@ -1205,4 +1205,48 @@ mod tests {
         assert!(!r);
         assert!(a.is_zero() || a == modulus);
     }
+
+    #[test]
+    fn add_value_inplace_stops_after_carry_chain() {
+        let input = [u32::MAX, u32::MAX, 7, 9];
+        let mut result = [0u32; 4];
+
+        let carry = BigUint(&input[..]).add_value_inplace(1, &mut BigUint(&mut result[..]));
+
+        assert!(!carry);
+        assert_eq!(result, [0, 0, 8, 9]);
+    }
+
+    #[test]
+    fn add_value_inplace_reports_final_carry() {
+        let input = [u32::MAX, u32::MAX];
+        let mut result = [1u32; 2];
+
+        let carry = BigUint(&input[..]).add_value_inplace(1, &mut BigUint(&mut result[..]));
+
+        assert!(carry);
+        assert_eq!(result, [0, 0]);
+    }
+
+    #[test]
+    fn sub_value_inplace_stops_after_borrow_chain() {
+        let input = [0u32, 0, 7, 9];
+        let mut result = [0u32; 4];
+
+        let borrow = BigUint(&input[..]).sub_value_inplace(1, &mut BigUint(&mut result[..]));
+
+        assert!(!borrow);
+        assert_eq!(result, [u32::MAX, u32::MAX, 6, 9]);
+    }
+
+    #[test]
+    fn sub_value_inplace_reports_final_borrow() {
+        let input = [0u32, 0];
+        let mut result = [1u32; 2];
+
+        let borrow = BigUint(&input[..]).sub_value_inplace(1, &mut BigUint(&mut result[..]));
+
+        assert!(borrow);
+        assert_eq!(result, [u32::MAX, u32::MAX]);
+    }
 }

@@ -60,7 +60,9 @@ macro_rules! impl_div_rem_scalar {
 
         impl DivRemScalar for $T {
             fn div_rem_scalar(dividend: &[Self], divisor: Self, quotient: &mut [Self]) -> $T {
+                debug_assert!(!dividend.is_empty());
                 debug_assert_eq!(dividend.len(), quotient.len());
+
                 if divisor.is_zero() {
                     panic!("attempt to divide by zero")
                 }
@@ -70,29 +72,20 @@ macro_rules! impl_div_rem_scalar {
                     return 0;
                 }
 
-                quotient.fill(0);
+                if dividend[1..].iter().all(|&v| v.is_zero()) {
+                    quotient.fill(0);
+                    let (q, r) = dividend[0].div_rem(divisor);
+                    quotient[0] = q;
+                    return r;
+                }
 
-                // if dividend.iter().all(|&v| v == 0) {
-                //     return 0;
-                // }
-
-                // if dividend.len() == 1 {
-                //     let (q, r) = dividend[0].div_rem(divisor);
-                //     quotient[0] = q;
-                //     return r;
-                // }
-
-                if dividend.iter().skip(1).all(|&v| v.is_zero()) {
-                    if dividend[0] < divisor {
-                        return dividend[0];
-                    } else if dividend[0] == divisor {
-                        quotient[0] = 1;
-                        return 0;
-                    } else {
-                        let (q, r) = dividend[0].div_rem(divisor);
-                        quotient[0] = q;
-                        return r;
-                    }
+                let mut dividend = dividend;
+                let mut quotient = quotient;
+                if dividend.last().is_some_and(|v| v.is_zero()) {
+                    let last_non_zero = dividend.iter().rposition(|&v| !v.is_zero()).unwrap();
+                    quotient[last_non_zero + 1..].fill(0);
+                    dividend = &dividend[..=last_non_zero];
+                    quotient = &mut quotient[..=last_non_zero];
                 }
 
                 let mut rem = 0;
@@ -173,15 +166,32 @@ mod big_digit {
 
     impl DivRemScalar for u128 {
         fn div_rem_scalar(dividend: &[u128], divisor: u128, quotient: &mut [u128]) -> u128 {
-            debug_assert!(divisor != 0);
+            debug_assert!(!dividend.is_empty());
             debug_assert_eq!(dividend.len(), quotient.len());
 
-            let len = dividend.len();
+            if divisor == 0 {
+                panic!("attempt to divide by zero")
+            }
 
-            if len == 1 {
+            if divisor == 1 {
+                quotient.copy_from_slice(dividend);
+                return 0;
+            }
+
+            if dividend[1..].iter().all(|&v| v == 0) {
+                quotient.fill(0);
                 quotient[0] = dividend[0] / divisor;
                 dividend[0] % divisor
             } else if divisor <= LO_MASK_U128 {
+                let mut dividend = dividend;
+                let mut quotient = quotient;
+                if dividend.last().copied() == Some(0) {
+                    let last_non_zero = dividend.iter().rposition(|&v| v != 0).unwrap();
+                    quotient[last_non_zero + 1..].fill(0);
+                    dividend = &dividend[..=last_non_zero];
+                    quotient = &mut quotient[..=last_non_zero];
+                }
+
                 let mut rem = 0;
                 for (&d_elem, q_elem) in dividend.iter().rev().zip(quotient.iter_mut().rev()) {
                     let (q, r) = div_half_u128(rem, d_elem, divisor);
@@ -190,6 +200,16 @@ mod big_digit {
                 }
                 rem
             } else {
+                let mut dividend = dividend;
+                let mut quotient = quotient;
+                if dividend.last().copied() == Some(0) {
+                    let last_non_zero = dividend.iter().rposition(|&v| v != 0).unwrap();
+                    quotient[last_non_zero + 1..].fill(0);
+                    dividend = &dividend[..=last_non_zero];
+                    quotient = &mut quotient[..=last_non_zero];
+                }
+
+                let len = dividend.len();
                 let mut remainder = 0;
                 let non_zero_divisor = unsafe { NonZeroU128::new_unchecked(divisor) };
 
@@ -329,5 +349,113 @@ mod big_digit {
             .wrapping_sub(q0.wrapping_mul(v.get())))
             >> s;
         q1 * B + q0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::DivRemScalar;
+
+    fn limbs_to_u128(limbs: &[u32]) -> u128 {
+        limbs.iter().enumerate().fold(0u128, |acc, (i, &limb)| {
+            acc | ((limb as u128) << (u32::BITS as usize * i))
+        })
+    }
+
+    #[test]
+    fn div_rem_scalar_u32_divisor_one_copies_all_limbs() {
+        let dividend = [3u32, 5, 7, 11];
+        let mut quotient = [u32::MAX; 4];
+
+        let remainder = u32::div_rem_scalar(&dividend, 1, &mut quotient);
+
+        assert_eq!(remainder, 0);
+        assert_eq!(quotient, dividend);
+    }
+
+    #[test]
+    fn div_rem_scalar_u32_zero_dividend_clears_quotient() {
+        let dividend = [0u32; 4];
+        let mut quotient = [u32::MAX; 4];
+
+        let remainder = u32::div_rem_scalar(&dividend, 7, &mut quotient);
+
+        assert_eq!(remainder, 0);
+        assert_eq!(quotient, [0; 4]);
+    }
+
+    #[test]
+    fn div_rem_scalar_u32_single_effective_limb_clears_tail() {
+        let dividend = [29u32, 0, 0, 0];
+        let mut quotient = [u32::MAX; 4];
+
+        let remainder = u32::div_rem_scalar(&dividend, 7, &mut quotient);
+
+        assert_eq!(remainder, 1);
+        assert_eq!(quotient, [4, 0, 0, 0]);
+    }
+
+    #[test]
+    fn div_rem_scalar_u32_single_effective_limb_less_than_divisor() {
+        let dividend = [5u32, 0, 0, 0];
+        let mut quotient = [u32::MAX; 4];
+
+        let remainder = u32::div_rem_scalar(&dividend, 7, &mut quotient);
+
+        assert_eq!(remainder, 5);
+        assert_eq!(quotient, [0, 0, 0, 0]);
+    }
+
+    #[test]
+    fn div_rem_scalar_u32_general_path_matches_u128_arithmetic() {
+        let dividend = [0xfedc_ba98u32, 0x7654_3210, 0x89ab_cdef, 0x0123_4567];
+        let divisor = 132_120_577u32;
+        let mut quotient = [u32::MAX; 4];
+
+        let remainder = u32::div_rem_scalar(&dividend, divisor, &mut quotient);
+
+        let dividend_u128 = limbs_to_u128(&dividend);
+        let quotient_u128 = limbs_to_u128(&quotient);
+
+        assert_eq!(quotient_u128, dividend_u128 / divisor as u128);
+        assert_eq!(remainder as u128, dividend_u128 % divisor as u128);
+    }
+
+    #[test]
+    fn div_rem_scalar_u32_skips_zero_high_limbs_and_clears_tail() {
+        let dividend = [0x89ab_cdefu32, 0x0123_4567, 0, 0];
+        let divisor = 132_120_577u32;
+        let mut quotient = [u32::MAX; 4];
+
+        let remainder = u32::div_rem_scalar(&dividend, divisor, &mut quotient);
+
+        let dividend_u128 = limbs_to_u128(&dividend[..2]);
+        let quotient_u128 = limbs_to_u128(&quotient[..2]);
+
+        assert_eq!(quotient[2..], [0, 0]);
+        assert_eq!(quotient_u128, dividend_u128 / divisor as u128);
+        assert_eq!(remainder as u128, dividend_u128 % divisor as u128);
+    }
+
+    #[test]
+    fn div_rem_scalar_u128_divisor_one_copies_all_limbs() {
+        let dividend = [3u128, 5, 7];
+        let mut quotient = [u128::MAX; 3];
+
+        let remainder = u128::div_rem_scalar(&dividend, 1, &mut quotient);
+
+        assert_eq!(remainder, 0);
+        assert_eq!(quotient, dividend);
+    }
+
+    #[test]
+    fn div_rem_scalar_u128_zero_dividend_clears_quotient() {
+        let dividend = [0u128; 3];
+        let mut quotient = [u128::MAX; 3];
+
+        let remainder = u128::div_rem_scalar(&dividend, 17, &mut quotient);
+
+        assert_eq!(remainder, 0);
+        assert_eq!(quotient, [0; 3]);
     }
 }
