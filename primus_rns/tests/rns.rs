@@ -188,6 +188,7 @@ fn test_bfv_dec_array() {
 
     let mut msg_q: CrtPolynomial<Vec<ValueT>> = CrtPolynomial::zero(moduli_count * poly_length);
     let mut msg_t_gamma: CrtPolynomial<Vec<ValueT>> = CrtPolynomial::zero(2 * poly_length);
+    let mut fast_convert_buffer: Vec<ValueT> = vec![0; moduli_count * poly_length];
 
     let mut result = vec![0; poly_length];
 
@@ -221,7 +222,12 @@ fn test_bfv_dec_array() {
         // gamma * t * delta * m
         msg_q.mul_scalar_assign(&t_gamma_mod_q, poly_length, &moduli);
 
-        converter.fast_convert_array(msg_q.as_ref(), msg_t_gamma.as_mut(), poly_length);
+        converter.fast_convert_array(
+            msg_q.as_ref(),
+            msg_t_gamma.as_mut(),
+            poly_length,
+            &mut fast_convert_buffer,
+        );
 
         msg_t_gamma.mul_scalar_assign(&minus_inv_q_mod_t_gamma, poly_length, &t_gamma);
 

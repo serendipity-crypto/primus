@@ -95,10 +95,13 @@ impl<T: UnsignedInteger, M: FieldContext<T>> BaseConverter<T, M> {
         crt_poly_in: &[T],
         crt_poly_out: &mut [T],
         poly_length: usize,
+        fast_convert_buffer: &mut [T],
     ) {
         let ibase_moduli_count = self.ibase_moduli_count();
 
-        let mut temp: Vec<T> = vec![T::ZERO; ibase_moduli_count * poly_length];
+        assert_eq!(fast_convert_buffer.len(), ibase_moduli_count * poly_length);
+
+        // let mut temp: Vec<T> = vec![T::ZERO; ibase_moduli_count * poly_length];
 
         izip!(
             crt_poly_in.chunks_exact(poly_length),
@@ -109,20 +112,30 @@ impl<T: UnsignedInteger, M: FieldContext<T>> BaseConverter<T, M> {
         .for_each(
             |(i, (poly, &inv_punctured_product_mod_modulus, &modulus))| {
                 if inv_punctured_product_mod_modulus.value().is_one() {
-                    izip!(poly, temp.iter_mut().skip(i).step_by(ibase_moduli_count)).for_each(
-                        |(&x, ele)| {
-                            *ele = x.modulo(modulus);
-                        },
-                    );
+                    izip!(
+                        poly,
+                        fast_convert_buffer
+                            .iter_mut()
+                            .skip(i)
+                            .step_by(ibase_moduli_count)
+                    )
+                    .for_each(|(&x, ele)| {
+                        *ele = x.modulo(modulus);
+                    });
                 } else {
-                    izip!(poly, temp.iter_mut().skip(i).step_by(ibase_moduli_count)).for_each(
-                        |(&x, ele)| {
-                            *ele = x.mul_modulo(
-                                inv_punctured_product_mod_modulus,
-                                UintModulus(modulus.value_unchecked()),
-                            );
-                        },
-                    );
+                    izip!(
+                        poly,
+                        fast_convert_buffer
+                            .iter_mut()
+                            .skip(i)
+                            .step_by(ibase_moduli_count)
+                    )
+                    .for_each(|(&x, ele)| {
+                        *ele = x.mul_modulo(
+                            inv_punctured_product_mod_modulus,
+                            UintModulus(modulus.value_unchecked()),
+                        );
+                    });
                 }
             },
         );
@@ -133,9 +146,11 @@ impl<T: UnsignedInteger, M: FieldContext<T>> BaseConverter<T, M> {
             self.obase.moduli()
         )
         .for_each(|(poly, inv_punctured_product_mod_modulus, modulus)| {
-            izip!(poly, temp.chunks_exact(ibase_moduli_count)).for_each(|(ele, product)| {
-                *ele = modulus.reduce_dot_product(product, inv_punctured_product_mod_modulus);
-            });
+            izip!(poly, fast_convert_buffer.chunks_exact(ibase_moduli_count)).for_each(
+                |(ele, product)| {
+                    *ele = modulus.reduce_dot_product(product, inv_punctured_product_mod_modulus);
+                },
+            );
         });
     }
 

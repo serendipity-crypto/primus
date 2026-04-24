@@ -74,12 +74,8 @@ fn test_external_product() {
         let mut c1: DcrtGlwe<Vec<ValueT>> = DcrtGlweCiphertext::zero(rns_glwe_len);
         let mut c2: DcrtGlwe<Vec<ValueT>> = DcrtGlweCiphertext::zero(rns_glwe_len);
 
-        let mut glev_context = DcrtGlevContext::new(
-            poly_length,
-            rns_poly_len,
-            big_uint_poly_len,
-            moduli_count,
-        );
+        let mut glev_context =
+            DcrtGlevContext::new(poly_length, rns_poly_len, big_uint_poly_len, moduli_count);
         let mut decrypt_context = DcrtGlweDecryptContext::new(moduli_count, poly_length);
 
         base_q.wrapping_decompose_small_polynomial_inplace(&input, &mut msg, poly_length, t);

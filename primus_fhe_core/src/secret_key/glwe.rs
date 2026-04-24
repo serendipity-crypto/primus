@@ -683,7 +683,11 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
         let gamma = params.gamma();
         let inv_gamma_mod_t = params.inv_gamma_mod_t();
 
-        let (msg_mod_q, msg_mod_t_gamma) = context.as_mut();
+        let DcrtGlweDecryptContextRefMut {
+            msg_mod_q,
+            msg_mod_t_gamma,
+            fast_convert_buffer,
+        } = context.as_mut();
 
         self.phase_inplace(ciphertext, msg_mod_q, params);
 
@@ -695,6 +699,7 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
             msg_mod_q.as_ref(),
             msg_mod_t_gamma.as_mut(),
             poly_length,
+            fast_convert_buffer,
         );
 
         msg_mod_t_gamma.mul_scalar_assign(
@@ -718,6 +723,13 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
 pub struct DcrtGlweDecryptContext<T: UnsignedInteger> {
     msg_mod_q: DcrtPolynomial<Vec<T>>,
     msg_mod_t_gamma: CrtPolynomial<Vec<T>>,
+    fast_convert_buffer: Vec<T>,
+}
+
+pub struct DcrtGlweDecryptContextRefMut<'a, T: UnsignedInteger> {
+    msg_mod_q: &'a mut DcrtPolynomial<Vec<T>>,
+    msg_mod_t_gamma: &'a mut CrtPolynomial<Vec<T>>,
+    fast_convert_buffer: &'a mut [T],
 }
 
 impl<T: UnsignedInteger> DcrtGlweDecryptContext<T> {
@@ -726,15 +738,21 @@ impl<T: UnsignedInteger> DcrtGlweDecryptContext<T> {
     pub fn new(moduli_count: usize, poly_length: usize) -> Self {
         let msg_mod_q: DcrtPolynomial<Vec<T>> = DcrtPolynomial::zero(moduli_count * poly_length);
         let msg_mod_t_gamma: CrtPolynomial<Vec<T>> = CrtPolynomial::zero(2 * poly_length);
+        let fast_convert_buffer = vec![T::ZERO; moduli_count * poly_length];
 
         Self {
             msg_mod_q,
             msg_mod_t_gamma,
+            fast_convert_buffer,
         }
     }
 
     #[inline]
-    pub fn as_mut(&mut self) -> (&mut DcrtPolynomial<Vec<T>>, &mut CrtPolynomial<Vec<T>>) {
-        (&mut self.msg_mod_q, &mut self.msg_mod_t_gamma)
+    pub fn as_mut(&mut self) -> DcrtGlweDecryptContextRefMut<'_, T> {
+        DcrtGlweDecryptContextRefMut {
+            msg_mod_q: &mut self.msg_mod_q,
+            msg_mod_t_gamma: &mut self.msg_mod_t_gamma,
+            fast_convert_buffer: &mut self.fast_convert_buffer,
+        }
     }
 }
