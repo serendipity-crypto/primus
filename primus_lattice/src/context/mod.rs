@@ -1,3 +1,3 @@
 mod glev;
 
-pub use glev::DcrtGlevContext;
+pub use glev::{DcrtGlevContext, DcrtGlevContextRefMut};

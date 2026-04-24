@@ -21,9 +21,11 @@ impl<T: UnsignedInteger> CrtGlweTraceContext<T> {
         poly_length: usize,
         crt_poly_len: usize,
         big_uint_poly_len: usize,
+        moduli_count: usize,
     ) -> Self {
         let crt_glwe = CrtGlweCiphertext::zero((dimension + 1) * crt_poly_len);
-        let auto_context = CrtGlweAutoContext::new(poly_length, crt_poly_len, big_uint_poly_len);
+        let auto_context =
+            CrtGlweAutoContext::new(poly_length, crt_poly_len, big_uint_poly_len, moduli_count);
         Self {
             crt_glwe,
             auto_context,

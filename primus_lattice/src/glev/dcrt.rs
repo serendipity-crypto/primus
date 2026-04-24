@@ -6,7 +6,7 @@ use primus_reduce::FieldContext;
 use primus_rns::RNSBase;
 
 use crate::{
-    context::DcrtGlevContext,
+    context::{DcrtGlevContext, DcrtGlevContextRefMut},
     glwe::{DcrtGlwe, DcrtGlweIter, DcrtGlweIterMut},
 };
 
@@ -59,13 +59,19 @@ where
         let moduli = rns_base.moduli();
         let dcrt_glwe_len = result.0.len();
 
-        let (adjust_big_uint_values, decomposed_unsigned_values, carries, multi_residues) =
-            context.as_mut();
+        let DcrtGlevContextRefMut {
+            adjust_big_uint_values,
+            decomposed_unsigned_values,
+            carries,
+            multi_residues,
+            compose_buffer,
+        } = context.as_mut();
 
         rns_base.compose_multiple_values_inplace(
             crt_poly.as_ref(),
             adjust_big_uint_values,
             poly_length,
+            compose_buffer,
         );
 
         basis.init_value_carry_slice_inplace(adjust_big_uint_values, carries, big_uint_value_len);
@@ -120,8 +126,13 @@ where
         let basis_value = basis.basis_value();
         let moduli = rns_base.moduli();
 
-        let (adjust_big_uint_values, decomposed_unsigned_values, carries, multi_residues) =
-            context.as_mut();
+        let DcrtGlevContextRefMut {
+            adjust_big_uint_values,
+            decomposed_unsigned_values,
+            carries,
+            multi_residues,
+            compose_buffer: _,
+        } = context.as_mut();
 
         basis.init_value_carry_slice(
             big_uint_poly.as_slice(),

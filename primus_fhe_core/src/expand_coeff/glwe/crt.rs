@@ -22,6 +22,7 @@ pub struct CrtGlweExpandCoeffSyncPool<T: UnsignedInteger> {
     contexts: Mutex<Vec<CrtGlweExpandCoeffContext<T>>>,
     dimension: usize,
     poly_length: usize,
+    moduli_count: usize,
     crt_poly_len: usize,
     big_uint_poly_len: usize,
 }
@@ -33,11 +34,13 @@ impl<T: UnsignedInteger> CrtGlweExpandCoeffSyncPool<T> {
         poly_length: usize,
         crt_poly_len: usize,
         big_uint_poly_len: usize,
+        moduli_count: usize,
     ) -> Self {
         Self {
             contexts: Mutex::new(Vec::new()),
             dimension,
             poly_length,
+            moduli_count,
             crt_poly_len,
             big_uint_poly_len,
         }
@@ -53,6 +56,7 @@ impl<T: UnsignedInteger> CrtGlweExpandCoeffSyncPool<T> {
         poly_length: usize,
         crt_poly_len: usize,
         big_uint_poly_len: usize,
+        moduli_count: usize,
     ) -> Self {
         let contexts = (0..capacity)
             .map(|_| {
@@ -61,6 +65,7 @@ impl<T: UnsignedInteger> CrtGlweExpandCoeffSyncPool<T> {
                     poly_length,
                     crt_poly_len,
                     big_uint_poly_len,
+                    moduli_count,
                 )
             })
             .collect();
@@ -68,6 +73,7 @@ impl<T: UnsignedInteger> CrtGlweExpandCoeffSyncPool<T> {
             contexts: Mutex::new(contexts),
             dimension,
             poly_length,
+            moduli_count,
             crt_poly_len,
             big_uint_poly_len,
         }
@@ -81,6 +87,7 @@ impl<T: UnsignedInteger> CrtGlweExpandCoeffSyncPool<T> {
                 self.poly_length,
                 self.crt_poly_len,
                 self.big_uint_poly_len,
+                self.moduli_count,
             )
         })
     }

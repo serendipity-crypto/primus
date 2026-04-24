@@ -20,9 +20,11 @@ impl<T: UnsignedInteger> DcrtGlweTraceContext<T> {
         poly_length: usize,
         crt_poly_len: usize,
         big_uint_poly_len: usize,
+        moduli_count: usize,
     ) -> Self {
         let dcrt_glwe = DcrtGlweCiphertext::zero((dimension + 1) * crt_poly_len);
-        let auto_context = CrtGlweAutoContext::new(poly_length, crt_poly_len, big_uint_poly_len);
+        let auto_context =
+            CrtGlweAutoContext::new(poly_length, crt_poly_len, big_uint_poly_len, moduli_count);
         Self {
             dcrt_glwe,
             auto_context,
@@ -36,6 +38,10 @@ impl<T: UnsignedInteger> DcrtGlweTraceContext<T> {
         &mut CrtGlweAutoContext<T>,
     ) {
         (&mut self.dcrt_glwe, &mut self.auto_context)
+    }
+
+    pub fn compose_buffer_mut(&mut self) -> &mut [T] {
+        self.auto_context.compose_buffer_mut()
     }
 }
 

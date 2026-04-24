@@ -9,7 +9,10 @@ use primus_poly::{
 use primus_reduce::FieldContext;
 use primus_rns::RNSBase;
 
-use crate::{context::DcrtGlevContext, glev::DcrtGlev};
+use crate::{
+    context::{DcrtGlevContext, DcrtGlevContextRefMut},
+    glev::DcrtGlev,
+};
 
 use super::CrtGlwe;
 
@@ -160,8 +163,13 @@ where
         let moduli = rns_base.moduli();
         let dcrt_glwe_len = self.0.len();
 
-        let (adjust_big_uint_values, decomposed_unsigned_values, carries, multi_residues) =
-            context.as_mut();
+        let DcrtGlevContextRefMut {
+            adjust_big_uint_values,
+            decomposed_unsigned_values,
+            carries,
+            multi_residues,
+            compose_buffer,
+        } = context.as_mut();
 
         debug_assert_eq!(
             adjust_big_uint_values.len(),
@@ -179,6 +187,7 @@ where
             crt_poly.as_ref(),
             adjust_big_uint_values,
             poly_length,
+            compose_buffer,
         );
 
         basis.init_value_carry_slice_inplace(adjust_big_uint_values, carries, big_uint_value_len);
@@ -237,8 +246,13 @@ where
         let dcrt_glwe_len = self.0.len();
 
         context.clear();
-        let (adjust_big_uint_values, decomposed_unsigned_values, carries, multi_residues) =
-            context.as_mut();
+        let DcrtGlevContextRefMut {
+            adjust_big_uint_values,
+            decomposed_unsigned_values,
+            carries,
+            multi_residues,
+            compose_buffer: _,
+        } = context.as_mut();
 
         debug_assert_eq!(adjust_big_uint_values.len(), big_uint_poly_len);
         debug_assert_eq!(decomposed_unsigned_values.len(), poly_length);

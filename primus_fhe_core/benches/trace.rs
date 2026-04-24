@@ -23,6 +23,7 @@ fn bench_trace(c: &mut Criterion) {
     let mod_gamma = BarrettModulus::new(gamma);
     let moduli_values: [V; 2] = [1125899906826241, 1125899906629633];
     let moduli = moduli_values.map(BarrettModulus::new);
+    let moduli_count = moduli_values.len();
 
     let mut rng = rand::rng();
 
@@ -83,12 +84,27 @@ fn bench_trace(c: &mut Criterion) {
         // Buffers
         let mut crt_result: CrtGlwe<Vec<V>> = CrtGlwe::zero(rns_glwe_len);
         let mut dcrt_result: DcrtGlweCiphertext<Vec<V>> = DcrtGlweCiphertext::zero(rns_glwe_len);
-        let mut crt_trace_ctx =
-            CrtGlweTraceContext::new(dimension, poly_length, crt_poly_len, big_uint_poly_len);
-        let mut dcrt_trace_ctx =
-            DcrtGlweTraceContext::new(dimension, poly_length, crt_poly_len, big_uint_poly_len);
-        let mut dcrt_rev_trace_ctx =
-            DcrtGlweRevTraceContext::new(dimension, poly_length, crt_poly_len, big_uint_poly_len);
+        let mut crt_trace_ctx = CrtGlweTraceContext::new(
+            dimension,
+            poly_length,
+            crt_poly_len,
+            big_uint_poly_len,
+            moduli_count,
+        );
+        let mut dcrt_trace_ctx = DcrtGlweTraceContext::new(
+            dimension,
+            poly_length,
+            crt_poly_len,
+            big_uint_poly_len,
+            moduli_count,
+        );
+        let mut dcrt_rev_trace_ctx = DcrtGlweRevTraceContext::new(
+            dimension,
+            poly_length,
+            crt_poly_len,
+            big_uint_poly_len,
+            moduli_count,
+        );
 
         let n_label = format!("N={poly_length}");
 

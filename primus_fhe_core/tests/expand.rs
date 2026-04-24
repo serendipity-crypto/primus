@@ -70,8 +70,13 @@ fn test_crt_glwe_expand_coefficients() {
     let mut msg1: CrtPolynomial<Vec<ValueT>> = CrtPolynomial::zero(rns_poly_len);
     let mut c1: DcrtGlweCiphertext<Vec<ValueT>> = DcrtGlweCiphertext::zero(rns_glwe_len);
     let mut c_expand: Vec<CrtGlwe<Vec<ValueT>>> = vec![CrtGlwe::zero(rns_glwe_len); poly_length];
-    let mut expand_context =
-        CrtGlweExpandCoeffContext::new(dimension, poly_length, rns_poly_len, big_uint_poly_len);
+    let mut expand_context = CrtGlweExpandCoeffContext::new(
+        dimension,
+        poly_length,
+        rns_poly_len,
+        big_uint_poly_len,
+        moduli_count,
+    );
     let mut decrypt_context = DcrtGlweDecryptContext::new(moduli_count, poly_length);
 
     glwe_params
@@ -186,8 +191,13 @@ fn test_dcrt_glwe_expand_coefficients() {
     let mut c1: DcrtGlweCiphertext<Vec<ValueT>> = DcrtGlweCiphertext::zero(rns_glwe_len);
     let mut c_expand: Vec<DcrtGlweCiphertext<Vec<ValueT>>> =
         vec![DcrtGlweCiphertext::zero(rns_glwe_len); poly_length];
-    let mut expand_context =
-        DcrtGlweExpandCoeffContext::new(dimension, poly_length, rns_poly_len, big_uint_poly_len);
+    let mut expand_context = DcrtGlweExpandCoeffContext::new(
+        dimension,
+        poly_length,
+        rns_poly_len,
+        big_uint_poly_len,
+        moduli_count,
+    );
     let mut decrypt_context = DcrtGlweDecryptContext::new(moduli_count, poly_length);
 
     glwe_params
@@ -299,6 +309,7 @@ fn test_dcrt_glwe_expand_coefficients_parallel() {
         poly_length,
         rns_poly_len,
         big_uint_poly_len,
+        moduli_count,
     );
 
     let mut input1: Polynomial<Vec<ValueT>> = Polynomial::random(poly_length, mod_t, &mut rng);
@@ -417,6 +428,7 @@ fn test_crt_glwe_expand_coefficients_parallel() {
         poly_length,
         rns_poly_len,
         big_uint_poly_len,
+        moduli_count,
     );
 
     let mut input1: Polynomial<Vec<ValueT>> = Polynomial::random(poly_length, mod_t, &mut rng);

@@ -55,7 +55,8 @@ fn test_rns_glev() {
 
     let mut decrypt_context = DcrtGlweDecryptContext::new(moduli_count, poly_length);
 
-    let mut glev_context = DcrtGlevContext::new(poly_length, rns_poly_len, big_uint_poly_len);
+    let mut glev_context =
+        DcrtGlevContext::new(poly_length, rns_poly_len, big_uint_poly_len, moduli_count);
 
     let mut dcrt_glev: DcrtGlev<Vec<ValueT>> = DcrtGlev::zero(rns_glev_len);
 
@@ -78,7 +79,12 @@ fn test_rns_glev() {
 
     msg2.mul_scalar_assign(glwe_params.delta_mod_q(), poly_length, &moduli);
 
-    base_q.compose_polynomial_inplace(&msg2, &mut msg2_big_uint_poly, poly_length);
+    base_q.compose_polynomial_inplace(
+        &msg2,
+        &mut msg2_big_uint_poly,
+        poly_length,
+        glev_context.compose_buffer_mut(),
+    );
 
     let mut c1: DcrtGlwe<Vec<ValueT>> = DcrtGlwe::zero(rns_glwe_len);
 
@@ -222,7 +228,8 @@ fn test_key_switching() {
         .map(|_| DcrtGlwe::zero(rns_glwe_len))
         .collect();
 
-    let mut glev_context = DcrtGlevContext::new(poly_length, rns_poly_len, big_uint_poly_len);
+    let mut glev_context =
+        DcrtGlevContext::new(poly_length, rns_poly_len, big_uint_poly_len, moduli_count);
     izip!(dcrt_glevs.iter(), cipher.iter(), cs.iter_mut()).for_each(|(glev, ai, result)| {
         glev.mul_crt_poly_inplace(
             ai,

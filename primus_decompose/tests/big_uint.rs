@@ -253,7 +253,13 @@ mod tests {
             });
 
         let mut input_values: Vec<ValueT> = vec![0; N * big_uint_value_len];
-        rns_base.compose_multiple_values_inplace(&input_residues, &mut input_values, N);
+        let mut compose_buffer = vec![0; moduli_count];
+        rns_base.compose_multiple_values_inplace(
+            &input_residues,
+            &mut input_values,
+            N,
+            &mut compose_buffer,
+        );
 
         let mut adjust_big_uint_values = vec![0; N * big_uint_value_len];
         let mut carries = vec![false; N];
@@ -302,7 +308,12 @@ mod tests {
             });
 
         let mut output_values: Vec<ValueT> = vec![0; N * big_uint_value_len];
-        rns_base.compose_multiple_values_inplace(&residues, &mut output_values, N);
+        rns_base.compose_multiple_values_inplace(
+            &residues,
+            &mut output_values,
+            N,
+            &mut compose_buffer,
+        );
 
         let mut min: Vec<ValueT> = vec![0; N * big_uint_value_len];
 

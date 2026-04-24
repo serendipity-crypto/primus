@@ -98,7 +98,12 @@ impl<T: UnsignedInteger> CrtGlweKeySwitchingKey<T> {
 
         c_out.set_zero();
         self.iter_dcrt_glev().zip(a_in).for_each(|(ki, ai)| {
-            rns_base.compose_polynomial_inplace(&ai, big_uint_poly, poly_length);
+            rns_base.compose_polynomial_inplace(
+                &ai,
+                big_uint_poly,
+                poly_length,
+                glev_context.compose_buffer_mut(),
+            );
 
             c_out.add_dcrt_glev_mul_big_uint_poly_assign(
                 &ki,
@@ -130,10 +135,16 @@ pub struct CrtGlweKeySwitchingContext<T: UnsignedInteger> {
 }
 
 impl<T: UnsignedInteger> CrtGlweKeySwitchingContext<T> {
-    pub fn new(poly_length: usize, crt_poly_len: usize, big_uint_poly_len: usize) -> Self {
+    pub fn new(
+        poly_length: usize,
+        crt_poly_len: usize,
+        big_uint_poly_len: usize,
+        moduli_count: usize,
+    ) -> Self {
         let big_uint_poly = BigUintPolynomial::zero(big_uint_poly_len);
         let crt_poly = CrtPolynomial::zero(crt_poly_len);
-        let glev_context = DcrtGlevContext::new(poly_length, crt_poly_len, big_uint_poly_len);
+        let glev_context =
+            DcrtGlevContext::new(poly_length, crt_poly_len, big_uint_poly_len, moduli_count);
         Self {
             big_uint_poly,
             crt_poly,

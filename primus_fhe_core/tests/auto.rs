@@ -76,7 +76,12 @@ fn test_crt_glwe_auto() {
     let mut c1: DcrtGlwe<Vec<ValueT>> = DcrtGlweCiphertext::zero(rns_glwe_len);
     let mut auto_c1: CrtGlwe<Vec<ValueT>> = CrtGlwe::zero(rns_glwe_len);
     let mut c3: CrtGlwe<Vec<ValueT>> = CrtGlwe::zero(rns_glwe_len);
-    let mut auto_context = CrtGlweAutoContext::new(poly_length, crt_poly_length, big_uint_poly_len);
+    let mut auto_context = CrtGlweAutoContext::new(
+        poly_length,
+        crt_poly_length,
+        big_uint_poly_len,
+        moduli_count,
+    );
     let mut decrypt_context = DcrtGlweDecryptContext::new(moduli_count, poly_length);
 
     base_q.wrapping_decompose_small_polynomial_inplace(&input1, &mut msg1, poly_length, t);
@@ -187,7 +192,12 @@ fn test_dcrt_glwe_auto() {
     let mut c1: DcrtGlweCiphertext<Vec<ValueT>> = DcrtGlweCiphertext::zero(rns_glwe_len);
     let mut auto_c1: DcrtGlweCiphertext<Vec<ValueT>> = DcrtGlweCiphertext::zero(rns_glwe_len);
     let mut c3: DcrtGlweCiphertext<Vec<ValueT>> = DcrtGlweCiphertext::zero(rns_glwe_len);
-    let mut auto_context = CrtGlweAutoContext::new(poly_length, crt_poly_length, big_uint_poly_len);
+    let mut auto_context = CrtGlweAutoContext::new(
+        poly_length,
+        crt_poly_length,
+        big_uint_poly_len,
+        moduli_count,
+    );
     let mut decrypt_context = DcrtGlweDecryptContext::new(moduli_count, poly_length);
 
     base_q.wrapping_decompose_small_polynomial_inplace(&input1, &mut msg1, poly_length, t);

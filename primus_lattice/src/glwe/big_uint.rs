@@ -36,6 +36,7 @@ where
         poly_length: usize,
         crt_poly_len: usize,
         rns_base: &RNSBase<T, M>,
+        compose_buffer: &mut [T],
     ) where
         A: RawData<Elem = T> + Data,
         M: FieldContext<T>,
@@ -46,7 +47,12 @@ where
         self.iter_big_uint_poly_mut(big_uint_poly_len)
             .zip(crt_glwe.iter_crt_poly(crt_poly_len))
             .for_each(|(mut big_uint_poly, crt_poly)| {
-                rns_base.compose_polynomial_inplace(&crt_poly, &mut big_uint_poly, poly_length);
+                rns_base.compose_polynomial_inplace(
+                    &crt_poly,
+                    &mut big_uint_poly,
+                    poly_length,
+                    compose_buffer,
+                );
             });
     }
 }

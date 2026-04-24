@@ -341,6 +341,7 @@ where
         multi_residues: &[T],
         big_uint_values: &mut [T],
         value_count: usize,
+        residues: &mut [T],
     ) {
         debug_assert_eq!(multi_residues.len(), self.moduli_count() * value_count);
         debug_assert_eq!(
@@ -349,7 +350,7 @@ where
         );
 
         let big_uint_value_len = self.big_uint_value_len();
-        let mut residues = vec![T::ZERO; self.moduli_count()];
+        // let mut residues = vec![T::ZERO; self.moduli_count()];
 
         let mut iters: Vec<Iter<'_, T>> = multi_residues
             .chunks_exact(value_count)
@@ -370,6 +371,7 @@ where
         crt_poly: &CrtPolynomial<A>,
         big_uint_poly: &mut BigUintPolynomial<B>,
         poly_length: usize,
+        compose_buffer: &mut [T],
     ) where
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + DataMut,
@@ -378,6 +380,7 @@ where
             crt_poly.as_ref(),
             big_uint_poly.as_mut_slice(),
             poly_length,
+            compose_buffer,
         );
     }
 }

@@ -22,6 +22,7 @@ fn bench_automorphism(c: &mut Criterion) {
     let mod_gamma = BarrettModulus::new(gamma);
     let moduli_values: [V; 2] = [1125899906826241, 1125899906629633];
     let moduli = moduli_values.map(BarrettModulus::new);
+    let moduli_count = moduli_values.len();
     let auto_degree = 5;
 
     let mut rng = rand::rng();
@@ -92,7 +93,7 @@ fn bench_automorphism(c: &mut Criterion) {
         let mut crt_result: CrtGlwe<Vec<V>> = CrtGlwe::zero(rns_glwe_len);
         let mut dcrt_result: DcrtGlweCiphertext<Vec<V>> = DcrtGlweCiphertext::zero(rns_glwe_len);
         let mut auto_context =
-            CrtGlweAutoContext::new(poly_length, crt_poly_len, big_uint_poly_len);
+            CrtGlweAutoContext::new(poly_length, crt_poly_len, big_uint_poly_len, moduli_count);
 
         let n_label = format!("N={poly_length}");
 

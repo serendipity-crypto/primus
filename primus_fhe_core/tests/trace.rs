@@ -65,8 +65,13 @@ fn test_crt_glwe_trace() {
     let mut msg1: CrtPolynomial<Vec<ValueT>> = CrtPolynomial::zero(rns_poly_len);
     let mut c1: DcrtGlweCiphertext<Vec<ValueT>> = DcrtGlweCiphertext::zero(rns_glwe_len);
     let mut c2: CrtGlwe<Vec<ValueT>> = CrtGlwe::zero(rns_glwe_len);
-    let mut trace_context =
-        CrtGlweTraceContext::new(dimension, poly_length, rns_poly_len, big_uint_poly_len);
+    let mut trace_context = CrtGlweTraceContext::new(
+        dimension,
+        poly_length,
+        rns_poly_len,
+        big_uint_poly_len,
+        moduli_count,
+    );
     let mut decrypt_context = DcrtGlweDecryptContext::new(moduli_count, poly_length);
 
     base_q.wrapping_decompose_small_polynomial_inplace(&input1, &mut msg1, poly_length, t);
@@ -161,8 +166,13 @@ fn test_dcrt_glwe_trace() {
     let mut msg1: CrtPolynomial<Vec<ValueT>> = CrtPolynomial::zero(rns_poly_len);
     let mut c1: DcrtGlweCiphertext<Vec<ValueT>> = DcrtGlweCiphertext::zero(rns_glwe_len);
     let mut c2: DcrtGlweCiphertext<Vec<ValueT>> = DcrtGlweCiphertext::zero(rns_glwe_len);
-    let mut trace_context =
-        DcrtGlweTraceContext::new(dimension, poly_length, rns_poly_len, big_uint_poly_len);
+    let mut trace_context = DcrtGlweTraceContext::new(
+        dimension,
+        poly_length,
+        rns_poly_len,
+        big_uint_poly_len,
+        moduli_count,
+    );
     let mut decrypt_context = DcrtGlweDecryptContext::new(moduli_count, poly_length);
 
     base_q.wrapping_decompose_small_polynomial_inplace(&input1, &mut msg1, poly_length, t);
@@ -249,8 +259,13 @@ fn test_dcrt_glwe_rev_trace() {
     let mut msg1: CrtPolynomial<Vec<ValueT>> = CrtPolynomial::zero(rns_poly_len);
     let mut c1: DcrtGlweCiphertext<Vec<ValueT>> = DcrtGlweCiphertext::zero(rns_glwe_len);
     let mut c2: DcrtGlweCiphertext<Vec<ValueT>> = DcrtGlweCiphertext::zero(rns_glwe_len);
-    let mut trace_context =
-        DcrtGlweRevTraceContext::new(dimension, poly_length, rns_poly_len, big_uint_poly_len);
+    let mut trace_context = DcrtGlweRevTraceContext::new(
+        dimension,
+        poly_length,
+        rns_poly_len,
+        big_uint_poly_len,
+        moduli_count,
+    );
     let mut decrypt_context = DcrtGlweDecryptContext::new(moduli_count, poly_length);
 
     base_q.wrapping_decompose_small_polynomial_inplace(&input1, &mut msg1, poly_length, t);
@@ -321,8 +336,13 @@ fn test_dcrt_glwe_rev_trace_noise() {
     let mut msg1: CrtPolynomial<Vec<ValueT>> = CrtPolynomial::zero(rns_poly_len);
     let mut c1: DcrtGlweCiphertext<Vec<ValueT>> = DcrtGlweCiphertext::zero(rns_glwe_len);
     let mut c2: DcrtGlweCiphertext<Vec<ValueT>> = DcrtGlweCiphertext::zero(rns_glwe_len);
-    let mut trace_context =
-        DcrtGlweRevTraceContext::new(dimension, poly_length, rns_poly_len, big_uint_poly_len);
+    let mut trace_context = DcrtGlweRevTraceContext::new(
+        dimension,
+        poly_length,
+        rns_poly_len,
+        big_uint_poly_len,
+        moduli_count,
+    );
     let mut decrypt_context = DcrtGlweDecryptContext::new(moduli_count, poly_length);
 
     base_q.wrapping_decompose_small_polynomial_inplace(&input1, &mut msg1, poly_length, t);
@@ -353,6 +373,7 @@ fn test_dcrt_glwe_rev_trace_noise() {
     let measure_noise = |phase_crt_data: &[ValueT], expected_msg: &[ValueT]| -> (f64, f64, f64) {
         // Encode expected message into CRT residues: delta_mod_q[i] * m_j mod q_i
         let mut expected_crt = vec![0u64; rns_poly_len];
+        let mut compose_buffer = vec![0; moduli_count];
         for (chunk, modulus, delta) in izip!(
             expected_crt.chunks_exact_mut(poly_length),
             moduli,
@@ -372,11 +393,13 @@ fn test_dcrt_glwe_rev_trace_noise() {
             &CrtPolynomial(phase_crt_data),
             &mut big_phase,
             poly_length,
+            &mut compose_buffer,
         );
         base_q.compose_polynomial_inplace(
             &CrtPolynomial(expected_crt.as_slice()),
             &mut big_expected,
             poly_length,
+            &mut compose_buffer,
         );
 
         // noise = (phase − expected) mod Q, element-wise
