@@ -88,6 +88,8 @@ impl<T: UnsignedInteger> LweSecretKey<T> {
         R: rand::Rng + rand::CryptoRng,
         M: RingContext<T>,
     {
+        debug_assert_eq!(self.dimension(), params.dimension());
+
         let gaussian = params.noise_distribution();
         let modulus = params.cipher_modulus();
         let uniform = params.cipher_modulus_uniform_distr();
@@ -121,6 +123,10 @@ impl<T: UnsignedInteger> LweSecretKey<T> {
         M: RingContext<T>,
     {
         let dimension = params.dimension();
+
+        debug_assert_eq!(self.dimension(), dimension);
+        debug_assert!(messages.len() <= dimension);
+
         let gaussian = params.noise_distribution();
         let uniform = params.cipher_modulus_uniform_distr();
         let modulus = params.cipher_modulus();
@@ -133,24 +139,14 @@ impl<T: UnsignedInteger> LweSecretKey<T> {
         }
 
         b.iter_mut().enumerate().for_each(|(i, bi)| {
-            if i != 0 {
-                *bi = modulus.reduce_dot_product_iter(
-                    a.iter()
-                        .skip(dimension - i)
-                        .map(|&ai| modulus.reduce_neg(ai))
-                        .chain(a.iter().take(dimension - i).copied()),
-                    self.data.iter().copied(),
-                )
-            } else {
-                *bi = modulus.reduce_dot_product(&a, self);
-            }
+            *bi = self.multi_message_a_mul_s(a, i, dimension, modulus);
         });
 
+        let t = params.plain_modulus_value();
+        let q = modulus.value();
+
         for (bi, &message) in b.iter_mut().zip(messages) {
-            modulus.reduce_add_assign(
-                bi,
-                encode(message, params.plain_modulus_value(), modulus.value()),
-            );
+            modulus.reduce_add_assign(bi, encode(message, t, q));
         }
 
         for (bi, ei) in b.iter_mut().zip(gaussian.sample_iter(&mut *rng)) {
@@ -173,6 +169,10 @@ impl<T: UnsignedInteger> LweSecretKey<T> {
         Modulus: RingContext<T>,
     {
         let dimension = params.dimension();
+
+        debug_assert_eq!(self.dimension(), dimension);
+        debug_assert!(zero_count <= dimension);
+
         let gaussian = params.noise_distribution();
         let uniform = params.cipher_modulus_uniform_distr();
         let modulus = params.cipher_modulus();
@@ -187,17 +187,7 @@ impl<T: UnsignedInteger> LweSecretKey<T> {
             });
 
         b.iter_mut().enumerate().for_each(|(i, bi)| {
-            if i != 0 {
-                *bi = modulus.reduce_dot_product_iter(
-                    a.iter()
-                        .skip(dimension - i)
-                        .map(|&ai| modulus.reduce_neg(ai))
-                        .chain(a.iter().take(dimension - i).copied()),
-                    self.data.iter().copied(),
-                )
-            } else {
-                *bi = modulus.reduce_dot_product(&a, self);
-            }
+            *bi = self.multi_message_a_mul_s(a, i, dimension, modulus);
         });
 
         for (bi, ei) in b.iter_mut().zip(gaussian.sample_iter(&mut *rng)) {
@@ -222,6 +212,9 @@ impl<T: UnsignedInteger> LweSecretKey<T> {
 
         let (a, b) = cipher_text.a_b();
 
+        debug_assert_eq!(self.dimension(), params.dimension());
+        debug_assert_eq!(a.len(), params.dimension());
+
         let a_mul_s = modulus.reduce_dot_product(a, self);
         let plaintext = modulus.reduce_sub(b, a_mul_s);
 
@@ -236,23 +229,28 @@ impl<T: UnsignedInteger> LweSecretKey<T> {
         params: &LweParameters<T, M>,
     ) -> (Msg, T)
     where
-        Msg: Copy + TryFrom<T> + TryInto<T>,
+        Msg: TryFrom<T>,
         M: RingContext<T>,
     {
         let modulus = params.cipher_modulus();
 
         let (a, b) = cipher_text.a_b();
 
+        debug_assert_eq!(self.dimension(), params.dimension());
+        debug_assert_eq!(a.len(), params.dimension());
+
         let a_mul_s = modulus.reduce_dot_product(a, self);
         let plaintext = modulus.reduce_sub(b, a_mul_s);
 
         let t = params.plain_modulus_value();
         let q = modulus.value();
-        let message = decode(plaintext, t, q);
-        let fresh = encode(message, t, q);
+        let message: T = decode(plaintext, t, q);
+        let fresh: T = encode(message, t, q);
 
         (
-            message,
+            Msg::try_from(message)
+                .map_err(|_| "out of range integral type conversion attempted")
+                .unwrap(),
             modulus
                 .reduce_sub(plaintext, fresh)
                 .min(modulus.reduce_sub(fresh, plaintext)),
@@ -272,22 +270,43 @@ impl<T: UnsignedInteger> LweSecretKey<T> {
     {
         let modulus = params.cipher_modulus();
         let dimension = params.dimension();
+
+        debug_assert_eq!(self.dimension(), dimension);
+
         let (a, b) = cipher_text.a_b(dimension);
+
+        debug_assert_eq!(a.len(), dimension);
+        debug_assert!(b.len() <= dimension);
+
+        let t = params.plain_modulus_value();
+        let q = modulus.value();
 
         b.iter()
             .enumerate()
             .map(|(i, &b)| {
-                let a_mul_s = modulus.reduce_dot_product_iter(
-                    a.iter()
-                        .skip(dimension - i)
-                        .map(|&v| modulus.reduce_neg(v))
-                        .chain(a.iter().take(dimension - i).copied()),
-                    self.data.iter().copied(),
-                );
+                let a_mul_s = self.multi_message_a_mul_s(a, i, dimension, modulus);
                 let plaintext = modulus.reduce_sub(b, a_mul_s);
 
-                decode(plaintext, params.plain_modulus_value(), modulus.value())
+                decode(plaintext, t, q)
             })
             .collect()
+    }
+
+    #[inline]
+    fn multi_message_a_mul_s<M>(&self, a: &[T], index: usize, dimension: usize, modulus: M) -> T
+    where
+        M: RingContext<T>,
+    {
+        if index == 0 {
+            modulus.reduce_dot_product(a, self)
+        } else {
+            modulus.reduce_dot_product_iter(
+                a.iter()
+                    .skip(dimension - index)
+                    .map(|&ai| modulus.reduce_neg(ai))
+                    .chain(a.iter().take(dimension - index).copied()),
+                self.data.iter().copied(),
+            )
+        }
     }
 }
