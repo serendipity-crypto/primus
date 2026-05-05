@@ -87,9 +87,8 @@ impl<T: UnsignedInteger> GlweSecretKey<T> {
             RingSecretKeyType::Ternary => {
                 key.random_ternary_assign(params.cipher_modulus_minus_one(), rng)
             }
-            RingSecretKeyType::Gaussian => {
-                // FIXME
-                key.random_gaussian_assign(params.noise_distribution(), rng)
+            RingSecretKeyType::Gaussian(_) => {
+                key.random_gaussian_assign(params.secret_key_distribution().unwrap(), rng)
             }
         };
 
@@ -297,8 +296,18 @@ impl<T: UnsignedInteger> CrtGlweSecretKey<T> {
                     );
                 });
             }
-            RingSecretKeyType::Gaussian => {
-                unimplemented!()
+            RingSecretKeyType::Gaussian(_) => {
+                let moduli_value = params.cipher_moduli_value();
+                let secret_key_distribution = params.secret_key_distribution().unwrap();
+                key.chunks_exact_mut(rns_poly_len).for_each(|crt_poly| {
+                    primus_distr::sample_crt_gaussian_values_inplace(
+                        crt_poly,
+                        poly_length,
+                        moduli_value,
+                        secret_key_distribution,
+                        rng,
+                    );
+                });
             }
         };
 

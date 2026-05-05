@@ -1,3 +1,5 @@
+use core::fmt::Debug;
+
 use primus_gcd::Xgcd;
 
 use crate::{BorrowingSub, CarryingAdd, CarryingMul, DivRem, DivRemScalar, Integer, WideningMul};
@@ -13,8 +15,8 @@ pub trait UnsignedInteger:
     + DivRem
     + DivRemScalar
     + Xgcd
-    + TryFrom<usize>
-    + TryInto<usize>
+    + TryFrom<usize, Error: Debug>
+    + TryInto<usize, Error: Debug>
 {
     type SignedInteger: Integer;
 

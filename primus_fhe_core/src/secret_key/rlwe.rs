@@ -65,9 +65,11 @@ impl<T: UnsignedInteger> RlweSecretKey<T> {
             RingSecretKeyType::Ternary => {
                 Polynomial::random_ternary(modulus_minus_one, poly_length, rng)
             }
-            RingSecretKeyType::Gaussian => {
-                unimplemented!()
-            }
+            RingSecretKeyType::Gaussian(_) => Polynomial::random_gaussian(
+                poly_length,
+                params.secret_key_distribution().unwrap(),
+                rng,
+            ),
         };
 
         Self { key, distr }
@@ -190,10 +192,10 @@ impl<T: UnsignedInteger> NttRlweSecretKey<T> {
 
         primus_distr::sample_gaussian_values_inplace(b, params.noise_distribution(), rng);
 
-        Polynomial(&mut *b).add_mul_scalar_assign(
+        Polynomial(&mut *b).add_mul_factor_assign(
             msg,
-            params.plain_modulus_value(),
-            params.cipher_modulus(),
+            params.delta_factor(),
+            params.cipher_modulus_value(),
         );
         ntt_table.transform_slice(b);
 

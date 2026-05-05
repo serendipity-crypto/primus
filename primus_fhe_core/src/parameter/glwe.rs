@@ -26,8 +26,12 @@ where
     cipher_modulus_minus_one: T,
     /// The modulus, refers to **Q** in the paper.
     cipher_modulus: M,
+    cipher_modulus_uniform_distr: Uniform<T>,
+    delta: T,
+    delta_factor: ShoupFactor<T>,
     /// The distribution type of the secret key.
     secret_key_type: RingSecretKeyType,
+    secret_key_distribution: Option<DiscreteGaussian<T>>,
     /// The noise's distribution.
     noise_distribution: DiscreteGaussian<T>,
 }
@@ -51,13 +55,35 @@ where
         let noise_distribution =
             DiscreteGaussian::new(noise_standard_deviation, cipher_modulus_minus_one).unwrap();
 
+        let cipher_modulus_uniform_distr = cipher_modulus.uniform_distribution();
+
+        let (mut delta, rem) = cipher_modulus
+            .value_unchecked()
+            .div_rem(plain_modulus_value);
+        if rem > (plain_modulus_value - T::ONE) / T::TWO {
+            delta += T::ONE;
+        }
+
+        let delta_factor = ShoupFactor::new(delta, cipher_modulus.value_unchecked());
+
+        let secret_key_distribution =
+            if let RingSecretKeyType::Gaussian(standard_deviation) = secret_key_type {
+                Some(DiscreteGaussian::new(standard_deviation, cipher_modulus_minus_one).unwrap())
+            } else {
+                None
+            };
+
         Self {
             dimension,
             poly_length,
             plain_modulus_value,
             cipher_modulus_minus_one,
             cipher_modulus,
+            cipher_modulus_uniform_distr,
+            delta,
+            delta_factor,
             secret_key_type,
+            secret_key_distribution,
             noise_distribution,
         }
     }
@@ -95,9 +121,29 @@ where
         self.cipher_modulus_minus_one
     }
 
+    /// Returns the cipher modulus uniform distr of this [`GlweParameters<T, M>`].
+    pub fn cipher_modulus_uniform_distr(&self) -> Uniform<T> {
+        self.cipher_modulus_uniform_distr
+    }
+
+    /// Returns the delta of this [`GlweParameters<T, M>`].
+    pub fn delta(&self) -> T {
+        self.delta
+    }
+
+    /// Returns the delta factor of this [`GlweParameters<T, M>`].
+    pub fn delta_factor(&self) -> ShoupFactor<T> {
+        self.delta_factor
+    }
+
     /// Returns the secret key type of this [`GlweParameters<T, M>`].
     pub fn secret_key_type(&self) -> RingSecretKeyType {
         self.secret_key_type
+    }
+
+    /// Returns the secret key distribution of this [`GlweParameters<T, M>`].
+    pub fn secret_key_distribution(&self) -> Option<&DiscreteGaussian<T>> {
+        self.secret_key_distribution.as_ref()
     }
 
     /// Returns a reference to the noise distribution of this [`GlweParameters<T, M>`].
@@ -108,10 +154,10 @@ where
 
     /// Returns the noise distribution.
     #[inline]
-    pub fn noise_distribution_div_count(&self, count: u32) -> DiscreteGaussian<T> {
+    pub fn noise_distribution_div_count(&self, count: u32, min_sigma: f64) -> DiscreteGaussian<T> {
         let noise_standard_deviation = self.noise_distribution.standard_deviation();
         let var = noise_standard_deviation * noise_standard_deviation;
-        let sigma = (var / count as f64).sqrt();
+        let sigma = (var / count as f64).sqrt().max(min_sigma);
         DiscreteGaussian::new(sigma, self.cipher_modulus_minus_one).unwrap()
     }
 }
@@ -235,6 +281,7 @@ where
     converter: BaseConverter<T, M>,
     /// The distribution type of the secret key.
     secret_key_type: RingSecretKeyType,
+    secret_key_distribution: Option<SignedDiscreteGaussian<T::SignedInteger>>,
     /// The noise distribution
     noise_distribution: SignedDiscreteGaussian<T::SignedInteger>,
 }
@@ -261,6 +308,8 @@ where
             .iter()
             .map(|qi| qi.value_unchecked())
             .collect();
+        Self::validate_crt_moduli(t, gamma, &cipher_moduli_value);
+
         let cipher_moduli_minus_one = cipher_moduli_value.iter().map(|&qi| qi - T::ONE).collect();
         let base_q = RNSBase::new(cipher_moduli).unwrap();
         let cipher_modulus = base_q.moduli_product();
@@ -314,6 +363,13 @@ where
             base_q.big_uint_value_len(),
         );
 
+        let secret_key_distribution =
+            if let RingSecretKeyType::Gaussian(standard_deviation) = secret_key_type {
+                SignedDiscreteGaussian::new(standard_deviation).ok()
+            } else {
+                None
+            };
+
         Self {
             common_size,
             plain_modulus_value: t,
@@ -334,7 +390,30 @@ where
             base_t_gamma,
             converter,
             secret_key_type,
+            secret_key_distribution,
             noise_distribution,
+        }
+    }
+
+    fn validate_crt_moduli(t: T, gamma: T, cipher_moduli: &[T]) {
+        assert!(
+            gamma > t,
+            "gamma modulus must be greater than the plain modulus"
+        );
+        assert!(
+            t.is_coprime(gamma),
+            "plain modulus and gamma modulus must be coprime"
+        );
+
+        for &qi in cipher_moduli {
+            assert!(
+                qi.is_coprime(t),
+                "cipher moduli must be coprime with the plain modulus"
+            );
+            assert!(
+                qi.is_coprime(gamma),
+                "cipher moduli must be coprime with the gamma modulus"
+            );
         }
     }
 
@@ -404,6 +483,13 @@ where
     /// Returns the secret key type of this [`CrtGlweParameters<T, M>`].
     pub fn secret_key_type(&self) -> RingSecretKeyType {
         self.secret_key_type
+    }
+
+    /// Returns the secret key distribution of this [`CrtGlweParameters<T, M>`].
+    pub fn secret_key_distribution(
+        &self,
+    ) -> Option<&SignedDiscreteGaussian<<T as UnsignedInteger>::SignedInteger>> {
+        self.secret_key_distribution.as_ref()
     }
 
     /// Returns a reference to the noise distribution of this [`CrtGlweParameters<T, M>`].

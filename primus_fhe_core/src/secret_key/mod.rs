@@ -5,6 +5,7 @@ mod rlwe;
 
 /// The distribution type of the LWE Secret Key.
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
+#[non_exhaustive]
 pub enum LweSecretKeyType {
     /// Binary SecretKey Distribution.
     Binary,
@@ -22,7 +23,7 @@ pub enum RingSecretKeyType {
     #[default]
     Ternary,
     /// Gaussian SecretKey Distribution.
-    Gaussian,
+    Gaussian(f64),
 }
 
 pub use glwe::{

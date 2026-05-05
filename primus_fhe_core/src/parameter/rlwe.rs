@@ -27,6 +27,7 @@ where
     delta_factor: ShoupFactor<T>,
     /// The distribution type of the secret key.
     secret_key_type: RingSecretKeyType,
+    secret_key_distribution: Option<DiscreteGaussian<T>>,
     /// The noise's distribution.
     noise_distribution: DiscreteGaussian<T>,
 }
@@ -55,11 +56,18 @@ where
         let (mut delta, rem) = cipher_modulus
             .value_unchecked()
             .div_rem(plain_modulus_value);
-        if rem > (plain_modulus_value + T::ONE) / T::TWO {
+        if rem > (plain_modulus_value - T::ONE) / T::TWO {
             delta += T::ONE;
         }
 
         let delta_factor = ShoupFactor::new(delta, cipher_modulus.value_unchecked());
+
+        let secret_key_distribution =
+            if let RingSecretKeyType::Gaussian(standard_deviation) = secret_key_type {
+                Some(DiscreteGaussian::new(standard_deviation, cipher_modulus_minus_one).unwrap())
+            } else {
+                None
+            };
 
         Self {
             poly_length,
@@ -70,9 +78,11 @@ where
             delta,
             delta_factor,
             secret_key_type,
+            secret_key_distribution,
             noise_distribution,
         }
     }
+
     /// Returns the poly length of this [`RlweParameters<T, M>`].
     #[inline]
     pub fn poly_length(&self) -> usize {
@@ -85,14 +95,14 @@ where
     }
 
     /// Returns the cipher modulus of this [`RlweParameters<T, M>`].
-    #[inline]
-    pub fn cipher_modulus_value(&self) -> T {
-        self.cipher_modulus.value_unchecked()
+    pub fn cipher_modulus(&self) -> M {
+        self.cipher_modulus
     }
 
     /// Returns the cipher modulus of this [`RlweParameters<T, M>`].
-    pub fn cipher_modulus(&self) -> M {
-        self.cipher_modulus
+    #[inline]
+    pub fn cipher_modulus_value(&self) -> T {
+        self.cipher_modulus.value_unchecked()
     }
 
     /// Returns the cipher modulus minus one of this [`RlweParameters<T, M>`].
@@ -100,9 +110,29 @@ where
         self.cipher_modulus_minus_one
     }
 
+    /// Returns the cipher modulus uniform distr of this [`RlweParameters<T, M>`].
+    pub fn cipher_modulus_uniform_distr(&self) -> Uniform<T> {
+        self.cipher_modulus_uniform_distr
+    }
+
+    /// Returns the delta of this [`RlweParameters<T, M>`].
+    pub fn delta(&self) -> T {
+        self.delta
+    }
+
+    /// Returns the delta factor of this [`RlweParameters<T, M>`].
+    pub fn delta_factor(&self) -> ShoupFactor<T> {
+        self.delta_factor
+    }
+
     /// Returns the secret key type of this [`RlweParameters<T, M>`].
     pub fn secret_key_type(&self) -> RingSecretKeyType {
         self.secret_key_type
+    }
+
+    /// Returns the secret key distribution of this [`RlweParameters<T, M>`].
+    pub fn secret_key_distribution(&self) -> Option<&DiscreteGaussian<T>> {
+        self.secret_key_distribution.as_ref()
     }
 
     /// Returns the noise distribution.
@@ -118,24 +148,11 @@ where
 
     /// Returns the noise distribution.
     #[inline]
-    pub fn noise_distribution_div_count(&self, count: u32) -> DiscreteGaussian<T> {
+    pub fn noise_distribution_div_count(&self, count: u32, min_sigma: f64) -> DiscreteGaussian<T> {
         let noise_standard_deviation = self.noise_standard_deviation();
         let var = noise_standard_deviation * noise_standard_deviation;
-        let sigma = (var / count as f64).sqrt();
+        let sigma = (var / count as f64).sqrt().max(min_sigma);
         DiscreteGaussian::new(sigma, self.cipher_modulus_minus_one).unwrap()
-    }
-
-    /// Returns the cipher modulus uniform distr of this [`RlweParameters<T, M>`].
-    pub fn cipher_modulus_uniform_distr(&self) -> Uniform<T> {
-        self.cipher_modulus_uniform_distr
-    }
-
-    pub fn delta(&self) -> T {
-        self.delta
-    }
-
-    pub fn delta_factor(&self) -> ShoupFactor<T> {
-        self.delta_factor
     }
 }
 
@@ -199,10 +216,10 @@ where
 
     /// Returns the noise distribution.
     #[inline]
-    pub fn noise_distribution_div_count(&self, count: u32) -> DiscreteGaussian<T> {
+    pub fn noise_distribution_div_count(&self, count: u32, min_sigma: f64) -> DiscreteGaussian<T> {
         let noise_standard_deviation = self.noise_standard_deviation();
         let var = noise_standard_deviation * noise_standard_deviation;
-        let sigma = (var / count as f64).sqrt();
+        let sigma = (var / count as f64).sqrt().max(min_sigma);
         DiscreteGaussian::new(sigma, self.cipher_modulus_minus_one).unwrap()
     }
 
