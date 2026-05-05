@@ -71,9 +71,27 @@ fn assert_dcrt_glwe_secret_key_enc_dec(secret_key_type: RingSecretKeyType, plain
     let mut decrypt_context = DcrtGlweDecryptContext::new(moduli.len(), POLY_LENGTH);
 
     let message = message_polynomial(plain_modulus);
-    let decomposed_message = decompose_message(&message, &params);
     let mut ciphertext: DcrtGlwe<Vec<ValueT>> = DcrtGlweCiphertext::zero(params.rns_glwe_len());
 
+    secret_key.encrypt_plaintext_inplace(&message, &mut ciphertext, &params, &table, &mut rng);
+
+    let decrypted = secret_key.decrypt(&ciphertext, &params, &table, &mut decrypt_context);
+    assert_eq!(decrypted.as_ref(), message.as_ref());
+
+    let mut ciphertext: DcrtGlwe<Vec<ValueT>> = DcrtGlweCiphertext::zero(params.rns_glwe_len());
+    secret_key.encrypt_centered_plaintext_inplace(
+        &message,
+        &mut ciphertext,
+        &params,
+        &table,
+        &mut rng,
+    );
+
+    let decrypted = secret_key.decrypt(&ciphertext, &params, &table, &mut decrypt_context);
+    assert_eq!(decrypted.as_ref(), message.as_ref());
+
+    let decomposed_message = decompose_message(&message, &params);
+    let mut ciphertext: DcrtGlwe<Vec<ValueT>> = DcrtGlweCiphertext::zero(params.rns_glwe_len());
     secret_key.encrypt_inplace(
         &decomposed_message,
         &mut ciphertext,

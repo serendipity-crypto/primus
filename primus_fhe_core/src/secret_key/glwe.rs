@@ -11,6 +11,7 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::{
     CrtGlevParameters, CrtGlweParameters, DcrtGlweCiphertext, GlweParameters, NttGlweCiphertext,
+    PlaintextEmbedding,
 };
 
 use super::RingSecretKeyType;
@@ -420,6 +421,111 @@ impl<T: UnsignedInteger> DcrtGlweSecretKey<T> {
 
             b.add_mul_assign(&ai, &si, poly_length, moduli);
         });
+    }
+
+    /// Encrypts a raw plaintext polynomial using unsigned embedding.
+    pub fn encrypt_plaintext_inplace<R, M, Table, A, B>(
+        &self,
+        msg: &Polynomial<A>,
+        result: &mut DcrtGlweCiphertext<B>,
+        params: &CrtGlweParameters<T, M>,
+        table: &Table,
+        rng: &mut R,
+    ) where
+        R: rand::Rng + rand::CryptoRng,
+        M: FieldContext<T>,
+        Table: DcrtTable<ValueT = T>,
+        A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + DataMut,
+    {
+        self.encrypt_plaintext_inplace_with_embedding(
+            msg,
+            result,
+            params,
+            table,
+            rng,
+            PlaintextEmbedding::Unsigned,
+        );
+    }
+
+    /// Encrypts a raw plaintext polynomial using centered embedding.
+    pub fn encrypt_centered_plaintext_inplace<R, M, Table, A, B>(
+        &self,
+        msg: &Polynomial<A>,
+        result: &mut DcrtGlweCiphertext<B>,
+        params: &CrtGlweParameters<T, M>,
+        table: &Table,
+        rng: &mut R,
+    ) where
+        R: rand::Rng + rand::CryptoRng,
+        M: FieldContext<T>,
+        Table: DcrtTable<ValueT = T>,
+        A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + DataMut,
+    {
+        self.encrypt_plaintext_inplace_with_embedding(
+            msg,
+            result,
+            params,
+            table,
+            rng,
+            PlaintextEmbedding::Centered,
+        );
+    }
+
+    /// Encrypts a raw plaintext polynomial using the selected embedding.
+    pub fn encrypt_plaintext_inplace_with_embedding<R, M, Table, A, B>(
+        &self,
+        msg: &Polynomial<A>,
+        result: &mut DcrtGlweCiphertext<B>,
+        params: &CrtGlweParameters<T, M>,
+        table: &Table,
+        rng: &mut R,
+        embedding: PlaintextEmbedding,
+    ) where
+        R: rand::Rng + rand::CryptoRng,
+        M: FieldContext<T>,
+        Table: DcrtTable<ValueT = T>,
+        A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + DataMut,
+    {
+        let msg = Self::decompose_plaintext(msg, params, embedding);
+        self.encrypt_inplace(&msg, result, params, table, rng);
+    }
+
+    fn decompose_plaintext<M, A>(
+        msg: &Polynomial<A>,
+        params: &CrtGlweParameters<T, M>,
+        embedding: PlaintextEmbedding,
+    ) -> CrtPolynomial<Vec<T>>
+    where
+        M: FieldContext<T>,
+        A: RawData<Elem = T> + Data,
+    {
+        let poly_length = params.poly_length();
+        let t = params.plain_modulus_value();
+        let half = (t >> 1u32) + (t & T::ONE);
+        let mut decomposed = CrtPolynomial::zero(params.rns_poly_len());
+
+        debug_assert_eq!(msg.as_ref().len(), poly_length);
+
+        decomposed
+            .iter_each_modulus_mut(poly_length)
+            .zip(params.cipher_moduli_value())
+            .for_each(|(residues, &modulus)| {
+                residues
+                    .iter_mut()
+                    .zip(msg.as_ref())
+                    .for_each(|(residue, &message)| {
+                        *residue = match embedding {
+                            PlaintextEmbedding::Unsigned => message,
+                            PlaintextEmbedding::Centered if message < half => message,
+                            PlaintextEmbedding::Centered => modulus - (t - message),
+                        };
+                    });
+            });
+
+        decomposed
     }
 
     pub fn encrypt_zeros_inplace<R, M, Table, A>(

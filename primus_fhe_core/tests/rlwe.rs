@@ -1,5 +1,6 @@
 use primus_fhe_core::{
-    NttRlweCiphertext, NttRlweSecretKey, RingSecretKeyType, RlweParameters, RlweSecretKey,
+    NttRlweCiphertext, NttRlweSecretKey, PlaintextEmbedding, RingSecretKeyType, RlweParameters,
+    RlweSecretKey, add_encode_with_delta_factor_slice_assign,
 };
 use primus_integer::UnsignedInteger;
 use primus_modulus::BarrettModulus;
@@ -38,6 +39,35 @@ fn message_polynomial<T: UnsignedInteger>(plain_modulus: usize) -> Polynomial<Ve
     )
 }
 
+fn noiseless_delta_ciphertext<T, M, Table>(
+    message: &Polynomial<Vec<T>>,
+    params: &RlweParameters<T, M>,
+    table: &Table,
+    embedding: PlaintextEmbedding,
+) -> NttRlweCiphertext<Vec<T>>
+where
+    T: UnsignedInteger,
+    M: FieldContext<T>,
+    Table: NttTable<ValueT = T>,
+{
+    let mut ciphertext = NttRlweCiphertext::zero(params.poly_length() * 2);
+    let (_, b) = ciphertext.a_b_mut_slices();
+    let modulus = params.cipher_modulus();
+
+    add_encode_with_delta_factor_slice_assign(
+        b,
+        message.as_ref(),
+        params.plain_modulus_value(),
+        params.delta_factor(),
+        params.cipher_modulus_value(),
+        modulus,
+        embedding,
+    );
+    table.transform_slice(b);
+
+    ciphertext
+}
+
 fn assert_rlwe_secret_key_enc_dec<T, M>(cipher_modulus: M)
 where
     T: UnsignedInteger,
@@ -66,6 +96,47 @@ where
 
             let decrypted = secret_key.decrypt(&ciphertext, &params, &table);
             assert_eq!(decrypted.as_ref(), message.as_ref());
+
+            let (decrypted_with_noise, _noise) =
+                secret_key.decrypt_with_noise(&ciphertext, &params, &table);
+            assert_eq!(decrypted_with_noise.as_ref(), message.as_ref());
+
+            let ciphertext =
+                noiseless_delta_ciphertext(&message, &params, &table, PlaintextEmbedding::Unsigned);
+            let decrypted = secret_key.decrypt(&ciphertext, &params, &table);
+            assert_eq!(decrypted.as_ref(), message.as_ref());
+
+            let (decrypted_with_noise, noise) =
+                secret_key.decrypt_with_noise(&ciphertext, &params, &table);
+            assert_eq!(decrypted_with_noise.as_ref(), message.as_ref());
+            assert_eq!(noise.as_ref(), vec![T::ZERO; POLY_LENGTH]);
+
+            let mut ciphertext: NttRlweCiphertext<Vec<T>> =
+                NttRlweCiphertext::zero(POLY_LENGTH * 2);
+            secret_key.encrypt_centered_inplace(
+                &message,
+                &mut ciphertext,
+                &params,
+                &table,
+                &mut rng,
+            );
+
+            let decrypted = secret_key.decrypt(&ciphertext, &params, &table);
+            assert_eq!(decrypted.as_ref(), message.as_ref());
+
+            let (decrypted_with_noise, _noise) =
+                secret_key.decrypt_centered_with_noise(&ciphertext, &params, &table);
+            assert_eq!(decrypted_with_noise.as_ref(), message.as_ref());
+
+            let ciphertext =
+                noiseless_delta_ciphertext(&message, &params, &table, PlaintextEmbedding::Centered);
+            let decrypted = secret_key.decrypt(&ciphertext, &params, &table);
+            assert_eq!(decrypted.as_ref(), message.as_ref());
+
+            let (decrypted_with_noise, noise) =
+                secret_key.decrypt_centered_with_noise(&ciphertext, &params, &table);
+            assert_eq!(decrypted_with_noise.as_ref(), message.as_ref());
+            assert_eq!(noise.as_ref(), vec![T::ZERO; POLY_LENGTH]);
 
             let ciphertext = secret_key.encrypt_zeros(&params, &table, &mut rng);
             let decrypted = secret_key.decrypt(&ciphertext, &params, &table);

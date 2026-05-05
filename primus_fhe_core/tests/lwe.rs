@@ -57,12 +57,27 @@ where
                 let (decrypted_with_noise, _noise): (T, T) =
                     secret_key.decrypt_with_noise(&ciphertext, &params);
                 assert_eq!(decrypted_with_noise, message);
+
+                let ciphertext = secret_key.encrypt_centered(message, &params, &mut rng);
+
+                let decrypted: T = secret_key.decrypt(&ciphertext, &params);
+                assert_eq!(decrypted, message);
+
+                let (decrypted_with_noise, _noise): (T, T) =
+                    secret_key.decrypt_centered_with_noise(&ciphertext, &params);
+                assert_eq!(decrypted_with_noise, message);
             }
 
             let messages: Vec<T> = (0..DIMENSION)
                 .map(|index| from_usize(index % plain_modulus_usize))
                 .collect();
             let ciphertext = secret_key.encrypt_multi_messages(&messages, &params, &mut rng);
+
+            let decrypted: Vec<T> = secret_key.decrypt_multi_messages(&ciphertext, &params);
+            assert_eq!(decrypted, messages);
+
+            let ciphertext =
+                secret_key.encrypt_multi_messages_centered(&messages, &params, &mut rng);
 
             let decrypted: Vec<T> = secret_key.decrypt_multi_messages(&ciphertext, &params);
             assert_eq!(decrypted, messages);

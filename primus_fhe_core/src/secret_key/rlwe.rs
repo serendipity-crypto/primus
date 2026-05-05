@@ -7,7 +7,10 @@ use primus_poly::{NttPolynomial, NttPolynomialOwned, Polynomial, PolynomialOwned
 use primus_reduce::FieldContext;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-use crate::{NttRlweCiphertext, RlweParameters, decode};
+use crate::{
+    NttRlweCiphertext, PlaintextEmbedding, RlweParameters,
+    add_encode_with_delta_factor_slice_assign, decode, encode_with_delta_factor,
+};
 
 use super::{LweSecretKey, LweSecretKeyType, RingSecretKeyType};
 
@@ -188,20 +191,87 @@ impl<T: UnsignedInteger> NttRlweSecretKey<T> {
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + DataMut,
     {
+        self.encrypt_inplace_with_embedding(
+            msg,
+            result,
+            params,
+            ntt_table,
+            rng,
+            PlaintextEmbedding::Unsigned,
+        )
+    }
+
+    /// Encrypts a polynomial using centered plaintext embedding.
+    pub fn encrypt_centered_inplace<M, Table, R, A, B>(
+        &self,
+        msg: &Polynomial<A>,
+        result: &mut NttRlweCiphertext<B>,
+        params: &RlweParameters<T, M>,
+        ntt_table: &Table,
+        rng: &mut R,
+    ) where
+        M: FieldContext<T>,
+        Table: NttTable<ValueT = T>,
+        R: rand::Rng + rand::CryptoRng,
+        A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + DataMut,
+    {
+        self.encrypt_inplace_with_embedding(
+            msg,
+            result,
+            params,
+            ntt_table,
+            rng,
+            PlaintextEmbedding::Centered,
+        )
+    }
+
+    /// Encrypts a polynomial using the selected plaintext embedding.
+    pub fn encrypt_inplace_with_embedding<M, Table, R, A, B>(
+        &self,
+        msg: &Polynomial<A>,
+        result: &mut NttRlweCiphertext<B>,
+        params: &RlweParameters<T, M>,
+        ntt_table: &Table,
+        rng: &mut R,
+        embedding: PlaintextEmbedding,
+    ) where
+        M: FieldContext<T>,
+        Table: NttTable<ValueT = T>,
+        R: rand::Rng + rand::CryptoRng,
+        A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + DataMut,
+    {
         let (a, b) = result.a_b_mut_slices();
+        let modulus = params.cipher_modulus();
 
         primus_distr::sample_gaussian_values_inplace(b, params.noise_distribution(), rng);
 
-        Polynomial(&mut *b).add_mul_factor_assign(
-            msg,
-            params.delta_factor(),
-            params.cipher_modulus_value(),
-        );
+        match embedding {
+            PlaintextEmbedding::Unsigned => {
+                Polynomial(&mut *b).add_mul_factor_assign(
+                    msg,
+                    params.delta_factor(),
+                    params.cipher_modulus_value(),
+                );
+            }
+            PlaintextEmbedding::Centered => {
+                add_encode_with_delta_factor_slice_assign(
+                    b,
+                    msg.as_ref(),
+                    params.plain_modulus_value(),
+                    params.delta_factor(),
+                    params.cipher_modulus_value(),
+                    modulus,
+                    embedding,
+                );
+            }
+        }
         ntt_table.transform_slice(b);
 
         primus_distr::sample_uniform_values_inplace(a, &params.cipher_modulus_uniform_distr(), rng);
 
-        NttPolynomial(b).add_mul_assign(&NttPolynomial(a), self, params.cipher_modulus());
+        NttPolynomial(b).add_mul_assign(&NttPolynomial(a), self, modulus);
     }
 
     pub fn encrypt_zeros<M, Table, R>(
@@ -310,6 +380,92 @@ impl<T: UnsignedInteger> NttRlweSecretKey<T> {
         let mut result = PolynomialOwned::zero(params.poly_length());
         self.decrypt_inplace(cipher, &mut result, params, ntt_table);
         result
+    }
+
+    /// Decrypts the [`NttRlweCiphertext`] and returns the decoded message with
+    /// the coefficient-wise noise magnitude.
+    pub fn decrypt_with_noise<M, Table, A>(
+        &self,
+        cipher: &NttRlweCiphertext<A>,
+        params: &RlweParameters<T, M>,
+        ntt_table: &Table,
+    ) -> (PolynomialOwned<T>, PolynomialOwned<T>)
+    where
+        M: FieldContext<T>,
+        Table: NttTable<ValueT = T>,
+        A: RawData<Elem = T> + Data,
+    {
+        self.decrypt_with_noise_and_embedding(
+            cipher,
+            params,
+            ntt_table,
+            PlaintextEmbedding::Unsigned,
+        )
+    }
+
+    /// Decrypts the [`NttRlweCiphertext`] and returns the decoded message with
+    /// the coefficient-wise centered noise magnitude.
+    pub fn decrypt_centered_with_noise<M, Table, A>(
+        &self,
+        cipher: &NttRlweCiphertext<A>,
+        params: &RlweParameters<T, M>,
+        ntt_table: &Table,
+    ) -> (PolynomialOwned<T>, PolynomialOwned<T>)
+    where
+        M: FieldContext<T>,
+        Table: NttTable<ValueT = T>,
+        A: RawData<Elem = T> + Data,
+    {
+        self.decrypt_with_noise_and_embedding(
+            cipher,
+            params,
+            ntt_table,
+            PlaintextEmbedding::Centered,
+        )
+    }
+
+    /// Decrypts the [`NttRlweCiphertext`] and computes noise under the selected embedding.
+    pub fn decrypt_with_noise_and_embedding<M, Table, A>(
+        &self,
+        cipher: &NttRlweCiphertext<A>,
+        params: &RlweParameters<T, M>,
+        ntt_table: &Table,
+        embedding: PlaintextEmbedding,
+    ) -> (PolynomialOwned<T>, PolynomialOwned<T>)
+    where
+        M: FieldContext<T>,
+        Table: NttTable<ValueT = T>,
+        A: RawData<Elem = T> + Data,
+    {
+        let modulus = params.cipher_modulus();
+        let q = modulus.value();
+        let t = params.plain_modulus_value();
+
+        let mut message = PolynomialOwned::zero(params.poly_length());
+        self.phase_inplace(cipher, &mut message, modulus, ntt_table);
+
+        let mut noise = PolynomialOwned::zero(params.poly_length());
+        message
+            .iter_mut()
+            .zip(noise.iter_mut())
+            .for_each(|(phase, noise)| {
+                let phase_mod_q = *phase;
+                let decoded: T = decode(phase_mod_q, t, q);
+                let fresh: T = encode_with_delta_factor(
+                    decoded,
+                    t,
+                    params.delta_factor(),
+                    params.cipher_modulus_value(),
+                    embedding,
+                );
+
+                *phase = decoded;
+                *noise = modulus
+                    .reduce_sub(phase_mod_q, fresh)
+                    .min(modulus.reduce_sub(fresh, phase_mod_q));
+            });
+
+        (message, noise)
     }
 
     /// Decrypts the [`TruncatedRlwe`] back to message.

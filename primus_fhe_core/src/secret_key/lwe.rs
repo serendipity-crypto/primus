@@ -4,7 +4,8 @@ use rand::distr::Distribution;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::{
-    LweCiphertext, LweParameters, LweSecretKeyType, MultiMsgLweCiphertext, decode, encode,
+    LweCiphertext, LweParameters, LweSecretKeyType, MultiMsgLweCiphertext, PlaintextEmbedding,
+    decode, encode_with_embedding,
 };
 
 /// Represents a secret key for the Learning with Errors (LWE) cryptographic scheme.
@@ -88,6 +89,39 @@ impl<T: UnsignedInteger> LweSecretKey<T> {
         R: rand::Rng + rand::CryptoRng,
         M: RingContext<T>,
     {
+        self.encrypt_with_embedding(message, params, rng, PlaintextEmbedding::Unsigned)
+    }
+
+    /// Encrypts a centered message into [`LweCiphertext<T>`].
+    #[inline]
+    pub fn encrypt_centered<R, M, Msg>(
+        &self,
+        message: Msg,
+        params: &LweParameters<T, M>,
+        rng: &mut R,
+    ) -> LweCiphertext<T>
+    where
+        Msg: TryInto<T>,
+        R: rand::Rng + rand::CryptoRng,
+        M: RingContext<T>,
+    {
+        self.encrypt_with_embedding(message, params, rng, PlaintextEmbedding::Centered)
+    }
+
+    /// Encrypts message into [`LweCiphertext<T>`] with the selected plaintext embedding.
+    #[inline]
+    pub fn encrypt_with_embedding<R, M, Msg>(
+        &self,
+        message: Msg,
+        params: &LweParameters<T, M>,
+        rng: &mut R,
+        embedding: PlaintextEmbedding,
+    ) -> LweCiphertext<T>
+    where
+        Msg: TryInto<T>,
+        R: rand::Rng + rand::CryptoRng,
+        M: RingContext<T>,
+    {
         debug_assert_eq!(self.dimension(), params.dimension());
 
         let gaussian = params.noise_distribution();
@@ -103,7 +137,12 @@ impl<T: UnsignedInteger> LweSecretKey<T> {
         );
         modulus.reduce_add_assign(
             ciphertext.b_mut(),
-            encode(message, params.plain_modulus_value(), modulus.value()),
+            encode_with_embedding(
+                message,
+                params.plain_modulus_value(),
+                modulus.value(),
+                embedding,
+            ),
         );
 
         ciphertext
@@ -116,6 +155,49 @@ impl<T: UnsignedInteger> LweSecretKey<T> {
         messages: &[Msg],
         params: &LweParameters<T, M>,
         rng: &mut R,
+    ) -> MultiMsgLweCiphertext<T>
+    where
+        Msg: Copy + TryInto<T>,
+        R: rand::Rng + rand::CryptoRng,
+        M: RingContext<T>,
+    {
+        self.encrypt_multi_messages_with_embedding(
+            messages,
+            params,
+            rng,
+            PlaintextEmbedding::Unsigned,
+        )
+    }
+
+    /// Encrypts multiple centered messages using the secret key.
+    #[inline]
+    pub fn encrypt_multi_messages_centered<R, M, Msg>(
+        &self,
+        messages: &[Msg],
+        params: &LweParameters<T, M>,
+        rng: &mut R,
+    ) -> MultiMsgLweCiphertext<T>
+    where
+        Msg: Copy + TryInto<T>,
+        R: rand::Rng + rand::CryptoRng,
+        M: RingContext<T>,
+    {
+        self.encrypt_multi_messages_with_embedding(
+            messages,
+            params,
+            rng,
+            PlaintextEmbedding::Centered,
+        )
+    }
+
+    /// Encrypts multiple messages using the selected plaintext embedding.
+    #[inline]
+    pub fn encrypt_multi_messages_with_embedding<R, M, Msg>(
+        &self,
+        messages: &[Msg],
+        params: &LweParameters<T, M>,
+        rng: &mut R,
+        embedding: PlaintextEmbedding,
     ) -> MultiMsgLweCiphertext<T>
     where
         Msg: Copy + TryInto<T>,
@@ -146,7 +228,7 @@ impl<T: UnsignedInteger> LweSecretKey<T> {
         let q = modulus.value();
 
         for (bi, &message) in b.iter_mut().zip(messages) {
-            modulus.reduce_add_assign(bi, encode(message, t, q));
+            modulus.reduce_add_assign(bi, encode_with_embedding(message, t, q, embedding));
         }
 
         for (bi, ei) in b.iter_mut().zip(gaussian.sample_iter(&mut *rng)) {
@@ -232,6 +314,35 @@ impl<T: UnsignedInteger> LweSecretKey<T> {
         Msg: TryFrom<T>,
         M: RingContext<T>,
     {
+        self.decrypt_with_noise_and_embedding(cipher_text, params, PlaintextEmbedding::Unsigned)
+    }
+
+    /// Decrypts the [`LweCiphertext<T>`] and returns the message with centered noise.
+    #[inline]
+    pub fn decrypt_centered_with_noise<M, Msg>(
+        &self,
+        cipher_text: &LweCiphertext<T>,
+        params: &LweParameters<T, M>,
+    ) -> (Msg, T)
+    where
+        Msg: TryFrom<T>,
+        M: RingContext<T>,
+    {
+        self.decrypt_with_noise_and_embedding(cipher_text, params, PlaintextEmbedding::Centered)
+    }
+
+    /// Decrypts the [`LweCiphertext<T>`] and computes noise under the selected embedding.
+    #[inline]
+    pub fn decrypt_with_noise_and_embedding<M, Msg>(
+        &self,
+        cipher_text: &LweCiphertext<T>,
+        params: &LweParameters<T, M>,
+        embedding: PlaintextEmbedding,
+    ) -> (Msg, T)
+    where
+        Msg: TryFrom<T>,
+        M: RingContext<T>,
+    {
         let modulus = params.cipher_modulus();
 
         let (a, b) = cipher_text.a_b();
@@ -245,7 +356,7 @@ impl<T: UnsignedInteger> LweSecretKey<T> {
         let t = params.plain_modulus_value();
         let q = modulus.value();
         let message: T = decode(plaintext, t, q);
-        let fresh: T = encode(message, t, q);
+        let fresh: T = encode_with_embedding(message, t, q, embedding);
 
         (
             Msg::try_from(message)
