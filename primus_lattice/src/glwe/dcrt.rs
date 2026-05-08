@@ -142,6 +142,31 @@ where
             });
     }
 
+    /// Inverse butterfly with a Shoup-factor DCRT polynomial.
+    /// `(self, result) = (self + rhs, (self_orig - rhs) * factor_poly)`.
+    ///
+    /// `self` and `rhs` are expected in `[0, q)`. Both outputs are written
+    /// back in `[0, q)`.
+    pub fn butterfly_mul_factor_inplace<A, C>(
+        &mut self,
+        rhs: &DcrtGlwe<A>,
+        factor_poly: &[ShoupFactor<T>],
+        result: &mut DcrtGlwe<C>,
+        poly_length: usize,
+        moduli: &[T],
+    ) where
+        A: RawData<Elem = T> + Data,
+        C: RawData<Elem = T> + DataMut,
+    {
+        let dcrt_poly_len = factor_poly.len();
+        self.iter_dcrt_poly_mut(dcrt_poly_len)
+            .zip(rhs.iter_dcrt_poly(dcrt_poly_len))
+            .zip(result.iter_dcrt_poly_mut(dcrt_poly_len))
+            .for_each(|((mut a, s), mut b)| {
+                a.butterfly_mul_factor_inplace(&s, factor_poly, &mut b, poly_length, moduli);
+            });
+    }
+
     pub fn add_dcrt_glev_mul_crt_poly_assign<M, Table, A, B>(
         &mut self,
         dcrt_glev: &DcrtGlev<A>,

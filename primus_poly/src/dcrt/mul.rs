@@ -1,4 +1,4 @@
-use primus_factor::ShoupFactor;
+use primus_factor::{FactorMul, ShoupFactor};
 use primus_integer::{Data, DataMut, RawData, UnsignedInteger, izip};
 use primus_reduce::ops::{ReduceMul, ReduceMulAdd, ReduceMulAssign};
 
@@ -106,6 +106,66 @@ where
         .for_each(|(xs, ys, &modulus)| {
             ArrayBase(xs).mul_element_wise_assign(&ArrayBase(ys), modulus)
         })
+    }
+
+    /// Inverse butterfly with a Shoup-factor polynomial.
+    ///
+    /// `(self, result) = (self + rhs, (self_orig - rhs) * w)`.
+    ///
+    /// `self` and `rhs` are expected in `[0, q)`. Both outputs are written
+    /// back in `[0, q)`.
+    #[inline]
+    pub fn butterfly_mul_factor_inplace<A, B>(
+        &mut self,
+        rhs: &DcrtPolynomial<A>,
+        w: &[ShoupFactor<T>],
+        result: &mut DcrtPolynomial<B>,
+        poly_length: usize,
+        moduli: &[T],
+    ) where
+        A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + DataMut,
+    {
+        let lhs = self.0.as_mut_slice();
+        let rhs = rhs.0.as_slice();
+        let result = result.0.as_mut_slice();
+
+        debug_assert_eq!(lhs.len(), rhs.len());
+        debug_assert_eq!(lhs.len(), result.len());
+        debug_assert_eq!(lhs.len(), w.len());
+        debug_assert_eq!(lhs.len(), poly_length * moduli.len());
+
+        moduli
+            .iter()
+            .enumerate()
+            .for_each(|(modulus_index, &modulus)| {
+                let offset = modulus_index * poly_length;
+                (0..poly_length).for_each(|coeff_index| {
+                    let index = offset + coeff_index;
+
+                    // SAFETY: `offset < lhs.len()` and `coeff_index < poly_length`.
+                    unsafe {
+                        let a = lhs.get_unchecked_mut(index);
+                        let s = *rhs.get_unchecked(index);
+                        let w = *w.get_unchecked(index);
+                        let b = result.get_unchecked_mut(index);
+
+                        let a_orig = *a;
+                        let sum_diff = modulus - s;
+                        *a = if sum_diff > a_orig {
+                            a_orig + s
+                        } else {
+                            a_orig.wrapping_sub(sum_diff)
+                        };
+                        let diff = if s > a_orig {
+                            a_orig.wrapping_sub(s).wrapping_add(modulus)
+                        } else {
+                            a_orig - s
+                        };
+                        *b = w.factor_mul_modulo(diff, modulus);
+                    }
+                });
+            })
     }
 }
 
