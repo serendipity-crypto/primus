@@ -1,6 +1,7 @@
 use primus_factor::{FactorMul, ShoupFactor};
 use primus_integer::{Data, DataMut, RawData, UnsignedInteger, izip};
-use primus_reduce::ops::{ReduceMul, ReduceMulAdd, ReduceMulAssign};
+use primus_modulus::UintModulus;
+use primus_reduce::ops::{ReduceAddAssign, ReduceMul, ReduceMulAdd, ReduceMulAssign, ReduceSub};
 
 use crate::ArrayBase;
 
@@ -135,37 +136,22 @@ where
         debug_assert_eq!(lhs.len(), w.len());
         debug_assert_eq!(lhs.len(), poly_length * moduli.len());
 
-        moduli
-            .iter()
-            .enumerate()
-            .for_each(|(modulus_index, &modulus)| {
-                let offset = modulus_index * poly_length;
-                (0..poly_length).for_each(|coeff_index| {
-                    let index = offset + coeff_index;
-
-                    // SAFETY: `offset < lhs.len()` and `coeff_index < poly_length`.
-                    unsafe {
-                        let a = lhs.get_unchecked_mut(index);
-                        let s = *rhs.get_unchecked(index);
-                        let w = *w.get_unchecked(index);
-                        let b = result.get_unchecked_mut(index);
-
-                        let a_orig = *a;
-                        let sum_diff = modulus - s;
-                        *a = if sum_diff > a_orig {
-                            a_orig + s
-                        } else {
-                            a_orig.wrapping_sub(sum_diff)
-                        };
-                        let diff = if s > a_orig {
-                            a_orig.wrapping_sub(s).wrapping_add(modulus)
-                        } else {
-                            a_orig - s
-                        };
-                        *b = w.factor_mul_modulo(diff, modulus);
-                    }
-                });
-            })
+        izip!(
+            lhs.chunks_exact_mut(poly_length),
+            rhs.chunks_exact(poly_length),
+            w.chunks_exact(poly_length),
+            result.chunks_exact_mut(poly_length),
+            moduli
+        )
+        .for_each(|(lhs, rhs, w, result, &modulus)| {
+            let modulus_ctx = UintModulus(modulus);
+            izip!(lhs, rhs, w, result).for_each(|(a, &s, &w, b)| {
+                let a_orig = *a;
+                modulus_ctx.reduce_add_assign(a, s);
+                let diff = modulus_ctx.reduce_sub(a_orig, s);
+                *b = w.factor_mul_modulo(diff, modulus);
+            });
+        })
     }
 }
 
