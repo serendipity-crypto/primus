@@ -1,6 +1,7 @@
-use primus_factor::ShoupFactor;
+use primus_factor::{FactorMul, ShoupFactor};
 use primus_integer::{Data, DataMut, RawData, UnsignedInteger, izip};
-use primus_reduce::ops::{ReduceMul, ReduceMulAdd, ReduceMulAssign};
+use primus_modulus::UintModulus;
+use primus_reduce::ops::{ReduceAddAssign, ReduceMul, ReduceMulAdd, ReduceMulAssign, ReduceSub};
 
 use crate::ArrayBase;
 
@@ -105,6 +106,51 @@ where
         )
         .for_each(|(xs, ys, &modulus)| {
             ArrayBase(xs).mul_element_wise_assign(&ArrayBase(ys), modulus)
+        })
+    }
+
+    /// Inverse butterfly with a Shoup-factor polynomial.
+    ///
+    /// `(self, result) = (self + rhs, (self_orig - rhs) * w)`.
+    ///
+    /// `self` and `rhs` are expected in `[0, q)`. Both outputs are written
+    /// back in `[0, q)`.
+    #[inline]
+    pub fn butterfly_mul_factor_inplace<A, B>(
+        &mut self,
+        rhs: &DcrtPolynomial<A>,
+        w: &[ShoupFactor<T>],
+        result: &mut DcrtPolynomial<B>,
+        poly_length: usize,
+        moduli: &[T],
+    ) where
+        A: RawData<Elem = T> + Data,
+        B: RawData<Elem = T> + DataMut,
+    {
+        let lhs = self.0.as_mut_slice();
+        let rhs = rhs.0.as_slice();
+        let result = result.0.as_mut_slice();
+
+        debug_assert_eq!(lhs.len(), rhs.len());
+        debug_assert_eq!(lhs.len(), result.len());
+        debug_assert_eq!(lhs.len(), w.len());
+        debug_assert_eq!(lhs.len(), poly_length * moduli.len());
+
+        izip!(
+            lhs.chunks_exact_mut(poly_length),
+            rhs.chunks_exact(poly_length),
+            w.chunks_exact(poly_length),
+            result.chunks_exact_mut(poly_length),
+            moduli
+        )
+        .for_each(|(lhs, rhs, w, result, &modulus)| {
+            let modulus_ctx = UintModulus(modulus);
+            izip!(lhs, rhs, w, result).for_each(|(a, &s, &w, b)| {
+                let a_orig = *a;
+                modulus_ctx.reduce_add_assign(a, s);
+                let diff = modulus_ctx.reduce_sub(a_orig, s);
+                *b = w.factor_mul_modulo(diff, modulus);
+            });
         })
     }
 }

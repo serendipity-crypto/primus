@@ -45,5 +45,9 @@ harness = false
 name = "expand_coeff"
 harness = false
 
+[[bench]]
+name = "expand_coeff_components"
+harness = false
+
 [features]
 # nightly = ["primus_ntt/nightly", "primus_lattice/nightly"]

@@ -3,7 +3,6 @@ use std::sync::{Arc, Mutex};
 use primus_factor::ShoupFactor;
 use primus_integer::{AsInto, BigUint, Data, DataMut, RawData, UnsignedInteger};
 use primus_ntt::DcrtTable;
-use primus_poly::DcrtPolynomial;
 use primus_reduce::FieldContext;
 use primus_rns::RNSBase;
 use rayon::prelude::*;
@@ -140,7 +139,7 @@ where
     Table: DcrtTable<ValueT = T>,
 {
     auto_keys: Vec<DcrtGlweAutoKey<T, Table>>,
-    ntt_monomials: Vec<Vec<T>>,
+    ntt_monomial_factors: Vec<Vec<ShoupFactor<T>>>,
     inv_count_residues_by_level: Vec<Vec<ShoupFactor<T>>>,
     table: Arc<Table>,
 }
@@ -167,12 +166,12 @@ where
             .map(|degree| DcrtGlweAutoKey::new(params, degree, dcrt_sk, Arc::clone(&table), rng))
             .collect();
 
-        let ntt_monomials = Self::precompute_monomials(params, table.as_ref());
+        let ntt_monomial_factors = Self::precompute_monomial_factors(params, table.as_ref());
         let inv_count_residues_by_level = Self::precompute_inv_count_residues(params, rns_base);
 
         Self {
             auto_keys,
-            ntt_monomials,
+            ntt_monomial_factors,
             inv_count_residues_by_level,
             table,
         }
@@ -182,12 +181,16 @@ where
         &self.table
     }
 
-    fn precompute_monomials<M>(params: &CrtGlevParameters<T, M>, table: &Table) -> Vec<Vec<T>>
+    fn precompute_monomial_factors<M>(
+        params: &CrtGlevParameters<T, M>,
+        table: &Table,
+    ) -> Vec<Vec<ShoupFactor<T>>>
     where
         M: FieldContext<T>,
     {
         let poly_length = params.poly_length();
         let rns_poly_len = params.rns_poly_len();
+        let moduli = params.cipher_moduli_value();
         let twice_poly_length = poly_length * 2;
         let log_n = poly_length.trailing_zeros() as usize;
 
@@ -197,6 +200,13 @@ where
                 let mut monomial_ntt = vec![T::ZERO; rns_poly_len];
                 table.transform_coeff_one_monomial(degree, &mut monomial_ntt);
                 monomial_ntt
+                    .chunks_exact(poly_length)
+                    .zip(moduli)
+                    .flat_map(|(poly, &modulus)| {
+                        poly.iter()
+                            .map(move |&value| ShoupFactor::new(value, modulus))
+                    })
+                    .collect()
             })
             .collect()
     }
@@ -267,11 +277,10 @@ where
         assert!(count.is_power_of_two() && count <= poly_length);
 
         let rns_poly_len = params.rns_poly_len();
-        let moduli = params.cipher_moduli();
         let moduli_value = params.cipher_moduli_value();
 
         let log_d = count.trailing_zeros() as usize;
-        debug_assert!(log_d <= self.ntt_monomials.len());
+        debug_assert!(log_d <= self.ntt_monomial_factors.len());
         debug_assert!(log_d < self.inv_count_residues_by_level.len());
 
         ciphertext.mul_factor_inplace(
@@ -284,15 +293,14 @@ where
 
         let (dcrt_glwe, auto_context) = context.as_mut();
 
-        for (i, (auto_key, ntt_monomial)) in self
+        for (i, (auto_key, ntt_monomial_factors)) in self
             .auto_keys
             .iter()
-            .zip(self.ntt_monomials.iter())
+            .zip(self.ntt_monomial_factors.iter())
             .enumerate()
             .take(log_d)
         {
             let two_pow_i = 1 << i;
-            let ntt_monomial_poly = DcrtPolynomial(ntt_monomial.as_slice());
 
             // SAFETY: `i < log_d` guarantees `two_pow_i * 2 <= count == result.len()`,
             // and `two_pow_i <= two_pow_i * 2`, so the split point is within bounds.
@@ -301,12 +309,12 @@ where
             x.iter_mut().zip(y.iter_mut()).for_each(|(a_0, b_0)| {
                 auto_key.automorphism_inplace(a_0, dcrt_glwe, params, rns_base, auto_context);
 
-                a_0.butterfly_mul_dcrt_polynomial_inplace(
+                a_0.butterfly_mul_factor_inplace(
                     dcrt_glwe,
-                    &ntt_monomial_poly,
+                    ntt_monomial_factors,
                     b_0,
                     poly_length,
-                    moduli,
+                    moduli_value,
                 );
             });
         }
@@ -360,11 +368,10 @@ where
         assert!(count.is_power_of_two() && count <= poly_length);
 
         let rns_poly_len = params.rns_poly_len();
-        let moduli = params.cipher_moduli();
         let moduli_value = params.cipher_moduli_value();
 
         let log_d = count.trailing_zeros() as usize;
-        debug_assert!(log_d <= self.ntt_monomials.len());
+        debug_assert!(log_d <= self.ntt_monomial_factors.len());
         debug_assert!(log_d < self.inv_count_residues_by_level.len());
 
         ciphertext.mul_factor_inplace(
@@ -375,15 +382,14 @@ where
             moduli_value,
         );
 
-        for (i, (auto_key, ntt_monomial)) in self
+        for (i, (auto_key, ntt_monomial_factors)) in self
             .auto_keys
             .iter()
-            .zip(self.ntt_monomials.iter())
+            .zip(self.ntt_monomial_factors.iter())
             .enumerate()
             .take(log_d)
         {
             let two_pow_i = 1 << i;
-            let ntt_monomial_poly = DcrtPolynomial(ntt_monomial.as_slice());
 
             // SAFETY: `i < log_d` guarantees `two_pow_i * 2 <= count == result.len()`,
             // and `two_pow_i <= two_pow_i * 2`, so the split point is within bounds.
@@ -396,12 +402,12 @@ where
 
                     auto_key.automorphism_inplace(a_0, dcrt_glwe, params, rns_base, auto_context);
 
-                    a_0.butterfly_mul_dcrt_polynomial_inplace(
+                    a_0.butterfly_mul_factor_inplace(
                         dcrt_glwe,
-                        &ntt_monomial_poly,
+                        ntt_monomial_factors,
                         b_0,
                         poly_length,
-                        moduli,
+                        moduli_value,
                     );
                 },
             );
