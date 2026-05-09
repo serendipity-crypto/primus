@@ -3,7 +3,7 @@ use primus_integer::UnsignedInteger;
 use primus_reduce::RingContext;
 use rand::distr::Uniform;
 
-use crate::LweSecretKeyType;
+use crate::{LweSecretKeyType, PlaintextCodec};
 
 /// Lwe Parameters.
 #[derive(Clone)]
@@ -16,6 +16,7 @@ where
     dimension: usize,
     /// **LWE** message modulus, refers to **t** in the paper.
     plain_modulus_value: T,
+    plaintext_codec: PlaintextCodec<T>,
     /// **LWE** cipher modulus minus one, refers to **q-1** in the paper.
     cipher_modulus_minus_one: T,
     /// **LWE** cipher modulus, refers to **q** in the paper.
@@ -47,10 +48,12 @@ where
             DiscreteGaussian::new(noise_standard_deviation, cipher_modulus_minus_one).unwrap();
 
         let cipher_modulus_uniform_distr = cipher_modulus.uniform_distribution();
+        let plaintext_codec = PlaintextCodec::new(plain_modulus_value, cipher_modulus.value());
 
         Self {
             dimension,
             plain_modulus_value,
+            plaintext_codec,
             cipher_modulus_minus_one,
             cipher_modulus,
             cipher_modulus_uniform_distr,
@@ -69,6 +72,12 @@ where
     #[inline]
     pub fn plain_modulus_value(&self) -> T {
         self.plain_modulus_value
+    }
+
+    /// Returns the preselected plaintext codec strategy.
+    #[inline]
+    pub fn plaintext_codec(&self) -> &PlaintextCodec<T> {
+        &self.plaintext_codec
     }
 
     /// Returns the cipher modulus minus one of this [`LweParameters<T, M>`].

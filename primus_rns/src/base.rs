@@ -361,7 +361,7 @@ where
             for (iter, residue) in iters.iter_mut().zip(residues.iter_mut()) {
                 *residue = *iter.next().unwrap();
             }
-            self.compose_inplace(&residues, value);
+            self.compose_inplace(residues, value);
         }
     }
 

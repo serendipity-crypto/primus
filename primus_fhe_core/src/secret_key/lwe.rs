@@ -5,7 +5,6 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::{
     LweCiphertext, LweParameters, LweSecretKeyType, MultiMsgLweCiphertext, PlaintextEmbedding,
-    decode, encode_with_embedding,
 };
 
 /// Represents a secret key for the Learning with Errors (LWE) cryptographic scheme.
@@ -135,15 +134,9 @@ impl<T: UnsignedInteger> LweSecretKey<T> {
             gaussian,
             rng,
         );
-        modulus.reduce_add_assign(
-            ciphertext.b_mut(),
-            encode_with_embedding(
-                message,
-                params.plain_modulus_value(),
-                modulus.value(),
-                embedding,
-            ),
-        );
+        params
+            .plaintext_codec()
+            .add_encode_value(ciphertext.b_mut(), message, embedding);
 
         ciphertext
     }
@@ -224,12 +217,9 @@ impl<T: UnsignedInteger> LweSecretKey<T> {
             *bi = self.multi_message_a_mul_s(a, i, dimension, modulus);
         });
 
-        let t = params.plain_modulus_value();
-        let q = modulus.value();
-
-        for (bi, &message) in b.iter_mut().zip(messages) {
-            modulus.reduce_add_assign(bi, encode_with_embedding(message, t, q, embedding));
-        }
+        params
+            .plaintext_codec()
+            .add_encode_slice_assign(b, messages, embedding);
 
         for (bi, ei) in b.iter_mut().zip(gaussian.sample_iter(&mut *rng)) {
             modulus.reduce_add_assign(bi, ei);
@@ -300,7 +290,7 @@ impl<T: UnsignedInteger> LweSecretKey<T> {
         let a_mul_s = modulus.reduce_dot_product(a, self);
         let plaintext = modulus.reduce_sub(b, a_mul_s);
 
-        decode(plaintext, params.plain_modulus_value(), modulus.value())
+        params.plaintext_codec().decode_value(plaintext)
     }
 
     /// Decrypts the [`LweCiphertext<T>`] back to message.
@@ -353,10 +343,8 @@ impl<T: UnsignedInteger> LweSecretKey<T> {
         let a_mul_s = modulus.reduce_dot_product(a, self);
         let plaintext = modulus.reduce_sub(b, a_mul_s);
 
-        let t = params.plain_modulus_value();
-        let q = modulus.value();
-        let message: T = decode(plaintext, t, q);
-        let fresh: T = encode_with_embedding(message, t, q, embedding);
+        let message: T = params.plaintext_codec().decode_value(plaintext);
+        let fresh: T = params.plaintext_codec().encode_value(message, embedding);
 
         (
             Msg::try_from(message)
@@ -389,16 +377,22 @@ impl<T: UnsignedInteger> LweSecretKey<T> {
         debug_assert_eq!(a.len(), dimension);
         debug_assert!(b.len() <= dimension);
 
-        let t = params.plain_modulus_value();
-        let q = modulus.value();
-
-        b.iter()
+        let mut messages: Vec<T> = b
+            .iter()
             .enumerate()
             .map(|(i, &b)| {
                 let a_mul_s = self.multi_message_a_mul_s(a, i, dimension, modulus);
-                let plaintext = modulus.reduce_sub(b, a_mul_s);
+                modulus.reduce_sub(b, a_mul_s)
+            })
+            .collect();
+        params.plaintext_codec().decode_slice_inplace(&mut messages);
 
-                decode(plaintext, t, q)
+        messages
+            .into_iter()
+            .map(|message| {
+                Msg::try_from(message)
+                    .map_err(|_| "out of range integral type conversion attempted")
+                    .unwrap()
             })
             .collect()
     }

@@ -7,10 +7,7 @@ use primus_poly::{NttPolynomial, NttPolynomialOwned, Polynomial, PolynomialOwned
 use primus_reduce::FieldContext;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-use crate::{
-    NttRlweCiphertext, PlaintextEmbedding, RlweParameters,
-    add_encode_with_delta_factor_slice_assign, decode, encode_with_delta_factor,
-};
+use crate::{NttRlweCiphertext, PlaintextEmbedding, RlweParameters};
 
 use super::{LweSecretKey, LweSecretKeyType, RingSecretKeyType};
 
@@ -256,13 +253,9 @@ impl<T: UnsignedInteger> NttRlweSecretKey<T> {
                 );
             }
             PlaintextEmbedding::Centered => {
-                add_encode_with_delta_factor_slice_assign(
+                params.plaintext_codec().add_encode_slice_assign_with_delta(
                     b,
                     msg.as_ref(),
-                    params.plain_modulus_value(),
-                    params.delta_factor(),
-                    params.cipher_modulus_value(),
-                    modulus,
                     embedding,
                 );
             }
@@ -350,9 +343,6 @@ impl<T: UnsignedInteger> NttRlweSecretKey<T> {
         B: RawData<Elem = T> + DataMut,
     {
         let modulus = params.cipher_modulus();
-        let q = modulus.value();
-        let t = params.plain_modulus_value();
-
         let (a, b) = cipher.a_b();
 
         let mut temp = NttPolynomial(result.as_mut());
@@ -361,9 +351,9 @@ impl<T: UnsignedInteger> NttRlweSecretKey<T> {
         b.sub_to_right(&mut temp, modulus);
         ntt_table.inverse_transform_slice(result.as_mut());
 
-        result
-            .iter_mut()
-            .for_each(|value| *value = decode(*value, t, q));
+        params
+            .plaintext_codec()
+            .decode_slice_inplace(result.as_mut());
     }
 
     pub fn decrypt<M, Table, A>(
@@ -438,8 +428,6 @@ impl<T: UnsignedInteger> NttRlweSecretKey<T> {
         A: RawData<Elem = T> + Data,
     {
         let modulus = params.cipher_modulus();
-        let q = modulus.value();
-        let t = params.plain_modulus_value();
 
         let mut message = PolynomialOwned::zero(params.poly_length());
         self.phase_inplace(cipher, &mut message, modulus, ntt_table);
@@ -450,14 +438,10 @@ impl<T: UnsignedInteger> NttRlweSecretKey<T> {
             .zip(noise.iter_mut())
             .for_each(|(phase, noise)| {
                 let phase_mod_q = *phase;
-                let decoded: T = decode(phase_mod_q, t, q);
-                let fresh: T = encode_with_delta_factor(
-                    decoded,
-                    t,
-                    params.delta_factor(),
-                    params.cipher_modulus_value(),
-                    embedding,
-                );
+                let decoded: T = params.plaintext_codec().decode_value(phase_mod_q);
+                let fresh: T = params
+                    .plaintext_codec()
+                    .encode_value_with_delta(decoded, embedding);
 
                 *phase = decoded;
                 *noise = modulus
@@ -483,8 +467,6 @@ impl<T: UnsignedInteger> NttRlweSecretKey<T> {
     {
         let poly_length = params.poly_length();
         let modulus = params.cipher_modulus();
-        let modulus_value = modulus.value();
-
         let (a, b) = cipher.a_b_slices(poly_length);
 
         let mut a = a.to_vec();
@@ -492,14 +474,19 @@ impl<T: UnsignedInteger> NttRlweSecretKey<T> {
         NttPolynomial(a.as_mut()).mul_assign(&self.key, modulus);
         ntt_table.inverse_transform_slice(&mut a);
 
-        b.iter()
+        let mut messages: Vec<T> = b
+            .iter()
             .zip(a)
-            .map(|(x, y)| {
-                decode(
-                    modulus.reduce_sub(*x, y),
-                    params.plain_modulus_value(),
-                    modulus_value,
-                )
+            .map(|(x, y)| modulus.reduce_sub(*x, y))
+            .collect();
+        params.plaintext_codec().decode_slice_inplace(&mut messages);
+
+        messages
+            .into_iter()
+            .map(|message| {
+                Msg::try_from(message)
+                    .map_err(|_| "out of range integral type conversion attempted")
+                    .unwrap()
             })
             .collect()
     }

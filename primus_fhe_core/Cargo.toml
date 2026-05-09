@@ -34,6 +34,10 @@ name = "lwe_enc"
 harness = false
 
 [[bench]]
+name = "plaintext_codec"
+harness = false
+
+[[bench]]
 name = "automorphism"
 harness = false
 

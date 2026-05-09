@@ -1,6 +1,6 @@
 use primus_fhe_core::{
     NttRlweCiphertext, NttRlweSecretKey, PlaintextEmbedding, RingSecretKeyType, RlweParameters,
-    RlweSecretKey, add_encode_with_delta_factor_slice_assign,
+    RlweSecretKey,
 };
 use primus_integer::UnsignedInteger;
 use primus_modulus::BarrettModulus;
@@ -52,17 +52,10 @@ where
 {
     let mut ciphertext = NttRlweCiphertext::zero(params.poly_length() * 2);
     let (_, b) = ciphertext.a_b_mut_slices();
-    let modulus = params.cipher_modulus();
 
-    add_encode_with_delta_factor_slice_assign(
-        b,
-        message.as_ref(),
-        params.plain_modulus_value(),
-        params.delta_factor(),
-        params.cipher_modulus_value(),
-        modulus,
-        embedding,
-    );
+    params
+        .plaintext_codec()
+        .add_encode_slice_assign_with_delta(b, message.as_ref(), embedding);
     table.transform_slice(b);
 
     ciphertext

@@ -7,7 +7,7 @@ use primus_reduce::FieldContext;
 use primus_rns::{BaseConverter, RNSBase};
 use rand::distr::Uniform;
 
-use crate::RingSecretKeyType;
+use crate::{PlaintextCodec, RingSecretKeyType};
 
 /// Glwe Parameters.
 #[derive(Clone)]
@@ -22,6 +22,7 @@ where
     poly_length: usize,
     /// **RLWE** message modulus, refers to **t** in the paper.
     plain_modulus_value: T,
+    plaintext_codec: PlaintextCodec<T>,
     /// **RLWE** cipher modulus minus one, refers to **Q-1**.
     cipher_modulus_minus_one: T,
     /// The modulus, refers to **Q** in the paper.
@@ -56,6 +57,7 @@ where
             DiscreteGaussian::new(noise_standard_deviation, cipher_modulus_minus_one).unwrap();
 
         let cipher_modulus_uniform_distr = cipher_modulus.uniform_distribution();
+        let plaintext_codec = PlaintextCodec::new(plain_modulus_value, cipher_modulus.value());
 
         let (mut delta, rem) = cipher_modulus
             .value_unchecked()
@@ -77,6 +79,7 @@ where
             dimension,
             poly_length,
             plain_modulus_value,
+            plaintext_codec,
             cipher_modulus_minus_one,
             cipher_modulus,
             cipher_modulus_uniform_distr,
@@ -103,6 +106,12 @@ where
     /// Returns the plain modulus value of this [`GlweParameters<T, M>`].
     pub fn plain_modulus_value(&self) -> T {
         self.plain_modulus_value
+    }
+
+    /// Returns the preselected plaintext codec strategy.
+    #[inline]
+    pub fn plaintext_codec(&self) -> &PlaintextCodec<T> {
+        &self.plaintext_codec
     }
 
     /// Returns the cipher modulus of this [`GlweParameters<T, M>`].
