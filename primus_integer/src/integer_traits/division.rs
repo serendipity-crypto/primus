@@ -25,6 +25,47 @@ pub trait DivRemScalar: Sized {
     fn div_rem_scalar(dividend: &[Self], divisor: Self, quotient: &mut [Self]) -> Self;
 }
 
+/// A trait for fast two-limb division by a scalar.
+pub trait DivWideFast: Sized {
+    /// Computes `((hi << Self::BITS) | lo) / divisor` and returns the low quotient
+    /// limb.  Callers must ensure `hi < divisor`.
+    fn div_wide_fast(lo: Self, hi: Self, divisor: Self) -> Self;
+}
+
+macro_rules! impl_div_wide_fast {
+    ($T:ty, $W:ty) => {
+        impl DivWideFast for $T {
+            #[inline]
+            fn div_wide_fast(lo: Self, hi: Self, divisor: Self) -> Self {
+                debug_assert!(hi < divisor);
+                let dividend = (lo as $W) | ((hi as $W) << <$T>::BITS);
+                (dividend / divisor as $W) as $T
+            }
+        }
+    };
+}
+
+impl_div_wide_fast!(u8, u16);
+impl_div_wide_fast!(u16, u32);
+impl_div_wide_fast!(u32, u64);
+impl_div_wide_fast!(u64, u128);
+
+#[cfg(target_pointer_width = "64")]
+impl_div_wide_fast!(usize, u128);
+
+#[cfg(target_pointer_width = "32")]
+impl_div_wide_fast!(usize, u64);
+
+impl DivWideFast for u128 {
+    #[inline]
+    fn div_wide_fast(lo: Self, hi: Self, divisor: Self) -> Self {
+        debug_assert!(hi < divisor);
+        let mut quotient = [0u128; 2];
+        Self::div_rem_scalar(&[lo, hi], divisor, &mut quotient);
+        quotient[0]
+    }
+}
+
 macro_rules! impl_div_rem_scalar {
     ($T:ty, $W:ty, $HALF_BITS:ident, $LO_MASK:ident, $div_half:ident, $div_wide:ident) => {
         const $HALF_BITS: u32 = <$T>::BITS >> 1;

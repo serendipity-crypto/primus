@@ -2,7 +2,9 @@ use core::fmt::Debug;
 
 use primus_gcd::Xgcd;
 
-use crate::{BorrowingSub, CarryingAdd, CarryingMul, DivRem, DivRemScalar, Integer, WideningMul};
+use crate::{
+    BorrowingSub, CarryingAdd, CarryingMul, DivRem, DivRemScalar, DivWideFast, Integer, WideningMul,
+};
 
 /// An abstract over unsigned integer type.
 pub trait UnsignedInteger:
@@ -13,6 +15,7 @@ pub trait UnsignedInteger:
     + WideningMul
     + CarryingMul
     + DivRem
+    + DivWideFast
     + DivRemScalar
     + Xgcd
     + TryFrom<usize, Error: Debug>
@@ -57,8 +60,22 @@ impl_unsigned_integer! {u32, i32}
 impl_unsigned_integer! {u64, i64}
 impl_unsigned_integer! {u128, i128}
 
+#[cfg(target_pointer_width = "64")]
 impl UnsignedInteger for usize {
     type SignedInteger = i64;
+    #[inline]
+    fn cast_from_signed(value: Self::SignedInteger) -> Self {
+        value as usize
+    }
+    #[inline(always)]
+    fn wrapping_add_signed(self, rhs: Self::SignedInteger) -> Self {
+        <usize>::wrapping_add_signed(self, rhs as isize)
+    }
+}
+
+#[cfg(target_pointer_width = "32")]
+impl UnsignedInteger for usize {
+    type SignedInteger = i32;
     #[inline]
     fn cast_from_signed(value: Self::SignedInteger) -> Self {
         value as usize
