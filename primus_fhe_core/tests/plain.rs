@@ -137,13 +137,13 @@ fn scaled_narrow_matches_wide_scaled_near_product_limit() {
         assert_eq!(narrow_acc, wide_acc);
     }
 
-    let mut values = vec![0, 1, q / 2, q - 1, q, q + 1];
+    let mut values = vec![0, 1, q / 2, q - 1, q];
     let mut expected = values.clone();
     narrow.decode_slice_inplace(&mut values);
     wide.decode_slice_inplace(&mut expected);
     assert_eq!(values, expected);
 
-    for value in [0, 1, q / 2, q - 1, q, q + 1] {
+    for value in [0, 1, q / 2, q - 1, q] {
         assert_eq!(
             narrow.decode_value::<u64>(value),
             wide.decode_value::<u64>(value)

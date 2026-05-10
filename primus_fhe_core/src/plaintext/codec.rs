@@ -869,11 +869,8 @@ impl<T: UnsignedInteger> PlaintextCodec<T> {
                 decoded
             }
             Self::ScaledNarrow { t, q, .. } => {
-                let mut decoded = if value <= q {
-                    div_round_narrow(value, t, q)
-                } else {
-                    div_round(value, t, q)
-                };
+                debug_assert!(value <= q);
+                let mut decoded = div_round_narrow(value, t, q);
                 if decoded >= t {
                     decoded -= t;
                 }
@@ -918,11 +915,8 @@ impl<T: UnsignedInteger> PlaintextCodec<T> {
             }
             Self::ScaledNarrow { t, q, .. } => {
                 for value in values {
-                    let mut decoded = if *value <= q {
-                        div_round_narrow(*value, t, q)
-                    } else {
-                        div_round(*value, t, q)
-                    };
+                    debug_assert!(*value <= q);
+                    let mut decoded = div_round_narrow(*value, t, q);
                     if decoded >= t {
                         decoded -= t;
                     }
@@ -971,11 +965,8 @@ impl<T: UnsignedInteger> PlaintextCodec<T> {
             }
             Self::ScaledNarrow { t, q, .. } => {
                 for (&value, output) in input.iter().zip(output) {
-                    let mut decoded = if value <= q {
-                        div_round_narrow(value, t, q)
-                    } else {
-                        div_round(value, t, q)
-                    };
+                    debug_assert!(value <= q);
+                    let mut decoded = div_round_narrow(value, t, q);
                     if decoded >= t {
                         decoded -= t;
                     }
