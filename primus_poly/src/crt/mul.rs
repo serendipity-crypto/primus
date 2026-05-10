@@ -80,6 +80,28 @@ where
         });
     }
 
+    /// Performs `self += scalar * rhs` according to `moduli`.
+    #[inline]
+    pub fn add_mul_factor_assign<A>(
+        &mut self,
+        rhs: &CrtPolynomial<A>,
+        scalar: &[ShoupFactor<T>],
+        poly_length: usize,
+        moduli_value: &[T],
+    ) where
+        A: RawData<Elem = T> + Data,
+    {
+        izip!(
+            self.iter_each_modulus_mut(poly_length),
+            rhs.iter_each_modulus(poly_length),
+            scalar,
+            moduli_value
+        )
+        .for_each(|(xs, ys, &scalar, &modulus)| {
+            ArrayBase(xs).add_mul_factor_assign(&ArrayBase(ys), scalar, modulus);
+        });
+    }
+
     pub fn mul_monomial_assign<M>(&mut self, r: usize, poly_length: usize, moduli: &[M])
     where
         M: Copy + ReduceNegAssign<T>,

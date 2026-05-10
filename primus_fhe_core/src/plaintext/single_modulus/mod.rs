@@ -1,11 +1,14 @@
 use primus_factor::{FactorMul, ShoupFactor};
 use primus_integer::UnsignedInteger;
 
-use super::PlaintextEmbedding;
-use super::helpers::{
+mod helpers;
+
+use helpers::{
     centered_half, checked_message, div_round, div_round_narrow, lift_centered,
     lift_centered_from_raw, try_from_decoded,
 };
+
+use super::PlaintextEmbedding;
 
 /// Preselected plaintext encoding/decoding strategy for fixed parameters.
 ///
