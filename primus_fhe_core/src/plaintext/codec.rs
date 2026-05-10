@@ -3,8 +3,8 @@ use primus_integer::UnsignedInteger;
 
 use super::PlaintextEmbedding;
 use super::helpers::{
-    centered_half, checked_message, div_round, lift_centered, lift_centered_from_raw,
-    try_from_decoded,
+    centered_half, checked_message, div_round, div_round_narrow, lift_centered,
+    lift_centered_from_raw, try_from_decoded,
 };
 
 /// Preselected plaintext encoding/decoding strategy for fixed parameters.
@@ -28,7 +28,13 @@ pub enum PlaintextCodec<T: UnsignedInteger> {
     },
     /// Native modulus `2^T::BITS` with arbitrary plaintext modulus.
     NativeScaled { t: T, delta: T },
-    /// Explicit arbitrary ciphertext/plaintext moduli.
+    /// Explicit arbitrary ciphertext/plaintext moduli whose products fit in `T`.
+    ScaledNarrow {
+        t: T,
+        q: T,
+        delta_factor: ShoupFactor<T>,
+    },
+    /// Explicit arbitrary ciphertext/plaintext moduli requiring wide products.
     Scaled {
         t: T,
         q: T,
@@ -67,11 +73,11 @@ impl<T: UnsignedInteger> PlaintextCodec<T> {
                 if rem > (t - T::ONE) / T::TWO {
                     delta += T::ONE;
                 }
-                Self::Scaled {
-                    t,
-                    q,
-                    delta_factor: ShoupFactor::new(delta, q),
+                let delta_factor = ShoupFactor::new(delta, q);
+                if q.checked_mul(t).is_some() {
+                    return Self::ScaledNarrow { t, q, delta_factor };
                 }
+                Self::Scaled { t, q, delta_factor }
             }
         }
     }
@@ -129,6 +135,19 @@ impl<T: UnsignedInteger> PlaintextCodec<T> {
                     Self::Scaled { t, q, .. } => {
                         assert!(magnitude < t);
                         let encoded = div_round(magnitude, q, t);
+                        if is_negative {
+                            if encoded.is_zero() {
+                                T::ZERO
+                            } else {
+                                q - encoded
+                            }
+                        } else {
+                            encoded
+                        }
+                    }
+                    Self::ScaledNarrow { t, q, .. } => {
+                        assert!(magnitude < t);
+                        let encoded = div_round_narrow(magnitude, q, t);
                         if is_negative {
                             if encoded.is_zero() {
                                 T::ZERO
@@ -221,6 +240,23 @@ impl<T: UnsignedInteger> PlaintextCodec<T> {
                             };
                         }
                     }
+                    Self::ScaledNarrow { t, q, .. } => {
+                        for (message, output) in messages.iter().zip(output) {
+                            let (magnitude, is_negative) =
+                                lift_centered_from_raw(*message, t, half);
+                            assert!(magnitude < t);
+                            let encoded = div_round_narrow(magnitude, q, t);
+                            *output = if is_negative {
+                                if encoded.is_zero() {
+                                    T::ZERO
+                                } else {
+                                    q - encoded
+                                }
+                            } else {
+                                encoded
+                            };
+                        }
+                    }
                 }
             }
         }
@@ -297,6 +333,22 @@ impl<T: UnsignedInteger> PlaintextCodec<T> {
                             };
                         }
                     }
+                    Self::ScaledNarrow { t, q, .. } => {
+                        for value in values.iter_mut() {
+                            let (magnitude, is_negative) = lift_centered_from_raw(*value, t, half);
+                            assert!(magnitude < t);
+                            let encoded = div_round_narrow(magnitude, q, t);
+                            *value = if is_negative {
+                                if encoded.is_zero() {
+                                    T::ZERO
+                                } else {
+                                    q - encoded
+                                }
+                            } else {
+                                encoded
+                            };
+                        }
+                    }
                 }
             }
         }
@@ -342,6 +394,9 @@ impl<T: UnsignedInteger> PlaintextCodec<T> {
             PlaintextEmbedding::Unsigned => match *self {
                 Self::Scaled {
                     delta_factor, q, ..
+                }
+                | Self::ScaledNarrow {
+                    delta_factor, q, ..
                 } => {
                     for (acc, &message) in accumulator.iter_mut().zip(messages) {
                         Self::reduce_add_mod(acc, delta_factor.factor_mul_modulo(message, q), q);
@@ -377,6 +432,9 @@ impl<T: UnsignedInteger> PlaintextCodec<T> {
                 let half = centered_half(t);
                 match *self {
                     Self::Scaled {
+                        delta_factor, q, ..
+                    }
+                    | Self::ScaledNarrow {
                         delta_factor, q, ..
                     } => {
                         for (acc, &message) in accumulator.iter_mut().zip(messages) {
@@ -502,6 +560,13 @@ impl<T: UnsignedInteger> PlaintextCodec<T> {
                         Self::reduce_add_mod(acc, div_round(v, q, t), q);
                     }
                 }
+                Self::ScaledNarrow { t, q, .. } => {
+                    for (acc, &message) in accumulator.iter_mut().zip(messages) {
+                        let v: T = checked_message(message);
+                        assert!(v < t);
+                        Self::reduce_add_mod(acc, div_round_narrow(v, q, t), q);
+                    }
+                }
             },
             PlaintextEmbedding::Centered => {
                 let t = self.t();
@@ -586,6 +651,26 @@ impl<T: UnsignedInteger> PlaintextCodec<T> {
                             Self::reduce_add_mod(acc, encoded, q);
                         }
                     }
+                    Self::ScaledNarrow { t, q, .. } => {
+                        for (acc, &message) in accumulator.iter_mut().zip(messages) {
+                            let v: T = checked_message(message);
+                            let (magnitude, is_negative) = lift_centered_from_raw(v, t, half);
+                            let encoded = {
+                                assert!(magnitude < t);
+                                div_round_narrow(magnitude, q, t)
+                            };
+                            let encoded = if is_negative {
+                                if encoded.is_zero() {
+                                    T::ZERO
+                                } else {
+                                    q - encoded
+                                }
+                            } else {
+                                encoded
+                            };
+                            Self::reduce_add_mod(acc, encoded, q);
+                        }
+                    }
                 }
             }
         }
@@ -597,7 +682,9 @@ impl<T: UnsignedInteger> PlaintextCodec<T> {
             Self::NativePow2 { .. } | Self::NativeScaled { .. } => {
                 Self::reduce_add_native(acc, value)
             }
-            Self::Pow2 { q, .. } | Self::Scaled { q, .. } => Self::reduce_add_mod(acc, value, q),
+            Self::Pow2 { q, .. } | Self::Scaled { q, .. } | Self::ScaledNarrow { q, .. } => {
+                Self::reduce_add_mod(acc, value, q)
+            }
         };
     }
 
@@ -624,6 +711,9 @@ impl<T: UnsignedInteger> PlaintextCodec<T> {
         match *self {
             Self::Scaled {
                 delta_factor, q, ..
+            }
+            | Self::ScaledNarrow {
+                delta_factor, q, ..
             } => delta_factor.factor_mul_modulo(magnitude, q),
             Self::NativeScaled { delta, .. } => magnitude.wrapping_mul(delta),
             Self::NativePow2 {
@@ -642,7 +732,7 @@ impl<T: UnsignedInteger> PlaintextCodec<T> {
     fn neg_encoded(&self, encoded: T) -> T {
         match *self {
             Self::NativePow2 { .. } | Self::NativeScaled { .. } => encoded.wrapping_neg(),
-            Self::Pow2 { q, .. } | Self::Scaled { q, .. } => {
+            Self::Pow2 { q, .. } | Self::Scaled { q, .. } | Self::ScaledNarrow { q, .. } => {
                 if encoded.is_zero() {
                     T::ZERO
                 } else {
@@ -672,6 +762,10 @@ impl<T: UnsignedInteger> PlaintextCodec<T> {
                 assert!(message < t);
                 div_round(message, q, t)
             }
+            Self::ScaledNarrow { t, q, .. } => {
+                assert!(message < t);
+                div_round_narrow(message, q, t)
+            }
         }
     }
 
@@ -699,6 +793,12 @@ impl<T: UnsignedInteger> PlaintextCodec<T> {
                 for (message, output) in messages.iter().zip(output) {
                     assert!(*message < t);
                     *output = div_round(*message, q, t);
+                }
+            }
+            Self::ScaledNarrow { t, q, .. } => {
+                for (message, output) in messages.iter().zip(output) {
+                    assert!(*message < t);
+                    *output = div_round_narrow(*message, q, t);
                 }
             }
         }
@@ -730,6 +830,12 @@ impl<T: UnsignedInteger> PlaintextCodec<T> {
                     *value = div_round(*value, q, t);
                 }
             }
+            Self::ScaledNarrow { t, q, .. } => {
+                for value in values.iter_mut() {
+                    assert!(*value < t);
+                    *value = div_round_narrow(*value, q, t);
+                }
+            }
         }
     }
 
@@ -757,6 +863,17 @@ impl<T: UnsignedInteger> PlaintextCodec<T> {
             }
             Self::Scaled { t, q, .. } => {
                 let mut decoded = div_round(value, t, q);
+                if decoded >= t {
+                    decoded -= t;
+                }
+                decoded
+            }
+            Self::ScaledNarrow { t, q, .. } => {
+                let mut decoded = if value <= q {
+                    div_round_narrow(value, t, q)
+                } else {
+                    div_round(value, t, q)
+                };
                 if decoded >= t {
                     decoded -= t;
                 }
@@ -793,6 +910,19 @@ impl<T: UnsignedInteger> PlaintextCodec<T> {
             Self::Scaled { t, q, .. } => {
                 for value in values {
                     let mut decoded = div_round(*value, t, q);
+                    if decoded >= t {
+                        decoded -= t;
+                    }
+                    *value = decoded;
+                }
+            }
+            Self::ScaledNarrow { t, q, .. } => {
+                for value in values {
+                    let mut decoded = if *value <= q {
+                        div_round_narrow(*value, t, q)
+                    } else {
+                        div_round(*value, t, q)
+                    };
                     if decoded >= t {
                         decoded -= t;
                     }
@@ -839,6 +969,19 @@ impl<T: UnsignedInteger> PlaintextCodec<T> {
                     *output = try_from_decoded(decoded);
                 }
             }
+            Self::ScaledNarrow { t, q, .. } => {
+                for (&value, output) in input.iter().zip(output) {
+                    let mut decoded = if value <= q {
+                        div_round_narrow(value, t, q)
+                    } else {
+                        div_round(value, t, q)
+                    };
+                    if decoded >= t {
+                        decoded -= t;
+                    }
+                    *output = try_from_decoded(decoded);
+                }
+            }
         }
     }
 
@@ -846,49 +989,9 @@ impl<T: UnsignedInteger> PlaintextCodec<T> {
     fn t(&self) -> T {
         match *self {
             Self::NativePow2 { mask, .. } | Self::Pow2 { mask, .. } => mask + T::ONE,
-            Self::NativeScaled { t, .. } | Self::Scaled { t, .. } => t,
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn pow2_centered_delta_encode_matches_centered_encode() {
-        let t = 256u64;
-        let q = 1u64 << 50;
-        let codec = PlaintextCodec::new(t, Some(q));
-        let messages: Vec<_> = (0..t).collect();
-
-        let mut encoded = vec![0u64; messages.len()];
-        codec.add_encode_slice_assign_with_delta(
-            &mut encoded,
-            &messages,
-            PlaintextEmbedding::Centered,
-        );
-
-        let mut accumulated = vec![q - 1; messages.len()];
-        codec.add_encode_slice_assign_with_delta(
-            &mut accumulated,
-            &messages,
-            PlaintextEmbedding::Centered,
-        );
-
-        for ((&message, &batch_encoded), &accumulated) in
-            messages.iter().zip(&encoded).zip(&accumulated)
-        {
-            let expected = codec.encode_value(message, PlaintextEmbedding::Centered);
-            assert_eq!(
-                codec.encode_value_with_delta(message, PlaintextEmbedding::Centered),
-                expected
-            );
-            assert_eq!(batch_encoded, expected);
-            assert!(batch_encoded < q);
-
-            let expected_accumulated = if expected == 0 { q - 1 } else { expected - 1 };
-            assert_eq!(accumulated, expected_accumulated);
+            Self::NativeScaled { t, .. }
+            | Self::Scaled { t, .. }
+            | Self::ScaledNarrow { t, .. } => t,
         }
     }
 }

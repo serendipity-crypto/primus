@@ -10,6 +10,20 @@ where
     T::div_wide_fast(lo, hi, divisor)
 }
 
+/// Computes `round(lhs * rhs / divisor)` when the product fits in one limb.
+#[inline]
+pub(super) fn div_round_narrow<T>(lhs: T, rhs: T, divisor: T) -> T
+where
+    T: UnsignedInteger,
+{
+    let product = lhs * rhs;
+    let (mut quotient, rem) = product.div_rem(divisor);
+    if rem >= centered_half(divisor) {
+        quotient += T::ONE;
+    }
+    quotient
+}
+
 #[inline]
 pub(super) fn try_from_decoded<M, T>(decoded: T) -> M
 where
