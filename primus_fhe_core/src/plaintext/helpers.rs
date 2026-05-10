@@ -1,10 +1,10 @@
-use primus_integer::{CarryingMul, UnsignedInteger};
+use primus_integer::UnsignedInteger;
 
 /// Computes `round(lhs * rhs / divisor)`.
 #[inline]
 pub(super) fn div_round<T>(lhs: T, rhs: T, divisor: T) -> T
 where
-    T: UnsignedInteger + CarryingMul,
+    T: UnsignedInteger,
 {
     let (lo, hi) = lhs.carrying_mul(rhs, divisor >> 1u32);
     T::div_wide_fast(lo, hi, divisor)
