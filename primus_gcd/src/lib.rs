@@ -143,6 +143,16 @@ macro_rules! impl_extended_gcd {
 
             #[inline]
             fn xgcd(x: Self, y: Self) -> (Self, Self, Self) {
+                #[inline]
+                fn coeff_sub(lhs: $SignedT, rhs: $SignedT) -> $SignedT {
+                    lhs.wrapping_sub(rhs)
+                }
+
+                #[inline]
+                fn coeff_sub_mul(lhs: $SignedT, factor: $SignedT, rhs: $SignedT) -> $SignedT {
+                    lhs.wrapping_sub(factor.wrapping_mul(rhs))
+                }
+
                 let mut u1: $SignedT;
                 let mut u2: $SignedT;
                 let mut v1: $SignedT;
@@ -165,15 +175,18 @@ macro_rules! impl_extended_gcd {
                 u3 = x;
                 v3 = y;
 
+                // Coefficient recurrences intentionally use limb-width wrapping,
+                // matching FLINT's unsigned casts while staying valid in debug builds.
+
                 // x and y both have top bit set
                 if ((x & y) as $SignedT) < 0 {
                     d = u3 - v3;
                     t2 = v2;
                     t1 = u2;
-                    u2 = u1 - u2;
+                    u2 = coeff_sub(u1, u2);
                     u1 = t1;
                     u3 = v3;
-                    v2 = v1 - v2;
+                    v2 = coeff_sub(v1, v2);
                     v1 = t2;
                     v3 = d;
                 }
@@ -185,30 +198,30 @@ macro_rules! impl_extended_gcd {
                         // quot = 1
                         t2 = v2;
                         t1 = u2;
-                        u2 = u1 - u2;
+                        u2 = coeff_sub(u1, u2);
                         u1 = t1;
                         u3 = v3;
-                        v2 = v1 - v2;
+                        v2 = coeff_sub(v1, v2);
                         v1 = t2;
                         v3 = d;
                     } else if d < (v3 << 1) {
                         // quot = 2
                         t1 = u2;
-                        u2 = u1 - (u2 << 1);
+                        u2 = coeff_sub_mul(u1, 2, u2);
                         u1 = t1;
                         u3 = v3;
                         t2 = v2;
-                        v2 = v1 - (v2 << 1);
+                        v2 = coeff_sub_mul(v1, 2, v2);
                         v1 = t2;
                         v3 = d - u3;
                     } else {
                         // quot = 3
                         t1 = u2;
-                        u2 = u1 - 3 * u2;
+                        u2 = coeff_sub_mul(u1, 3, u2);
                         u1 = t1;
                         u3 = v3;
                         t2 = v2;
-                        v2 = v1 - 3 * v2;
+                        v2 = coeff_sub_mul(v1, 3, v2);
                         v1 = t2;
                         v3 = d - (u3 << 1);
                     }
@@ -223,30 +236,30 @@ macro_rules! impl_extended_gcd {
                             // quot = 1
                             t2 = v2;
                             t1 = u2;
-                            u2 = u1 - u2;
+                            u2 = coeff_sub(u1, u2);
                             u1 = t1;
                             u3 = v3;
-                            v2 = v1 - v2;
+                            v2 = coeff_sub(v1, v2);
                             v1 = t2;
                             v3 = d;
                         } else if d < (v3 << 1) {
                             // quot = 2
                             t1 = u2;
-                            u2 = u1 - (u2 << 1);
+                            u2 = coeff_sub_mul(u1, 2, u2);
                             u1 = t1;
                             u3 = v3;
                             t2 = v2;
-                            v2 = v1 - (v2 << 1);
+                            v2 = coeff_sub_mul(v1, 2, v2);
                             v1 = t2;
                             v3 = d - u3;
                         } else {
                             // quot = 3
                             t1 = u2;
-                            u2 = u1 - 3 * u2;
+                            u2 = coeff_sub_mul(u1, 3, u2);
                             u1 = t1;
                             u3 = v3;
                             t2 = v2;
-                            v2 = v1 - 3 * v2;
+                            v2 = coeff_sub_mul(v1, 3, v2);
                             v1 = t2;
                             v3 = d - (u3 << 1);
                         }
@@ -254,11 +267,11 @@ macro_rules! impl_extended_gcd {
                         quot = u3 / v3;
                         rem = u3 - v3 * quot;
                         t1 = u2;
-                        u2 = u1 - (quot as $SignedT) * u2;
+                        u2 = coeff_sub_mul(u1, quot as $SignedT, u2);
                         u1 = t1;
                         u3 = v3;
                         t2 = v2;
-                        v2 = v1 - (quot as $SignedT) * v2;
+                        v2 = coeff_sub_mul(v1, quot as $SignedT, v2);
                         v1 = t2;
                         v3 = rem;
                     }
@@ -275,6 +288,16 @@ macro_rules! impl_extended_gcd {
 
             #[inline]
             fn gcdinv(mut x: Self, y: Self) -> (Self, Self) {
+                #[inline]
+                fn coeff_sub(lhs: $SignedT, rhs: $SignedT) -> $SignedT {
+                    lhs.wrapping_sub(rhs)
+                }
+
+                #[inline]
+                fn coeff_sub_mul(lhs: $SignedT, factor: $SignedT, rhs: $SignedT) -> $SignedT {
+                    lhs.wrapping_sub(factor.wrapping_mul(rhs))
+                }
+
                 let mut v1: $SignedT;
                 let mut v2: $SignedT;
                 let mut t2: $SignedT;
@@ -291,12 +314,15 @@ macro_rules! impl_extended_gcd {
                 r = x;
                 x = y;
 
+                // Coefficient recurrences intentionally use limb-width wrapping,
+                // matching FLINT's unsigned casts while staying valid in debug builds.
+
                 // y and x both have top bit set
                 if ((x & r) as $SignedT) < 0 {
                     d = x - r;
                     t2 = v2;
                     x = r;
-                    v2 = v1 - v2;
+                    v2 = coeff_sub(v1, v2);
                     v1 = t2;
                     r = d;
                 }
@@ -308,21 +334,21 @@ macro_rules! impl_extended_gcd {
                         // quot = 1
                         t2 = v2;
                         x = r;
-                        v2 = v1 - v2;
+                        v2 = coeff_sub(v1, v2);
                         v1 = t2;
                         r = d;
                     } else if (d < (r << 1)) {
                         // quot = 2
                         x = r;
                         t2 = v2;
-                        v2 = v1 - (v2 << 1);
+                        v2 = coeff_sub_mul(v1, 2, v2);
                         v1 = t2;
                         r = d - x;
                     } else {
                         // quot = 3
                         x = r;
                         t2 = v2;
-                        v2 = v1 - 3 * v2;
+                        v2 = coeff_sub_mul(v1, 3, v2);
                         v1 = t2;
                         r = d - (x << 1);
                     }
@@ -337,21 +363,21 @@ macro_rules! impl_extended_gcd {
                             // quot = 1
                             t2 = v2;
                             x = r;
-                            v2 = v1 - v2;
+                            v2 = coeff_sub(v1, v2);
                             v1 = t2;
                             r = d;
                         } else if d < (r << 1) {
                             // quot = 2
                             x = r;
                             t2 = v2;
-                            v2 = v1 - (v2 << 1);
+                            v2 = coeff_sub_mul(v1, 2, v2);
                             v1 = t2;
                             r = d - x;
                         } else {
                             // quot = 3
                             x = r;
                             t2 = v2;
-                            v2 = v1 - 3 * v2;
+                            v2 = coeff_sub_mul(v1, 3, v2);
                             v1 = t2;
                             r = d - (x << 1);
                         }
@@ -360,7 +386,7 @@ macro_rules! impl_extended_gcd {
                         rem = x - r * quot;
                         x = r;
                         t2 = v2;
-                        v2 = v1 - (quot as $SignedT) * v2;
+                        v2 = coeff_sub_mul(v1, quot as $SignedT, v2);
                         v1 = t2;
                         r = rem;
                     }
@@ -385,15 +411,23 @@ impl_extended_gcd!(impl Xgcd for u128; SignedType: i128);
 
 #[cfg(test)]
 mod tests {
-    use rand::{prelude::*, rng};
+    use rand::{prelude::*, rngs::StdRng};
 
     use super::*;
+
+    const RANDOM_CASES: usize = 128;
+    const MSB_RANDOM_CASES: usize = 64;
+
+    fn seeded_rng(seed: u64) -> StdRng {
+        StdRng::seed_from_u64(seed)
+    }
 
     macro_rules! gcd_edge_tests {
         ($mod_name:ident, $T:ty) => {
             mod $mod_name {
                 use super::*;
 
+                // Checks GCD behavior when either or both inputs are zero.
                 #[test]
                 fn test_gcd_zero() {
                     assert_eq!(<$T>::gcd(0_u8.into(), 0_u8.into()), 0_u8.into());
@@ -401,6 +435,7 @@ mod tests {
                     assert_eq!(<$T>::gcd(0_u8.into(), 42_u8.into()), 42_u8.into());
                 }
 
+                // Checks GCD behavior when one or both inputs are one.
                 #[test]
                 fn test_gcd_one() {
                     assert_eq!(<$T>::gcd(1_u8.into(), 1_u8.into()), 1_u8.into());
@@ -408,16 +443,18 @@ mod tests {
                     assert_eq!(<$T>::gcd(42_u8.into(), 1_u8.into()), 1_u8.into());
                 }
 
+                // Checks that GCD is symmetric over full-range random inputs.
                 #[test]
                 fn test_gcd_symmetry() {
-                    let mut rng = rng();
-                    for _ in 0..20 {
+                    let mut rng = seeded_rng(0x6763_645f_7379_6d6d);
+                    for _ in 0..RANDOM_CASES {
                         let a = rng.random_range(<$T>::MIN..=<$T>::MAX);
                         let b = rng.random_range(<$T>::MIN..=<$T>::MAX);
                         assert_eq!(a.gcd(b), b.gcd(a));
                     }
                 }
 
+                // Checks coprimality semantics around zero and one.
                 #[test]
                 fn test_is_coprime_zero() {
                     assert!(!<$T>::is_coprime(0_u8.into(), 0_u8.into()));
@@ -426,35 +463,40 @@ mod tests {
                     assert!(<$T>::is_coprime(1_u8.into(), 1_u8.into()));
                 }
 
+                // Checks that xgcd returns the same divisor as gcd.
                 #[test]
                 fn test_xgcd_d_is_gcd() {
-                    let mut rng = rng();
-                    for _ in 0..20 {
-                        let x = rng.random_range(<$T>::MIN..(<$T>::MAX >> 2));
+                    let mut rng = seeded_rng(0x7867_6364_5f64_6763);
+                    for _ in 0..RANDOM_CASES {
+                        let x = rng.random_range(<$T>::MIN..=<$T>::MAX);
                         let y = rng.random_range(<$T>::MIN..=x);
                         let (_a, _b, d) = <$T>::xgcd(x, y);
                         assert_eq!(d, x.gcd(y));
                     }
                 }
 
+                // Checks simple Bezout edge cases for xgcd.
                 #[test]
                 fn test_xgcd_bezout() {
+                    let mut rng = seeded_rng(0x7867_6364_5f62_657a);
+
                     // x = y: d = x, and a*x - b*x = x => (a - b) = 1
-                    let x = rng().random_range(1..(<$T>::MAX >> 2));
+                    let x = rng.random_range((2 as $T)..=<$T>::MAX);
                     let (_a, _b, d) = <$T>::xgcd(x, x);
                     assert_eq!(d, x);
 
                     // y = 1: gcd(x, 1) = 1
-                    let (a, _b, d) = <$T>::xgcd(x, 1_u8.into());
-                    assert_eq!(d, 1_u8.into());
+                    let (a, _b, d) = <$T>::xgcd(x, 1 as $T);
+                    assert_eq!(d, 1 as $T);
                     assert!(a < x);
                 }
 
+                // Checks that gcdinv returns the same divisor as gcd.
                 #[test]
                 fn test_gcdinv_d_is_gcd() {
-                    let mut rng = rng();
-                    for _ in 0..20 {
-                        let y = rng.random_range(1..(<$T>::MAX >> 2));
+                    let mut rng = seeded_rng(0x6769_6e76_5f64_6763);
+                    for _ in 0..RANDOM_CASES {
+                        let y = rng.random_range((1 as $T)..=<$T>::MAX);
                         let x = rng.random_range(<$T>::MIN..y);
                         let (a, d) = <$T>::gcdinv(x, y);
                         assert_eq!(d, x.gcd(y));
@@ -462,13 +504,34 @@ mod tests {
                     }
                 }
 
+                // Checks gcdinv behavior when the input value is zero.
                 #[test]
                 fn test_gcdinv_edge() {
                     // x = 0
-                    let y = rng().random_range(1..(<$T>::MAX >> 2));
+                    let mut rng = seeded_rng(0x6769_6e76_5f65_6467);
+                    let y = rng.random_range((1 as $T)..=<$T>::MAX);
                     let (a, d) = <$T>::gcdinv(0_u8.into(), y);
                     assert_eq!(d, y);
                     assert!(a < y);
+                }
+
+                // Checks the high-quotient xgcd path that used to overflow in debug builds.
+                #[test]
+                fn test_xgcd_high_quotient_boundary() {
+                    let x = (<$T>::MAX >> 1) + (1 as $T);
+                    let (a, b, d) = <$T>::xgcd(x, 1 as $T);
+                    assert_eq!(a, 1 as $T);
+                    assert_eq!(b, x - (1 as $T));
+                    assert_eq!(d, 1 as $T);
+                }
+
+                // Checks the high-quotient gcdinv path that used to overflow in debug builds.
+                #[test]
+                fn test_gcdinv_high_quotient_boundary() {
+                    let y = (<$T>::MAX >> 1) + (1 as $T);
+                    let (a, d) = <$T>::gcdinv(1 as $T, y);
+                    assert_eq!(a, 1 as $T);
+                    assert_eq!(d, 1 as $T);
                 }
             }
         };
@@ -479,30 +542,34 @@ mod tests {
             mod $mod_name {
                 use super::*;
 
+                // Checks the full Bezout identity for xgcd using a wider integer type.
                 #[test]
                 fn test_xgcd_identity() {
-                    let mut rng = rng();
-                    for _ in 0..20 {
-                        let x = rng.random_range(0..<$T>::MAX >> 1);
+                    let mut rng = seeded_rng(0x7867_6364_5f69_6465);
+                    for _ in 0..RANDOM_CASES {
+                        let x = rng.random_range(<$T>::MIN..=<$T>::MAX);
                         let y = rng.random_range(0..=x);
                         let (a, b, d) = <$T>::xgcd(x, y);
                         assert_eq!(
                             a as $WideT * x as $WideT - b as $WideT * y as $WideT,
                             d as $WideT,
+                            "x={x}, y={y}, a={a}, b={b}, d={d}",
                         );
                     }
                 }
 
+                // Checks the modular inverse identity for gcdinv using a wider integer type.
                 #[test]
                 fn test_gcdinv_identity() {
-                    let mut rng = rng();
-                    for _ in 0..20 {
-                        let y = rng.random_range(1..<$T>::MAX >> 1);
+                    let mut rng = seeded_rng(0x6769_6e76_5f69_6465);
+                    for _ in 0..RANDOM_CASES {
+                        let y = rng.random_range(1..=<$T>::MAX);
                         let x = rng.random_range(0..y);
                         let (a, d) = <$T>::gcdinv(x, y);
                         assert_eq!(
                             (a as $WideT * x as $WideT) % y as $WideT,
                             d as $WideT % y as $WideT,
+                            "x={x}, y={y}, a={a}, d={d}",
                         );
                     }
                 }
@@ -518,7 +585,7 @@ mod tests {
     gcd_edge_tests!(tests_usize, usize);
     gcd_edge_tests!(tests_u128, u128);
 
-    // Identity tests (a*x - b*y = d) — only for types that have a wider type
+    // Identity tests (a*x - b*y = d) -- only for types that have a wider type
     gcd_identity_tests!(tests_id_u8, u8, u16);
     gcd_identity_tests!(tests_id_u16, u16, u32);
     gcd_identity_tests!(tests_id_u32, u32, u64);
@@ -530,6 +597,7 @@ mod tests {
             mod $mod_name {
                 use super::*;
 
+                // Checks xgcd when both operands have the top bit set.
                 #[test]
                 fn test_xgcd_msb_both() {
                     // Path A: both operands have the MSB set, triggering
@@ -546,16 +614,17 @@ mod tests {
                     );
                 }
 
+                // Checks xgcd when the second operand has the second MSB set.
                 #[test]
                 fn test_xgcd_msb_second() {
                     // Path B: second MSB set but top MSB clear, triggering
                     // `(v3 << 1) as signed < 0`.  Range [MAX>>2+1, MAX>>1]
                     // is safe: cofactor bound x/2 < MAX/4, so 3*x/2 <
                     // 3*MAX/8 which fits in the signed type.
-                    let mut rng = rng();
+                    let mut rng = seeded_rng(0x6d73_625f_7867_6364);
                     let lo = (<$T>::MAX >> 2) + 1;
                     let hi = <$T>::MAX >> 1;
-                    for _ in 0..10 {
+                    for _ in 0..MSB_RANDOM_CASES {
                         let x = rng.random_range(lo..=hi);
                         let y = rng.random_range(lo..=x);
                         let (a, b, d) = <$T>::xgcd(x, y);
@@ -565,13 +634,14 @@ mod tests {
                     }
                 }
 
+                // Checks gcdinv when the modulus has the second MSB set.
                 #[test]
                 fn test_gcdinv_msb_second() {
-                    let mut rng = rng();
+                    let mut rng = seeded_rng(0x6d73_625f_6769_6e76);
                     let lo = (<$T>::MAX >> 2) + 1;
                     let hi = <$T>::MAX >> 1;
-                    for _ in 0..10 {
-                        let y = rng.random_range(lo..=hi);
+                    for _ in 0..MSB_RANDOM_CASES {
+                        let y = rng.random_range((lo + (1 as $T))..=hi);
                         let x = rng.random_range(lo..y);
                         let (a, d) = <$T>::gcdinv(x, y);
                         assert_eq!(d, x.gcd(y));
@@ -585,13 +655,53 @@ mod tests {
         };
     }
 
-    // MSB tests only for u64+ — smaller types (u8/u16/u32) use matching-width
-    // signed types that may overflow in the quot=3 branch with MSB-range inputs.
+    // MSB tests for types that have a wider type for identity checks.
+    gcd_msb_tests!(tests_msb_u8, u8, u16);
+    gcd_msb_tests!(tests_msb_u16, u16, u32);
+    gcd_msb_tests!(tests_msb_u32, u32, u64);
     gcd_msb_tests!(tests_msb_u64, u64, u128);
+
+    mod exhaustive_u8 {
+        use super::*;
+
+        // Exhaustively checks the xgcd Bezout identity for every valid u8 input pair.
+        #[test]
+        fn test_xgcd_exhaustive_identity() {
+            for x in u8::MIN..=u8::MAX {
+                for y in u8::MIN..=x {
+                    let (a, b, d) = u8::xgcd(x, y);
+                    assert_eq!(d, x.gcd(y), "x={x}, y={y}, a={a}, b={b}");
+                    assert_eq!(
+                        a as u16 * x as u16 - b as u16 * y as u16,
+                        d as u16,
+                        "x={x}, y={y}, a={a}, b={b}, d={d}",
+                    );
+                }
+            }
+        }
+
+        // Exhaustively checks the gcdinv modular identity for every valid u8 input pair.
+        #[test]
+        fn test_gcdinv_exhaustive_identity() {
+            for y in 1..=u8::MAX {
+                for x in u8::MIN..y {
+                    let (a, d) = u8::gcdinv(x, y);
+                    assert_eq!(d, x.gcd(y), "x={x}, y={y}, a={a}");
+                    assert!(a < y, "x={x}, y={y}, a={a}");
+                    assert_eq!(
+                        (a as u16 * x as u16) % y as u16,
+                        d as u16 % y as u16,
+                        "x={x}, y={y}, a={a}, d={d}",
+                    );
+                }
+            }
+        }
+    }
 
     mod tests_msb_u128 {
         use super::*;
 
+        // Checks the u128 xgcd path where both operands have the top bit set.
         #[test]
         fn test_xgcd_msb_both() {
             // Path A: both operands MSB set, using minimal values to avoid
@@ -602,13 +712,14 @@ mod tests {
             assert!(a >= 1 && a.wrapping_sub(1) == b);
         }
 
+        // Checks the u128 xgcd path where the second operand has the second MSB set.
         #[test]
         fn test_xgcd_msb_second() {
             // Path B: second MSB set, top MSB clear.
-            let mut rng = rng();
+            let mut rng = seeded_rng(0x6d73_625f_7531_3238);
             let lo = (u128::MAX >> 2) + 1;
             let hi = u128::MAX >> 1;
-            for _ in 0..10 {
+            for _ in 0..MSB_RANDOM_CASES {
                 let x = rng.random_range(lo..=hi);
                 let y = rng.random_range(lo..=x);
                 let (_a, _b, d) = u128::xgcd(x, y);
@@ -616,13 +727,14 @@ mod tests {
             }
         }
 
+        // Checks the u128 gcdinv path where the modulus has the second MSB set.
         #[test]
         fn test_gcdinv_msb_second() {
-            let mut rng = rng();
+            let mut rng = seeded_rng(0x6769_6e76_7531_3238);
             let lo = (u128::MAX >> 2) + 1;
             let hi = u128::MAX >> 1;
-            for _ in 0..10 {
-                let y = rng.random_range(lo..=hi);
+            for _ in 0..MSB_RANDOM_CASES {
+                let y = rng.random_range((lo + 1)..=hi);
                 let x = rng.random_range(lo..y);
                 let (a, d) = u128::gcdinv(x, y);
                 assert_eq!(d, x.gcd(y));
