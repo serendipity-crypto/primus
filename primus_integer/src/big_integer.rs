@@ -640,7 +640,12 @@ where
     }
 }
 /// Multiplies many values together, returning the result as a big integer slice.
+///
+/// # Panics if
+///
+/// - `values` is empty
 pub fn multiply_many_values<T: UnsignedInteger>(values: &[T]) -> BigUint<Vec<T>> {
+    debug_assert!(!values.is_empty());
     let mut result = BigUint(Vec::with_capacity(values.len()));
     result.0.push(values[0]);
     for &v in values.iter().skip(1) {
@@ -653,14 +658,17 @@ pub fn multiply_many_values<T: UnsignedInteger>(values: &[T]) -> BigUint<Vec<T>>
 }
 
 /// Multiplies many values together, except for one specified by index, returning the result as a big integer slice.
+///
+/// # Panics if
+///
+/// - `values` is empty
+/// - `except >= values.len()`
 pub fn multiply_many_values_except<T: UnsignedInteger>(values: &[T], except: usize) -> Vec<T> {
+    debug_assert!(!values.is_empty() && except < values.len());
     let mut result = BigUint(Vec::with_capacity(values.len() - 1));
     result.0.push(T::ONE);
 
-    for (i, &v) in values.iter().enumerate() {
-        if i == except {
-            continue;
-        }
+    for (_, &v) in values.iter().enumerate().filter(|(i, _)| *i != except) {
         let carry = result.mul_value_assign(v);
         if !carry.is_zero() {
             result.0.push(carry);
@@ -671,11 +679,19 @@ pub fn multiply_many_values_except<T: UnsignedInteger>(values: &[T], except: usi
 }
 
 /// Multiplies many values together, except for one specified by index, returning the result as a big integer slice.
+///
+/// # Panics if
+///
+/// - `values` is empty
+/// - `except >= values.len()`
+/// - `result.len() < values.len()`
 pub fn multiply_many_values_except_inplace<T: UnsignedInteger>(
     values: &[T],
     except: usize,
     result: &mut [T],
 ) {
+    debug_assert!(!values.is_empty() && except < values.len());
+    debug_assert!(result.len() >= values.len());
     result.fill(T::ZERO);
     result[0] = T::ONE;
     let mut len = 1;
@@ -693,6 +709,7 @@ pub fn multiply_many_values_except_inplace<T: UnsignedInteger>(
 mod tests {
     use rand::RngExt;
     use rand::distr::{Distribution, Uniform};
+    use rand::{SeedableRng, rngs::StdRng};
 
     use super::*;
 
@@ -703,6 +720,16 @@ mod tests {
         let mut result = 0u128;
         for &r in value.iter().rev() {
             result <<= ValueT::BITS;
+            result |= r as u128;
+        }
+        result
+    }
+
+    fn compose_u64(value: &[u64]) -> u128 {
+        assert!(value.len() <= 2);
+        let mut result = 0u128;
+        for &r in value.iter().rev() {
+            result <<= u64::BITS;
             result |= r as u128;
         }
         result
@@ -841,5 +868,72 @@ mod tests {
 
         assert!(borrow);
         assert_eq!(result, [u32::MAX, u32::MAX]);
+    }
+
+    // Coverage for u64 BigUint multi-limb operations.
+    // Builds 2-limb u64 BigUints by decomposing u128 values, so we always
+    // exercise the multi-limb path and can cross-check against u128 arithmetic.
+    // `mul_value` is omitted because a 2-limb u64 * u64 value can exceed u128.
+    #[test]
+    fn test_big_uint_ops_u64_two_limbs() {
+        let mut rng = StdRng::seed_from_u64(0xCAFE_BABE_0000_0005);
+
+        // Modulus: a 2-limb u64 value strictly less than 2^128.
+        let m_raw: u128 = 0xc0ff_ee15_dead_beef_face_b00c_1337_4242;
+        let modulus = BigUint::<Vec<u64>>(vec![m_raw as u64, (m_raw >> 64) as u64]);
+
+        assert_eq!(128 - m_raw.leading_zeros(), modulus.bits_count());
+
+        let split = |v: u128| -> Vec<u64> { vec![v as u64, (v >> 64) as u64] };
+
+        let a_raw: u128 = rng.random_range(0..m_raw);
+        let b_raw: u128 = rng.random_range(0..m_raw);
+
+        let mut a = BigUint::<Vec<u64>>(split(a_raw));
+        let b = BigUint::<Vec<u64>>(split(b_raw));
+
+        // shift
+        let mut a_shifted = a.clone();
+        a_shifted.right_shift_assign(5);
+        assert_eq!(a_raw >> 5, compose_u64(a_shifted.digits()));
+        let carry = a_shifted.left_shift_assign(5);
+        assert_eq!(carry, 0);
+        assert_eq!((a_raw >> 5) << 5, compose_u64(a_shifted.digits()));
+
+        // add_value / sub_value within range that doesn't overflow the BigUint
+        let v: u64 = rng.random_range(0u64..(1 << 32));
+        let mut a_av = a.clone();
+        let _r = a_av.add_value_assign(v);
+        assert_eq!(a_raw.wrapping_add(v as u128), compose_u64(a_av.digits()));
+        let _r = a_av.sub_value_assign(v);
+        assert_eq!(a_raw, compose_u64(a_av.digits()));
+
+        // add_modulo / sub_modulo / neg_modulo
+        // Compute expected results without intermediate u128 overflow.
+        let (sum, sum_overflow) = a_raw.overflowing_add(b_raw);
+        let expected_add = if sum_overflow || sum >= m_raw {
+            sum.wrapping_sub(m_raw)
+        } else {
+            sum
+        };
+        let expected_sub = if a_raw >= b_raw {
+            a_raw - b_raw
+        } else {
+            m_raw - (b_raw - a_raw)
+        };
+
+        let mut s = a.clone();
+        s.add_modulo_assign(&b, &modulus);
+        assert_eq!(expected_add, compose_u64(s.digits()));
+
+        let mut s = a.clone();
+        s.sub_modulo_assign(&b, &modulus);
+        assert_eq!(expected_sub, compose_u64(s.digits()));
+
+        let mut c = a.clone();
+        c.neg_modulo_assign(&modulus);
+        let r = a.add_assign(&c);
+        assert!(!r);
+        assert!(a.is_zero() || a == modulus);
     }
 }

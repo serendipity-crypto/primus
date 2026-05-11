@@ -1,5 +1,5 @@
 use num_traits::Zero;
-use primus_integer::{ByteCount, Data, DataMut, DataOwned, RawData, UnsignedInteger, size::Size};
+use primus_integer::{ByteCount, Data, DataMut, DataOwned, RawData, Size, UnsignedInteger};
 
 mod add;
 mod mul;

@@ -30,6 +30,7 @@ pub type WideningUsize = Widening<usize>;
 /// the second field. It supports addition with carry propagation via [`Add`]
 /// and [`AddAssign`], accepting both owned and borrowed operands as well as
 /// plain `(T, T)` tuples.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Widening<T: UnsignedInteger>(pub T, pub T);
 
 impl<T: UnsignedInteger> Add<Widening<T>> for Widening<T> {

@@ -1,4 +1,4 @@
-use primus_integer::{UnsignedInteger, size::Size};
+use primus_integer::{Size, UnsignedInteger};
 use primus_reduce::RingContext;
 use rand::distr::Distribution;
 use zeroize::{Zeroize, ZeroizeOnDrop};

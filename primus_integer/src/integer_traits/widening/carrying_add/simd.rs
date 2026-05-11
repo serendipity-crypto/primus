@@ -34,6 +34,7 @@ mod tests {
     };
 
     use rand::distr::{Distribution, StandardUniform};
+    use rand::{SeedableRng, rngs::StdRng};
 
     use super::*;
 
@@ -44,7 +45,7 @@ mod tests {
         Simd<T, N>: CarryingAdd<CarryT = Mask<<T as SimdElement>::Mask, N>>,
         StandardUniform: Distribution<Simd<T, N>> + Distribution<Mask<<T as SimdElement>::Mask, N>>,
     {
-        let mut rng = rand::rng();
+        let mut rng = StdRng::seed_from_u64(0xCAFE_BABE_0000_0001);
 
         let l: Simd<T, N> = StandardUniform.sample(&mut rng);
         let r: Simd<T, N> = StandardUniform.sample(&mut rng);
@@ -59,7 +60,11 @@ mod tests {
         for i in 0..N {
             assert_eq!(
                 l_arr[i].carrying_add(r_arr[i], mask_arr[i]),
-                (res[i], flag_arr[i])
+                (res[i], flag_arr[i]),
+                "lane {i}: l={:?} r={:?} mask={}",
+                l_arr[i],
+                r_arr[i],
+                mask_arr[i],
             );
         }
     }

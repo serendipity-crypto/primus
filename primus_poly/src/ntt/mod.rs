@@ -1,7 +1,5 @@
 use num_traits::Zero;
-use primus_integer::{
-    ByteCount, Data, DataMut, DataOwned, RawData, UnsignedInteger, izip, size::Size,
-};
+use primus_integer::{ByteCount, Data, DataMut, DataOwned, RawData, Size, UnsignedInteger, izip};
 use primus_reduce::{lazy_ops::LazyReduceMulAdd, ops::ReduceMulAdd};
 
 mod basic;

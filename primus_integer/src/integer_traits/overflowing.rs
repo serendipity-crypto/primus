@@ -15,6 +15,7 @@ macro_rules! overflowing_impl {
 pub trait OverflowingAdd: Sized + Add<Self, Output = Self> {
     /// Returns a tuple of the sum along with a boolean indicating whether an arithmetic overflow would occur.
     /// If an overflow would have occurred then the wrapped value is returned.
+    #[must_use]
     fn overflowing_add(self, v: Self) -> (Self, bool);
 }
 
@@ -36,6 +37,7 @@ overflowing_impl!(OverflowingAdd, overflowing_add, i128);
 pub trait OverflowingSub: Sized + Sub<Self, Output = Self> {
     /// Returns a tuple of the difference along with a boolean indicating whether an arithmetic overflow would occur.
     /// If an overflow would have occurred then the wrapped value is returned.
+    #[must_use]
     fn overflowing_sub(self, v: Self) -> (Self, bool);
 }
 
@@ -57,6 +59,7 @@ overflowing_impl!(OverflowingSub, overflowing_sub, i128);
 pub trait OverflowingMul: Sized + Mul<Self, Output = Self> {
     /// Returns a tuple of the product along with a boolean indicating whether an arithmetic overflow would occur.
     /// If an overflow would have occurred then the wrapped value is returned.
+    #[must_use]
     fn overflowing_mul(self, v: Self) -> (Self, bool);
 }
 
@@ -91,4 +94,20 @@ fn test_overflowing_traits() {
     assert_eq!(overflowing_sub(i16::MIN, 1), (i16::MAX, true));
     assert_eq!(overflowing_mul(5i16, 2), (10, false));
     assert_eq!(overflowing_mul(1_000_000_000i32, 10), (1410065408, true));
+
+    assert_eq!(overflowing_add(0u32, 0), (0, false));
+    assert_eq!(overflowing_add(u32::MAX, 1), (0, true));
+    assert_eq!(overflowing_add(u32::MAX, u32::MAX), (u32::MAX - 1, true));
+    assert_eq!(overflowing_sub(0u32, 1), (u32::MAX, true));
+    assert_eq!(overflowing_sub(u32::MAX, u32::MAX), (0, false));
+    assert_eq!(overflowing_mul(u32::MAX, 2), (u32::MAX - 1, true));
+    assert_eq!(overflowing_mul(0u32, u32::MAX), (0, false));
+
+    assert_eq!(overflowing_add(u64::MAX, 1), (0, true));
+    assert_eq!(overflowing_sub(0u64, u64::MAX), (1, true));
+    assert_eq!(overflowing_mul(u64::MAX, u64::MAX), (1, true));
+
+    assert_eq!(overflowing_add(i64::MAX, 1), (i64::MIN, true));
+    assert_eq!(overflowing_sub(i64::MIN, 1), (i64::MAX, true));
+    assert_eq!(overflowing_mul(i64::MIN, -1), (i64::MIN, true));
 }

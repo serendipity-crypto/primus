@@ -6,7 +6,8 @@ pub fn as_cast<T: Copy + AsInto<U>, U: Copy>(value: T) -> U {
 
 /// A helper trait defines all `as` cast between all primitive integer types.
 pub trait AsCast:
-    AsFrom<i8>
+    AsFrom<bool>
+    + AsFrom<i8>
     + AsFrom<u8>
     + AsFrom<i16>
     + AsFrom<u16>

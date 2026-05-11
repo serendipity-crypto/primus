@@ -524,4 +524,120 @@ mod tests {
         assert_eq!(remainder, 0);
         assert_eq!(quotient, [0; 3]);
     }
+
+    // Exercises the Knuth Algorithm D path for u128 (full-width divisor > 64 bits,
+    // multi-limb dividend) by cross-checking against the analogous u64 division
+    // on a small enough quantity to fit in u128 arithmetic, then by self-consistency
+    // (`quotient * divisor + remainder == dividend`).
+    #[test]
+    fn div_rem_scalar_u128_full_width_divisor_self_consistent() {
+        // Dividend: 3-limb u128 number.  All three limbs non-zero, all top
+        // 2 bits clear so Knuth D doesn't take the `dividend[len-1] < divisor`
+        // shortcut blindly.
+        let dividend = [
+            0xfedc_ba98_7654_3210_dead_beef_cafe_babe_u128,
+            0x0123_4567_89ab_cdef_1122_3344_5566_7788,
+            0x0011_2233_4455_6677_8899_aabb_ccdd_eeff,
+        ];
+        // Divisor: a full-width 128-bit value (top bit set after normalization
+        // means `s = 0` so the un-shifted path is exercised in `udiv256_by_128_to_128`).
+        let divisor = 0xc0ff_ee15_dead_beef_face_b00c_1337_4242_u128;
+
+        let mut quotient = [u128::MAX; 3];
+        let remainder = u128::div_rem_scalar(&dividend, divisor, &mut quotient);
+
+        // Reconstruct dividend = quotient * divisor + remainder limb-wise and
+        // verify equality.  Use carrying_mul to do the multi-limb multiply.
+        let mut reconstructed = [0u128; 3];
+        let mut carry: u128 = 0;
+        for (i, &q) in quotient.iter().enumerate() {
+            let (lo, hi) = q.carrying_mul(divisor, carry);
+            reconstructed[i] = lo;
+            carry = hi;
+        }
+        // No room for `carry` to be non-zero because quotient[2] * divisor + carry
+        // already fits the reconstructed slot when quotient < 2^128 / divisor * limbs.
+        assert_eq!(carry, 0, "unexpected high carry from quotient*divisor");
+
+        // Add remainder to limb 0.
+        let (new0, overflow) = reconstructed[0].overflowing_add(remainder);
+        reconstructed[0] = new0;
+        if overflow {
+            let (new1, of1) = reconstructed[1].overflowing_add(1);
+            reconstructed[1] = new1;
+            if of1 {
+                reconstructed[2] = reconstructed[2].wrapping_add(1);
+            }
+        }
+
+        assert_eq!(reconstructed, dividend);
+        assert!(remainder < divisor);
+    }
+
+    // Exercises the s > 0 normalization branch (divisor without the top bit set)
+    // and the divisor ≤ 64-bit shortcut at line 247.
+    #[test]
+    fn div_rem_scalar_u128_normalization_branch() {
+        let dividend = [
+            0xdead_beef_cafe_babe_1234_5678_9abc_def0_u128,
+            0x0001_0203_0405_0607_0809_0a0b_0c0d_0e0f,
+        ];
+        // 65-bit divisor: forces the full-width Knuth D path, not the 64-bit shortcut.
+        let divisor: u128 = (1u128 << 64) | 0x1234_5678_9abc_def1;
+
+        let mut quotient = [u128::MAX; 2];
+        let remainder = u128::div_rem_scalar(&dividend, divisor, &mut quotient);
+
+        // Self-consistency: quotient * divisor + remainder == dividend.
+        let mut reconstructed = [0u128; 2];
+        let mut carry: u128 = 0;
+        for (i, &q) in quotient.iter().enumerate() {
+            let (lo, hi) = q.carrying_mul(divisor, carry);
+            reconstructed[i] = lo;
+            carry = hi;
+        }
+        assert_eq!(carry, 0);
+
+        let (new0, overflow) = reconstructed[0].overflowing_add(remainder);
+        reconstructed[0] = new0;
+        if overflow {
+            reconstructed[1] = reconstructed[1].wrapping_add(1);
+        }
+
+        assert_eq!(reconstructed, dividend);
+        assert!(remainder < divisor);
+    }
+
+    // Divisor ≤ 64 bits forces the `divisor <= u64::MAX as u128` short-circuit
+    // (the `div_half_u128` path), distinct from full-width Knuth D.
+    #[test]
+    fn div_rem_scalar_u128_half_width_divisor() {
+        let dividend = [
+            0xfedc_ba98_7654_3210_0fed_cba9_8765_4321_u128,
+            0x1234_5678_9abc_def0_0123_4567_89ab_cdef,
+        ];
+        let divisor: u128 = 0xdead_beef_cafe_babe;
+
+        let mut quotient = [u128::MAX; 2];
+        let remainder = u128::div_rem_scalar(&dividend, divisor, &mut quotient);
+
+        // Reconstruct
+        let mut reconstructed = [0u128; 2];
+        let mut carry: u128 = 0;
+        for (i, &q) in quotient.iter().enumerate() {
+            let (lo, hi) = q.carrying_mul(divisor, carry);
+            reconstructed[i] = lo;
+            carry = hi;
+        }
+        assert_eq!(carry, 0);
+
+        let (new0, overflow) = reconstructed[0].overflowing_add(remainder);
+        reconstructed[0] = new0;
+        if overflow {
+            reconstructed[1] = reconstructed[1].wrapping_add(1);
+        }
+
+        assert_eq!(reconstructed, dividend);
+        assert!(remainder < divisor);
+    }
 }

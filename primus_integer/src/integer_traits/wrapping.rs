@@ -24,6 +24,7 @@ macro_rules! impl_wrapping {
 pub trait WrappingAdd: Sized + Copy + Add<Self, Output = Self> {
     /// Wrapping (modular) addition. Computes `self + other`, wrapping around at the boundary of
     /// the type.
+    #[must_use]
     fn wrapping_add(self, v: Self) -> Self;
 }
 
@@ -45,6 +46,7 @@ impl_wrapping!(WrappingAdd, wrapping_add, i128);
 pub trait WrappingSub: Sized + Copy + Sub<Self, Output = Self> {
     /// Wrapping (modular) subtraction. Computes `self - other`, wrapping around at the boundary
     /// of the type.
+    #[must_use]
     fn wrapping_sub(self, v: Self) -> Self;
 }
 
@@ -66,6 +68,7 @@ impl_wrapping!(WrappingSub, wrapping_sub, i128);
 pub trait WrappingMul: Sized + Copy + Mul<Self, Output = Self> {
     /// Wrapping (modular) multiplication. Computes `self * other`, wrapping around at the boundary
     /// of the type.
+    #[must_use]
     fn wrapping_mul(self, v: Self) -> Self;
 }
 
@@ -106,11 +109,16 @@ pub trait WrappingNeg: Sized + Copy {
     /// Any larger values are equivalent to `MAX + 1 - (val - MAX - 1)` where
     /// `MAX` is the corresponding signed type's maximum.
     ///
-    /// ```ignore
-    /// assert_eq!(100i8.wrapping_neg(), -100);
-    /// assert_eq!((-100i8).wrapping_neg(), 100);
-    /// assert_eq!((-128i8).wrapping_neg(), -128); // wrapped!
+    /// # Examples
+    ///
     /// ```
+    /// use primus_integer::WrappingNeg;
+    ///
+    /// assert_eq!(WrappingNeg::wrapping_neg(100i8), -100);
+    /// assert_eq!(WrappingNeg::wrapping_neg(-100i8), 100);
+    /// assert_eq!(WrappingNeg::wrapping_neg(-128i8), -128); // wrapped!
+    /// ```
+    #[must_use]
     fn wrapping_neg(self) -> Self;
 }
 
@@ -144,14 +152,19 @@ pub trait WrappingShl: Sized + Copy + Shl<usize, Output = Self> {
     /// where `mask` removes any high order bits of `rhs` that would
     /// cause the shift to exceed the bitwidth of the type.
     ///
-    /// ```ignore
+    /// # Examples
+    ///
+    /// ```
+    /// use primus_integer::WrappingShl;
+    ///
     /// let x: u16 = 0x0001;
     ///
-    /// assert_eq!(WrappingShl::wrapping_shl(&x, 0),  0x0001);
-    /// assert_eq!(WrappingShl::wrapping_shl(&x, 1),  0x0002);
-    /// assert_eq!(WrappingShl::wrapping_shl(&x, 15), 0x8000);
-    /// assert_eq!(WrappingShl::wrapping_shl(&x, 16), 0x0001);
+    /// assert_eq!(WrappingShl::wrapping_shl(x, 0),  0x0001);
+    /// assert_eq!(WrappingShl::wrapping_shl(x, 1),  0x0002);
+    /// assert_eq!(WrappingShl::wrapping_shl(x, 15), 0x8000);
+    /// assert_eq!(WrappingShl::wrapping_shl(x, 16), 0x0001);
     /// ```
+    #[must_use]
     fn wrapping_shl(self, rhs: u32) -> Self;
 }
 
@@ -175,14 +188,19 @@ pub trait WrappingShr: Sized + Copy + Shr<usize, Output = Self> {
     /// where `mask` removes any high order bits of `rhs` that would
     /// cause the shift to exceed the bitwidth of the type.
     ///
-    /// ```ignore
+    /// # Examples
+    ///
+    /// ```
+    /// use primus_integer::WrappingShr;
+    ///
     /// let x: u16 = 0x8000;
     ///
-    /// assert_eq!(WrappingShr::wrapping_shr(&x, 0),  0x8000);
-    /// assert_eq!(WrappingShr::wrapping_shr(&x, 1),  0x4000);
-    /// assert_eq!(WrappingShr::wrapping_shr(&x, 15), 0x0001);
-    /// assert_eq!(WrappingShr::wrapping_shr(&x, 16), 0x8000);
+    /// assert_eq!(WrappingShr::wrapping_shr(x, 0),  0x8000);
+    /// assert_eq!(WrappingShr::wrapping_shr(x, 1),  0x4000);
+    /// assert_eq!(WrappingShr::wrapping_shr(x, 15), 0x0001);
+    /// assert_eq!(WrappingShr::wrapping_shr(x, 16), 0x8000);
     /// ```
+    #[must_use]
     fn wrapping_shr(self, rhs: u32) -> Self;
 }
 
@@ -284,6 +302,34 @@ fn test_wrapping_traits() {
     assert_eq!(wrapping_neg(255), (-Wrapping(255u8)).0);
     assert_eq!(wrapping_shl(255, 8), (Wrapping(255u8) << 8).0);
     assert_eq!(wrapping_shr(255, 8), (Wrapping(255u8) >> 8).0);
+
+    // u32 boundaries.
+    assert_eq!(wrapping_add(u32::MAX, 1), 0);
+    assert_eq!(wrapping_add(u32::MAX, u32::MAX), u32::MAX - 1);
+    assert_eq!(wrapping_sub(0u32, 1), u32::MAX);
+    assert_eq!(wrapping_mul(u32::MAX, u32::MAX), 1);
+    assert_eq!(wrapping_neg(0u32), 0);
+    assert_eq!(wrapping_neg(u32::MAX), 1);
+    assert_eq!(wrapping_shl(1u32, 32), 1);
+    assert_eq!(wrapping_shl(1u32, 33), 2);
+    assert_eq!(wrapping_shr(1u32 << 31, 31), 1);
+    assert_eq!(wrapping_shr(1u32, 32), 1);
+
+    // u64 boundaries.
+    assert_eq!(wrapping_add(u64::MAX, 1), 0);
+    assert_eq!(wrapping_sub(0u64, u64::MAX), 1);
+    assert_eq!(wrapping_mul(u64::MAX, 2), u64::MAX - 1);
+    assert_eq!(wrapping_neg(u64::MAX), 1);
+    assert_eq!(wrapping_shl(1u64, 64), 1);
+    assert_eq!(wrapping_shr(1u64 << 63, 63), 1);
+
+    // Signed MIN edge: wrapping_neg(MIN) == MIN.
+    assert_eq!(wrapping_neg(i8::MIN), i8::MIN);
+    assert_eq!(wrapping_neg(i32::MIN), i32::MIN);
+    assert_eq!(wrapping_neg(i64::MIN), i64::MIN);
+    assert_eq!(wrapping_add(i64::MAX, 1), i64::MIN);
+    assert_eq!(wrapping_sub(i64::MIN, 1), i64::MAX);
+    assert_eq!(wrapping_mul(i64::MIN, -1), i64::MIN);
 }
 
 #[test]

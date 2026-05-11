@@ -48,7 +48,6 @@ pub trait Integer:
     + ConstTwo
     + ConstBounded
     + AsCast
-    + AsFrom<bool>
     + NumAssign
     + WrappingAdd
     + WrappingSub

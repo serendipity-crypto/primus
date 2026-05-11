@@ -117,6 +117,7 @@ mod tests {
     use core::simd::{LaneCount, Simd, SimdElement, SupportedLaneCount};
 
     use rand::distr::{Distribution, StandardUniform};
+    use rand::{SeedableRng, rngs::StdRng};
 
     use super::*;
 
@@ -127,7 +128,7 @@ mod tests {
         Simd<T, N>: WideningMul,
         StandardUniform: Distribution<Simd<T, N>>,
     {
-        let mut rng = rand::rng();
+        let mut rng = StdRng::seed_from_u64(0xCAFE_BABE_0000_0003);
 
         let l: Simd<T, N> = StandardUniform.sample(&mut rng);
         let r: Simd<T, N> = StandardUniform.sample(&mut rng);
@@ -139,7 +140,13 @@ mod tests {
         let lw_arr = lw.as_array();
         let hw_arr = hw.as_array();
         for i in 0..N {
-            assert_eq!(l_arr[i].widening_mul(r_arr[i]), (lw_arr[i], hw_arr[i]));
+            assert_eq!(
+                l_arr[i].widening_mul(r_arr[i]),
+                (lw_arr[i], hw_arr[i]),
+                "lane {i}: l={:?} r={:?}",
+                l_arr[i],
+                r_arr[i],
+            );
         }
     }
 

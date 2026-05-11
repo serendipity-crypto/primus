@@ -4,7 +4,7 @@ use core::{
 };
 
 use num_traits::{ConstZero, Zero};
-use primus_integer::{ByteCount, Data, DataMut, DataOwned, RawData, UnsignedInteger, size::Size};
+use primus_integer::{ByteCount, Data, DataMut, DataOwned, RawData, Size, UnsignedInteger};
 
 use super::ArrayBase;
 

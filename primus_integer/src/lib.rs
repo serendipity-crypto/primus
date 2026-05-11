@@ -14,7 +14,7 @@ mod data;
 #[cfg(all(feature = "nightly", feature = "simd"))]
 mod simd;
 
-pub mod size;
+mod size;
 pub use size::Size;
 
 pub use integer_traits::*;

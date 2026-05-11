@@ -4,6 +4,7 @@ use core::ops::{Add, Div, Mul, Rem, Shl, Shr, Sub};
 pub trait CheckedAdd: Sized + Add<Self, Output = Self> {
     /// Adds two numbers, checking for overflow. If overflow happens, `None` is
     /// returned.
+    #[must_use]
     fn checked_add(self, v: Self) -> Option<Self>;
 }
 
@@ -36,6 +37,7 @@ checked_impl!(CheckedAdd, checked_add, i128);
 pub trait CheckedSub: Sized + Sub<Self, Output = Self> {
     /// Subtracts two numbers, checking for overflow. If overflow happens,
     /// `None` is returned.
+    #[must_use]
     fn checked_sub(self, v: Self) -> Option<Self>;
 }
 
@@ -57,6 +59,7 @@ checked_impl!(CheckedSub, checked_sub, i128);
 pub trait CheckedMul: Sized + Mul<Self, Output = Self> {
     /// Multiplies two numbers, checking for overflow. If overflow happens,
     /// `None` is returned.
+    #[must_use]
     fn checked_mul(self, v: Self) -> Option<Self>;
 }
 
@@ -79,6 +82,7 @@ checked_impl!(CheckedMul, checked_mul, i128);
 pub trait CheckedDiv: Sized + Div<Self, Output = Self> {
     /// Divides two numbers, checking for overflow and division by
     /// zero. If any of that happens, `None` is returned.
+    #[must_use]
     fn checked_div(self, v: Self) -> Option<Self>;
 }
 
@@ -104,19 +108,20 @@ pub trait CheckedRem: Sized + Rem<Self, Output = Self> {
     ///
     /// # Examples
     ///
-    /// ```ignore
-    /// use std::i32::MIN;
-    ///
-    /// assert_eq!(CheckedRem::checked_rem(&10, &7), Some(3));
-    /// assert_eq!(CheckedRem::checked_rem(&10, &-7), Some(3));
-    /// assert_eq!(CheckedRem::checked_rem(&-10, &7), Some(-3));
-    /// assert_eq!(CheckedRem::checked_rem(&-10, &-7), Some(-3));
-    ///
-    /// assert_eq!(CheckedRem::checked_rem(&10, &0), None);
-    ///
-    /// assert_eq!(CheckedRem::checked_rem(&MIN, &1), Some(0));
-    /// assert_eq!(CheckedRem::checked_rem(&MIN, &-1), None);
     /// ```
+    /// use primus_integer::CheckedRem;
+    ///
+    /// assert_eq!(CheckedRem::checked_rem(10i32, 7), Some(3));
+    /// assert_eq!(CheckedRem::checked_rem(10i32, -7), Some(3));
+    /// assert_eq!(CheckedRem::checked_rem(-10i32, 7), Some(-3));
+    /// assert_eq!(CheckedRem::checked_rem(-10i32, -7), Some(-3));
+    ///
+    /// assert_eq!(CheckedRem::checked_rem(10i32, 0), None);
+    ///
+    /// assert_eq!(CheckedRem::checked_rem(i32::MIN, 1), Some(0));
+    /// assert_eq!(CheckedRem::checked_rem(i32::MIN, -1), None);
+    /// ```
+    #[must_use]
     fn checked_rem(self, v: Self) -> Option<Self>;
 }
 
@@ -152,16 +157,17 @@ pub trait CheckedNeg: Sized {
     ///
     /// # Examples
     ///
-    /// ```ignore
-    /// use std::i32::MIN;
-    ///
-    /// assert_eq!(CheckedNeg::checked_neg(&1_i32), Some(-1));
-    /// assert_eq!(CheckedNeg::checked_neg(&-1_i32), Some(1));
-    /// assert_eq!(CheckedNeg::checked_neg(&MIN), None);
-    ///
-    /// assert_eq!(CheckedNeg::checked_neg(&0_u32), Some(0));
-    /// assert_eq!(CheckedNeg::checked_neg(&1_u32), None);
     /// ```
+    /// use primus_integer::CheckedNeg;
+    ///
+    /// assert_eq!(CheckedNeg::checked_neg(1_i32), Some(-1));
+    /// assert_eq!(CheckedNeg::checked_neg(-1_i32), Some(1));
+    /// assert_eq!(CheckedNeg::checked_neg(i32::MIN), None);
+    ///
+    /// assert_eq!(CheckedNeg::checked_neg(0_u32), Some(0));
+    /// assert_eq!(CheckedNeg::checked_neg(1_u32), None);
+    /// ```
+    #[must_use]
     fn checked_neg(self) -> Option<Self>;
 }
 
@@ -185,14 +191,19 @@ pub trait CheckedShl: Sized + Shl<u32, Output = Self> {
     /// Checked shift left. Computes `self << rhs`, returning `None`
     /// if `rhs` is larger than or equal to the number of bits in `self`.
     ///
-    /// ```ignore
+    /// # Examples
+    ///
+    /// ```
+    /// use primus_integer::CheckedShl;
+    ///
     /// let x: u16 = 0x0001;
     ///
-    /// assert_eq!(CheckedShl::checked_shl(&x, 0),  Some(0x0001));
-    /// assert_eq!(CheckedShl::checked_shl(&x, 1),  Some(0x0002));
-    /// assert_eq!(CheckedShl::checked_shl(&x, 15), Some(0x8000));
-    /// assert_eq!(CheckedShl::checked_shl(&x, 16), None);
+    /// assert_eq!(CheckedShl::checked_shl(x, 0),  Some(0x0001));
+    /// assert_eq!(CheckedShl::checked_shl(x, 1),  Some(0x0002));
+    /// assert_eq!(CheckedShl::checked_shl(x, 15), Some(0x8000));
+    /// assert_eq!(CheckedShl::checked_shl(x, 16), None);
     /// ```
+    #[must_use]
     fn checked_shl(self, rhs: u32) -> Option<Self>;
 }
 
@@ -227,14 +238,19 @@ pub trait CheckedShr: Sized + Shr<u32, Output = Self> {
     /// Checked shift right. Computes `self >> rhs`, returning `None`
     /// if `rhs` is larger than or equal to the number of bits in `self`.
     ///
-    /// ```ignore
+    /// # Examples
+    ///
+    /// ```
+    /// use primus_integer::CheckedShr;
+    ///
     /// let x: u16 = 0x8000;
     ///
-    /// assert_eq!(CheckedShr::checked_shr(&x, 0),  Some(0x8000));
-    /// assert_eq!(CheckedShr::checked_shr(&x, 1),  Some(0x4000));
-    /// assert_eq!(CheckedShr::checked_shr(&x, 15), Some(0x0001));
-    /// assert_eq!(CheckedShr::checked_shr(&x, 16), None);
+    /// assert_eq!(CheckedShr::checked_shr(x, 0),  Some(0x8000));
+    /// assert_eq!(CheckedShr::checked_shr(x, 1),  Some(0x4000));
+    /// assert_eq!(CheckedShr::checked_shr(x, 15), Some(0x0001));
+    /// assert_eq!(CheckedShr::checked_shr(x, 16), None);
     /// ```
+    #[must_use]
     fn checked_shr(self, rhs: u32) -> Option<Self>;
 }
 
@@ -251,3 +267,58 @@ checked_shift_impl!(CheckedShr, checked_shr, i32);
 checked_shift_impl!(CheckedShr, checked_shr, i64);
 checked_shift_impl!(CheckedShr, checked_shr, isize);
 checked_shift_impl!(CheckedShr, checked_shr, i128);
+
+#[test]
+fn test_checked_traits() {
+    // Add: normal and overflow on unsigned MAX / signed MAX.
+    assert_eq!(CheckedAdd::checked_add(1u32, 2), Some(3));
+    assert_eq!(CheckedAdd::checked_add(u32::MAX, 0), Some(u32::MAX));
+    assert_eq!(CheckedAdd::checked_add(u32::MAX, 1), None);
+    assert_eq!(CheckedAdd::checked_add(u64::MAX, 1), None);
+    assert_eq!(CheckedAdd::checked_add(i32::MAX, 1), None);
+    assert_eq!(CheckedAdd::checked_add(i64::MAX, 1), None);
+    assert_eq!(CheckedAdd::checked_add(i64::MIN, -1), None);
+
+    // Sub: underflow on unsigned 0, overflow on signed MIN.
+    assert_eq!(CheckedSub::checked_sub(0u32, 1), None);
+    assert_eq!(CheckedSub::checked_sub(0u64, 1), None);
+    assert_eq!(CheckedSub::checked_sub(i32::MIN, 1), None);
+    assert_eq!(CheckedSub::checked_sub(i64::MIN, 1), None);
+    assert_eq!(CheckedSub::checked_sub(u32::MAX, u32::MAX), Some(0));
+
+    // Mul: overflow on MAX*2, identity on 0.
+    assert_eq!(CheckedMul::checked_mul(0u32, u32::MAX), Some(0));
+    assert_eq!(CheckedMul::checked_mul(u32::MAX, 2), None);
+    assert_eq!(CheckedMul::checked_mul(u64::MAX, u64::MAX), None);
+    assert_eq!(CheckedMul::checked_mul(i32::MIN, -1), None);
+    assert_eq!(CheckedMul::checked_mul(i64::MIN, -1), None);
+
+    // Div: division by zero and signed MIN / -1.
+    assert_eq!(CheckedDiv::checked_div(10u32, 0), None);
+    assert_eq!(CheckedDiv::checked_div(10u32, 3), Some(3));
+    assert_eq!(CheckedDiv::checked_div(i32::MIN, -1), None);
+    assert_eq!(CheckedDiv::checked_div(i64::MIN, -1), None);
+
+    // Rem: remainder by zero and signed MIN % -1.
+    assert_eq!(CheckedRem::checked_rem(10u32, 0), None);
+    assert_eq!(CheckedRem::checked_rem(10u32, 3), Some(1));
+    assert_eq!(CheckedRem::checked_rem(i32::MIN, -1), None);
+    assert_eq!(CheckedRem::checked_rem(i64::MIN, -1), None);
+
+    // Neg: signed MIN cannot be negated; any non-zero unsigned cannot.
+    assert_eq!(CheckedNeg::checked_neg(0u32), Some(0));
+    assert_eq!(CheckedNeg::checked_neg(1u32), None);
+    assert_eq!(CheckedNeg::checked_neg(0u64), Some(0));
+    assert_eq!(CheckedNeg::checked_neg(i32::MIN), None);
+    assert_eq!(CheckedNeg::checked_neg(i64::MIN), None);
+    assert_eq!(CheckedNeg::checked_neg(1i32), Some(-1));
+
+    // Shl/Shr: shift at or beyond bit-width returns None.
+    assert_eq!(CheckedShl::checked_shl(1u32, 31), Some(1u32 << 31));
+    assert_eq!(CheckedShl::checked_shl(1u32, 32), None);
+    assert_eq!(CheckedShl::checked_shl(1u64, 63), Some(1u64 << 63));
+    assert_eq!(CheckedShl::checked_shl(1u64, 64), None);
+    assert_eq!(CheckedShr::checked_shr(1u32 << 31, 31), Some(1));
+    assert_eq!(CheckedShr::checked_shr(1u32, 32), None);
+    assert_eq!(CheckedShr::checked_shr(1u64, 64), None);
+}

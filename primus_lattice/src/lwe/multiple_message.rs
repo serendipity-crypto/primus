@@ -1,4 +1,4 @@
-use primus_integer::{Data, DataMut, DataOwned, RawData, UnsignedInteger, size::Size};
+use primus_integer::{Data, DataMut, DataOwned, RawData, Size, UnsignedInteger};
 use primus_reduce::ops::*;
 use serde::{Deserialize, Serialize};
 

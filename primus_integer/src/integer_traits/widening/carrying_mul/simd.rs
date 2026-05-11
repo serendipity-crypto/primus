@@ -189,24 +189,30 @@ macro_rules! simd_uint_carrying_mul_large {
 simd_uint_carrying_mul_large! {u64, 32}
 
 #[cfg(target_pointer_width = "32")]
-simd_uint_carrying_mul_impl! {u32, u64, 32}
+simd_uint_carrying_mul_impl! {usize, u64, 32}
 #[cfg(target_pointer_width = "64")]
 simd_uint_carrying_mul_large! {usize, 32}
 
 #[cfg(test)]
 mod tests {
-    use core::simd::Simd;
+    use core::{
+        fmt::Debug,
+        simd::{LaneCount, Simd, SimdElement, SupportedLaneCount},
+    };
 
     use rand::distr::{Distribution, StandardUniform};
+    use rand::{SeedableRng, rngs::StdRng};
 
     use super::*;
 
-    type T = u32;
-    const N: usize = 64;
-
-    #[test]
-    fn test_carry_mul() {
-        let mut rng = rand::rng();
+    fn test_carry_mul_per_type_lane_count<T, const N: usize>()
+    where
+        T: SimdElement + CarryingMul + PartialEq + Debug,
+        LaneCount<N>: SupportedLaneCount,
+        Simd<T, N>: CarryingMul,
+        StandardUniform: Distribution<Simd<T, N>>,
+    {
+        let mut rng = StdRng::seed_from_u64(0xCAFE_BABE_0000_0004);
 
         let l: Simd<T, N> = StandardUniform.sample(&mut rng);
         let r: Simd<T, N> = StandardUniform.sample(&mut rng);
@@ -222,8 +228,47 @@ mod tests {
         for i in 0..N {
             assert_eq!(
                 CarryingMul::carrying_mul(l_arr[i], r_arr[i], carry_arr[i]),
-                (lw_arr[i], hw_arr[i])
+                (lw_arr[i], hw_arr[i]),
+                "lane {i}: l={:?} r={:?} carry={:?}",
+                l_arr[i],
+                r_arr[i],
+                carry_arr[i],
             );
         }
+    }
+
+    fn test_carry_mul_per_type<T>()
+    where
+        T: SimdElement + CarryingMul + PartialEq + Debug,
+        Simd<T, 1>: CarryingMul,
+        Simd<T, 2>: CarryingMul,
+        Simd<T, 4>: CarryingMul,
+        Simd<T, 8>: CarryingMul,
+        Simd<T, 16>: CarryingMul,
+        Simd<T, 32>: CarryingMul,
+        Simd<T, 64>: CarryingMul,
+        StandardUniform: Distribution<Simd<T, 1>>
+            + Distribution<Simd<T, 2>>
+            + Distribution<Simd<T, 4>>
+            + Distribution<Simd<T, 8>>
+            + Distribution<Simd<T, 16>>
+            + Distribution<Simd<T, 32>>
+            + Distribution<Simd<T, 64>>,
+    {
+        test_carry_mul_per_type_lane_count::<T, 1>();
+        test_carry_mul_per_type_lane_count::<T, 2>();
+        test_carry_mul_per_type_lane_count::<T, 4>();
+        test_carry_mul_per_type_lane_count::<T, 8>();
+        test_carry_mul_per_type_lane_count::<T, 16>();
+        test_carry_mul_per_type_lane_count::<T, 32>();
+        test_carry_mul_per_type_lane_count::<T, 64>();
+    }
+
+    #[test]
+    fn test_carry_mul() {
+        test_carry_mul_per_type::<u8>();
+        test_carry_mul_per_type::<u16>();
+        test_carry_mul_per_type::<u32>();
+        test_carry_mul_per_type::<u64>();
     }
 }
