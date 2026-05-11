@@ -3,6 +3,10 @@
 //! This implementation refers to the following codebases.
 //! <https://flintlib.org/doc/ulong_extras.html#c.n_xgcd>
 //! <https://flintlib.org/doc/ulong_extras.html#c.n_gcdinv>
+//!
+//! For potential algorithmic improvements (Bernstein–Yang divsteps2, Pornin's
+//! optimized binary GCD, half-GCD for big integers) and when each is worth
+//! considering, see `ALGORITHMS.md` in the crate root.
 
 /// Greatest common divisor and Bézout coefficients
 pub trait Xgcd: Sized {
@@ -18,6 +22,7 @@ pub trait Xgcd: Sized {
     /// assert_eq!(0u64.gcd(5), 5);
     /// assert_eq!(5u64.gcd(0), 5);
     /// ```
+    #[must_use]
     fn gcd(self, other: Self) -> Self;
 
     /// Check whether two numbers are coprime.
@@ -31,11 +36,28 @@ pub trait Xgcd: Sized {
     /// assert!(!14u64.is_coprime(28));
     /// assert!(!0u64.is_coprime(0));
     /// ```
+    #[must_use]
     #[allow(clippy::wrong_self_convention)]
     fn is_coprime(self, other: Self) -> bool;
 
     /// Returns the greatest common divisor `g` of `x` and `y` and unsigned
     /// values `a` and `b` such that `a x - b y = g`. We require `x ≥ y`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use primus_gcd::Xgcd;
+    ///
+    /// let (a, b, d) = u64::xgcd(240, 46);
+    /// assert_eq!(d, 2);
+    /// assert_eq!(a as u128 * 240 - b as u128 * 46, 2);
+    /// ```
+    ///
+    /// # Panics if
+    ///
+    /// - `x < y`
+    ///
+    /// # Algorithm
     ///
     /// We claim that computing the extended greatest common divisor via the
     /// Euclidean algorithm always results in cofactor `|a| < x/2`,
@@ -56,20 +78,7 @@ pub trait Xgcd: Sized {
     /// `1 = s r - c d` with `s < r/2` and `c < r/2`.
     ///
     /// Then `s + t q < r/2 + y_n / 2 q = (r + q y_n)/2 = x_n / 2`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use primus_gcd::Xgcd;
-    ///
-    /// let (a, b, d) = u64::xgcd(240, 46);
-    /// assert_eq!(d, 2);
-    /// assert_eq!(a as u128 * 240 - b as u128 * 46, 2);
-    /// ```
-    ///
-    /// # Panics if
-    ///
-    /// - `x < y`
+    #[must_use]
     fn xgcd(x: Self, y: Self) -> (Self, Self, Self);
 
     /// Returns the greatest common divisor `g` of `x` and `y` and computes
@@ -95,107 +104,96 @@ pub trait Xgcd: Sized {
     /// # Panics if
     ///
     /// - `x ≥ y`
+    #[must_use]
     fn gcdinv(x: Self, y: Self) -> (Self, Self);
 }
 
 macro_rules! impl_extended_gcd {
     (impl Xgcd for $SelfT:ty; SignedType: $SignedT:ty) => {
-        impl Xgcd for $SelfT {
+        // Anonymous const block scopes the helper fns so they are reachable
+        // from both `xgcd` and `gcdinv` without polluting the module namespace
+        // or colliding across the macro's multiple expansions.
+        const _: () = {
+            // Coefficient recurrences intentionally use limb-width wrapping,
+            // matching FLINT's unsigned casts while staying valid in debug builds.
             #[inline]
-            fn gcd(self, other: Self) -> Self {
-                // Use Stein's algorithm
-                let mut m = self;
-                let mut n = other;
-                if m == 0 || n == 0 {
-                    return m | n;
-                }
+            fn coeff_sub(lhs: $SignedT, rhs: $SignedT) -> $SignedT {
+                lhs.wrapping_sub(rhs)
+            }
 
-                // find common factors of 2
-                let shift = (m | n).trailing_zeros();
+            #[inline]
+            fn coeff_sub_mul(lhs: $SignedT, factor: $SignedT, rhs: $SignedT) -> $SignedT {
+                lhs.wrapping_sub(factor.wrapping_mul(rhs))
+            }
 
-                // divide n and m by 2 until odd
-                m >>= m.trailing_zeros();
-                n >>= n.trailing_zeros();
-
-                while m != n {
-                    if m > n {
-                        m -= n;
-                        m >>= m.trailing_zeros();
-                    } else {
-                        n -= m;
-                        n >>= n.trailing_zeros();
+            impl Xgcd for $SelfT {
+                #[inline]
+                fn gcd(self, other: Self) -> Self {
+                    // Use Stein's algorithm
+                    let mut m = self;
+                    let mut n = other;
+                    if m == 0 || n == 0 {
+                        return m | n;
                     }
-                }
-                m << shift
-            }
 
-            #[inline]
-            fn is_coprime(self, other: Self) -> bool {
-                // Fast paths that avoid computing the full GCD.
-                if self == other {
-                    return self == 1;
-                }
-                if self == 1 || other == 1 {
-                    return true;
-                }
-                self.gcd(other) == 1
-            }
+                    // find common factors of 2
+                    let shift = (m | n).trailing_zeros();
 
-            #[inline]
-            fn xgcd(x: Self, y: Self) -> (Self, Self, Self) {
-                #[inline]
-                fn coeff_sub(lhs: $SignedT, rhs: $SignedT) -> $SignedT {
-                    lhs.wrapping_sub(rhs)
+                    // divide n and m by 2 until odd
+                    m >>= m.trailing_zeros();
+                    n >>= n.trailing_zeros();
+
+                    while m != n {
+                        if m > n {
+                            m -= n;
+                            m >>= m.trailing_zeros();
+                        } else {
+                            n -= m;
+                            n >>= n.trailing_zeros();
+                        }
+                    }
+                    m << shift
                 }
 
                 #[inline]
-                fn coeff_sub_mul(lhs: $SignedT, factor: $SignedT, rhs: $SignedT) -> $SignedT {
-                    lhs.wrapping_sub(factor.wrapping_mul(rhs))
+                fn is_coprime(self, other: Self) -> bool {
+                    // Fast paths that avoid computing the full GCD.
+                    if self == other {
+                        return self == 1;
+                    }
+                    if self == 1 || other == 1 {
+                        return true;
+                    }
+                    self.gcd(other) == 1
                 }
 
-                let mut u1: $SignedT;
-                let mut u2: $SignedT;
-                let mut v1: $SignedT;
-                let mut v2: $SignedT;
-                let mut t1: $SignedT;
-                let mut t2: $SignedT;
+                #[inline]
+                fn xgcd(x: Self, y: Self) -> (Self, Self, Self) {
+                    let mut u1: $SignedT;
+                    let mut u2: $SignedT;
+                    let mut v1: $SignedT;
+                    let mut v2: $SignedT;
+                    let mut t1: $SignedT;
+                    let mut t2: $SignedT;
 
-                let mut u3: Self;
-                let mut v3: Self;
-                let mut quot: Self;
-                let mut rem: Self;
-                let mut d: Self;
+                    let mut u3: Self;
+                    let mut v3: Self;
+                    let mut quot: Self;
+                    let mut rem: Self;
+                    let mut d: Self;
 
-                assert!(x >= y);
+                    assert!(x >= y);
 
-                u1 = 1;
-                v2 = 1;
-                u2 = 0;
-                v1 = 0;
-                u3 = x;
-                v3 = y;
+                    u1 = 1;
+                    v2 = 1;
+                    u2 = 0;
+                    v1 = 0;
+                    u3 = x;
+                    v3 = y;
 
-                // Coefficient recurrences intentionally use limb-width wrapping,
-                // matching FLINT's unsigned casts while staying valid in debug builds.
-
-                // x and y both have top bit set
-                if ((x & y) as $SignedT) < 0 {
-                    d = u3 - v3;
-                    t2 = v2;
-                    t1 = u2;
-                    u2 = coeff_sub(u1, u2);
-                    u1 = t1;
-                    u3 = v3;
-                    v2 = coeff_sub(v1, v2);
-                    v1 = t2;
-                    v3 = d;
-                }
-
-                // second value has second msb set
-                while ((v3 << 1) as $SignedT) < 0 {
-                    d = u3 - v3;
-                    if d < v3 {
-                        // quot = 1
+                    // x and y both have top bit set
+                    if ((x & y) as $SignedT) < 0 {
+                        d = u3 - v3;
                         t2 = v2;
                         t1 = u2;
                         u2 = coeff_sub(u1, u2);
@@ -204,34 +202,11 @@ macro_rules! impl_extended_gcd {
                         v2 = coeff_sub(v1, v2);
                         v1 = t2;
                         v3 = d;
-                    } else if d < (v3 << 1) {
-                        // quot = 2
-                        t1 = u2;
-                        u2 = coeff_sub_mul(u1, 2, u2);
-                        u1 = t1;
-                        u3 = v3;
-                        t2 = v2;
-                        v2 = coeff_sub_mul(v1, 2, v2);
-                        v1 = t2;
-                        v3 = d - u3;
-                    } else {
-                        // quot = 3
-                        t1 = u2;
-                        u2 = coeff_sub_mul(u1, 3, u2);
-                        u1 = t1;
-                        u3 = v3;
-                        t2 = v2;
-                        v2 = coeff_sub_mul(v1, 3, v2);
-                        v1 = t2;
-                        v3 = d - (u3 << 1);
                     }
-                }
 
-                while v3 > 0 {
-                    d = u3 - v3;
-
-                    // overflow not possible, top 2 bits of v3 not set
-                    if u3 < (v3 << 2) {
+                    // second value has second msb set
+                    while ((v3 << 1) as $SignedT) < 0 {
+                        d = u3 - v3;
                         if d < v3 {
                             // quot = 1
                             t2 = v2;
@@ -263,103 +238,99 @@ macro_rules! impl_extended_gcd {
                             v1 = t2;
                             v3 = d - (u3 << 1);
                         }
-                    } else {
-                        quot = u3 / v3;
-                        rem = u3 - v3 * quot;
-                        t1 = u2;
-                        u2 = coeff_sub_mul(u1, quot as $SignedT, u2);
-                        u1 = t1;
-                        u3 = v3;
-                        t2 = v2;
-                        v2 = coeff_sub_mul(v1, quot as $SignedT, v2);
-                        v1 = t2;
-                        v3 = rem;
                     }
+
+                    while v3 > 0 {
+                        d = u3 - v3;
+
+                        // overflow not possible, top 2 bits of v3 not set
+                        if u3 < (v3 << 2) {
+                            if d < v3 {
+                                // quot = 1
+                                t2 = v2;
+                                t1 = u2;
+                                u2 = coeff_sub(u1, u2);
+                                u1 = t1;
+                                u3 = v3;
+                                v2 = coeff_sub(v1, v2);
+                                v1 = t2;
+                                v3 = d;
+                            } else if d < (v3 << 1) {
+                                // quot = 2
+                                t1 = u2;
+                                u2 = coeff_sub_mul(u1, 2, u2);
+                                u1 = t1;
+                                u3 = v3;
+                                t2 = v2;
+                                v2 = coeff_sub_mul(v1, 2, v2);
+                                v1 = t2;
+                                v3 = d - u3;
+                            } else {
+                                // quot = 3
+                                t1 = u2;
+                                u2 = coeff_sub_mul(u1, 3, u2);
+                                u1 = t1;
+                                u3 = v3;
+                                t2 = v2;
+                                v2 = coeff_sub_mul(v1, 3, v2);
+                                v1 = t2;
+                                v3 = d - (u3 << 1);
+                            }
+                        } else {
+                            quot = u3 / v3;
+                            rem = u3 - v3 * quot;
+                            t1 = u2;
+                            u2 = coeff_sub_mul(u1, quot as $SignedT, u2);
+                            u1 = t1;
+                            u3 = v3;
+                            t2 = v2;
+                            v2 = coeff_sub_mul(v1, quot as $SignedT, v2);
+                            v1 = t2;
+                            v3 = rem;
+                        }
+                    }
+
+                    /* Remarkably, |u1| < x/2, thus comparison with 0 is valid */
+                    if u1 <= 0 {
+                        u1 = u1.wrapping_add_unsigned(y);
+                        v1 = v1.wrapping_sub_unsigned(x);
+                    }
+
+                    (u1 as Self, v1.wrapping_neg() as Self, u3)
                 }
 
-                /* Remarkably, |u1| < x/2, thus comparison with 0 is valid */
-                if u1 <= 0 {
-                    u1 = u1.wrapping_add_unsigned(y);
-                    v1 = v1.wrapping_sub_unsigned(x);
-                }
-
-                (u1 as Self, v1.wrapping_neg() as Self, u3)
-            }
-
-            #[inline]
-            fn gcdinv(mut x: Self, y: Self) -> (Self, Self) {
                 #[inline]
-                fn coeff_sub(lhs: $SignedT, rhs: $SignedT) -> $SignedT {
-                    lhs.wrapping_sub(rhs)
-                }
+                fn gcdinv(mut x: Self, y: Self) -> (Self, Self) {
+                    let mut v1: $SignedT;
+                    let mut v2: $SignedT;
+                    let mut t2: $SignedT;
 
-                #[inline]
-                fn coeff_sub_mul(lhs: $SignedT, factor: $SignedT, rhs: $SignedT) -> $SignedT {
-                    lhs.wrapping_sub(factor.wrapping_mul(rhs))
-                }
+                    let mut d: Self;
+                    let mut r: Self;
+                    let mut quot: Self;
+                    let mut rem: Self;
 
-                let mut v1: $SignedT;
-                let mut v2: $SignedT;
-                let mut t2: $SignedT;
+                    assert!(y > x);
 
-                let mut d: Self;
-                let mut r: Self;
-                let mut quot: Self;
-                let mut rem: Self;
+                    v1 = 0;
+                    v2 = 1;
+                    r = x;
+                    x = y;
 
-                assert!(y > x);
-
-                v1 = 0;
-                v2 = 1;
-                r = x;
-                x = y;
-
-                // Coefficient recurrences intentionally use limb-width wrapping,
-                // matching FLINT's unsigned casts while staying valid in debug builds.
-
-                // y and x both have top bit set
-                if ((x & r) as $SignedT) < 0 {
-                    d = x - r;
-                    t2 = v2;
-                    x = r;
-                    v2 = coeff_sub(v1, v2);
-                    v1 = t2;
-                    r = d;
-                }
-
-                // second value has second msb set
-                while ((r << 1) as $SignedT) < 0 {
-                    d = x - r;
-                    if (d < r) {
-                        // quot = 1
+                    // y and x both have top bit set
+                    if ((x & r) as $SignedT) < 0 {
+                        d = x - r;
                         t2 = v2;
                         x = r;
                         v2 = coeff_sub(v1, v2);
                         v1 = t2;
                         r = d;
-                    } else if (d < (r << 1)) {
-                        // quot = 2
-                        x = r;
-                        t2 = v2;
-                        v2 = coeff_sub_mul(v1, 2, v2);
-                        v1 = t2;
-                        r = d - x;
-                    } else {
-                        // quot = 3
-                        x = r;
-                        t2 = v2;
-                        v2 = coeff_sub_mul(v1, 3, v2);
-                        v1 = t2;
-                        r = d - (x << 1);
                     }
-                }
 
-                while r > 0 {
-                    // overflow not possible due to top 2 bits of r not being set
-                    if x < (r << 2) {
-                        // if quot < 4
+                    // second value has second msb set
+                    while ((r << 1) as $SignedT) < 0 {
                         d = x - r;
-                        if (d < r) {
+                        if d < r {
                             // quot = 1
                             t2 = v2;
                             x = r;
@@ -381,24 +352,54 @@ macro_rules! impl_extended_gcd {
                             v1 = t2;
                             r = d - (x << 1);
                         }
-                    } else {
-                        quot = x / r;
-                        rem = x - r * quot;
-                        x = r;
-                        t2 = v2;
-                        v2 = coeff_sub_mul(v1, quot as $SignedT, v2);
-                        v1 = t2;
-                        r = rem;
                     }
-                }
 
-                if v1 < 0 {
-                    v1 = v1.wrapping_add_unsigned(y);
-                }
+                    while r > 0 {
+                        // overflow not possible due to top 2 bits of r not being set
+                        if x < (r << 2) {
+                            // if quot < 4
+                            d = x - r;
+                            if d < r {
+                                // quot = 1
+                                t2 = v2;
+                                x = r;
+                                v2 = coeff_sub(v1, v2);
+                                v1 = t2;
+                                r = d;
+                            } else if d < (r << 1) {
+                                // quot = 2
+                                x = r;
+                                t2 = v2;
+                                v2 = coeff_sub_mul(v1, 2, v2);
+                                v1 = t2;
+                                r = d - x;
+                            } else {
+                                // quot = 3
+                                x = r;
+                                t2 = v2;
+                                v2 = coeff_sub_mul(v1, 3, v2);
+                                v1 = t2;
+                                r = d - (x << 1);
+                            }
+                        } else {
+                            quot = x / r;
+                            rem = x - r * quot;
+                            x = r;
+                            t2 = v2;
+                            v2 = coeff_sub_mul(v1, quot as $SignedT, v2);
+                            v1 = t2;
+                            r = rem;
+                        }
+                    }
 
-                (v1 as Self, x)
+                    if v1 < 0 {
+                        v1 = v1.wrapping_add_unsigned(y);
+                    }
+
+                    (v1 as Self, x)
+                }
             }
-        }
+        };
     };
 }
 
@@ -590,6 +591,9 @@ mod tests {
     gcd_identity_tests!(tests_id_u16, u16, u32);
     gcd_identity_tests!(tests_id_u32, u32, u64);
     gcd_identity_tests!(tests_id_u64, u64, u128);
+    #[cfg(target_pointer_width = "32")]
+    gcd_identity_tests!(tests_id_usize, usize, u64);
+    #[cfg(target_pointer_width = "64")]
     gcd_identity_tests!(tests_id_usize, usize, u128);
 
     macro_rules! gcd_msb_tests {
