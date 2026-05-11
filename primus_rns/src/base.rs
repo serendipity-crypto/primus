@@ -7,8 +7,10 @@ use primus_integer::{
     multiply_many_values, multiply_many_values_except_inplace,
 };
 use primus_modulo::ops::*;
+use primus_modulus::UintModulus;
 use primus_poly::{BigUintPolynomial, CrtPolynomial, Polynomial};
 use primus_reduce::FieldContext;
+use primus_reduce::ops::ReduceAddAssign;
 
 use crate::RNSError;
 
@@ -228,6 +230,58 @@ where
         }
     }
 
+    /// Fused: wrapping-decompose a small polynomial into RNS, scale by `factor`, and
+    /// accumulate into `destination` (which is in multi-residue layout).
+    ///
+    /// Equivalent to `wrapping_decompose_small_values_inplace` followed by
+    /// `CrtPolynomial::add_mul_factor_assign`, but without the intermediate storage.
+    pub fn add_wrapping_decompose_small_values_scaled(
+        &self,
+        small_values: &[T],
+        destination: &mut [T],
+        value_count: usize,
+        small_values_modulus: T,
+        factor: &[ShoupFactor<T>],
+    ) {
+        debug_assert_eq!(destination.len(), self.moduli_count() * value_count);
+        debug_assert_eq!(small_values.len(), value_count);
+        debug_assert_eq!(factor.len(), self.moduli_count());
+        debug_assert!(
+            self.moduli
+                .iter()
+                .all(|m| m.value_unchecked() > small_values_modulus)
+        );
+
+        if small_values_modulus != T::TWO {
+            let half = (small_values_modulus + T::ONE) / T::TWO;
+            izip!(
+                destination.chunks_exact_mut(value_count),
+                self.moduli().iter().map(|m| m.value_unchecked()),
+                factor,
+            )
+            .for_each(|(dest_chunk, modulus, &factor)| {
+                let temp = modulus - small_values_modulus;
+                for (d, &value) in dest_chunk.iter_mut().zip(small_values) {
+                    let centered = if value < half { value } else { temp + value };
+                    UintModulus(modulus)
+                        .reduce_add_assign(d, factor.factor_mul_modulo(centered, modulus));
+                }
+            });
+        } else {
+            izip!(
+                destination.chunks_exact_mut(value_count),
+                self.moduli().iter().map(|m| m.value_unchecked()),
+                factor,
+            )
+            .for_each(|(dest_chunk, modulus, &factor)| {
+                for (d, &value) in dest_chunk.iter_mut().zip(small_values) {
+                    UintModulus(modulus)
+                        .reduce_add_assign(d, factor.factor_mul_modulo(value, modulus));
+                }
+            });
+        }
+    }
+
     pub fn decompose_big_uint_values_inplace(
         &self,
         big_uint_values: &[T],
@@ -270,6 +324,27 @@ where
             crt_poly.as_mut(),
             poly_length,
             small_poly_modulus,
+        );
+    }
+
+    #[inline]
+    pub fn add_wrapping_decompose_small_polynomial_scaled<A, C>(
+        &self,
+        small_poly: &Polynomial<A>,
+        destination: &mut CrtPolynomial<C>,
+        poly_length: usize,
+        small_poly_modulus: T,
+        factor: &[ShoupFactor<T>],
+    ) where
+        A: RawData<Elem = T> + Data,
+        C: RawData<Elem = T> + DataMut,
+    {
+        self.add_wrapping_decompose_small_values_scaled(
+            small_poly.as_ref(),
+            destination.as_mut(),
+            poly_length,
+            small_poly_modulus,
+            factor,
         );
     }
 

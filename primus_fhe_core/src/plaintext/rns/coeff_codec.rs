@@ -224,29 +224,21 @@ where
         crt_message.mul_factor_assign(&self.delta_factor_mod_q, poly_length, &self.moduli_values);
     }
 
-    pub fn add_centered_encode_coeffs_assign<A, B, C>(
+    pub fn add_centered_encode_coeffs_assign<A, B>(
         &self,
         message: &Polynomial<A>,
-        crt_message: &mut CrtPolynomial<B>,
-        destination: &mut CrtPolynomial<C>,
+        destination: &mut CrtPolynomial<B>,
         poly_length: usize,
     ) where
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + DataMut,
-        C: RawData<Elem = T> + DataMut,
     {
-        self.base_q.wrapping_decompose_small_polynomial_inplace(
+        self.base_q.add_wrapping_decompose_small_polynomial_scaled(
             message,
-            crt_message,
+            destination,
             poly_length,
             self.t,
-        );
-
-        destination.add_mul_factor_assign(
-            crt_message,
             &self.delta_factor_mod_q,
-            poly_length,
-            &self.moduli_values,
         );
     }
 
