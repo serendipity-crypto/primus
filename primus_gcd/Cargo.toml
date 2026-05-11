@@ -6,4 +6,9 @@ edition = "2024"
 [dependencies]
 
 [dev-dependencies]
+criterion = { workspace = true }
 rand = { workspace = true }
+
+[[bench]]
+name = "xgcd"
+harness = false

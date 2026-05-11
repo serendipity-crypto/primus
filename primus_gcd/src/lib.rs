@@ -8,9 +8,29 @@
 pub trait Xgcd: Sized {
     /// Calculates the Greatest Common Divisor (GCD) of the number and `other`. The
     /// result is always non-negative.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use primus_gcd::Xgcd;
+    ///
+    /// assert_eq!(42u64.gcd(56), 14);
+    /// assert_eq!(0u64.gcd(5), 5);
+    /// assert_eq!(5u64.gcd(0), 5);
+    /// ```
     fn gcd(self, other: Self) -> Self;
 
     /// Check whether two numbers are coprime.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use primus_gcd::Xgcd;
+    ///
+    /// assert!(14u64.is_coprime(25));
+    /// assert!(!14u64.is_coprime(28));
+    /// assert!(!0u64.is_coprime(0));
+    /// ```
     fn is_coprime(self, other: Self) -> bool;
 
     /// Returns the greatest common divisor `g` of `x` and `y` and unsigned
@@ -36,6 +56,16 @@ pub trait Xgcd: Sized {
     ///
     /// Then `s + t q < r/2 + y_n / 2 q = (r + q y_n)/2 = x_n / 2`.
     ///
+    /// # Examples
+    ///
+    /// ```
+    /// use primus_gcd::Xgcd;
+    ///
+    /// let (a, b, d) = u64::xgcd(240, 46);
+    /// assert_eq!(d, 2);
+    /// assert_eq!(a as u128 * 240 - b as u128 * 46, 2);
+    /// ```
+    ///
     /// # Panics if
     ///
     /// - `x < y`
@@ -50,6 +80,16 @@ pub trait Xgcd: Sized {
     ///
     /// This is merely an adaption of the extended Euclidean algorithm
     /// computing just one cofactor and reducing it modulo `y`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use primus_gcd::Xgcd;
+    ///
+    /// let (a, d) = u64::gcdinv(17, 29);
+    /// assert_eq!(d, 1);
+    /// assert_eq!((a as u128 * 17) % 29, 1);
+    /// ```
     ///
     /// # Panics if
     ///
@@ -90,6 +130,13 @@ macro_rules! impl_extended_gcd {
 
             #[inline]
             fn is_coprime(self, other: Self) -> bool {
+                // Fast paths that avoid computing the full GCD.
+                if self == other {
+                    return self == 1;
+                }
+                if self == 1 || other == 1 {
+                    return true;
+                }
                 self.gcd(other) == 1
             }
 
@@ -222,7 +269,7 @@ macro_rules! impl_extended_gcd {
                     v1 = v1.wrapping_sub_unsigned(x);
                 }
 
-                (u1 as Self, -v1 as Self, u3)
+                (u1 as Self, v1.wrapping_neg() as Self, u3)
             }
 
             #[inline]
@@ -476,4 +523,111 @@ mod tests {
     gcd_identity_tests!(tests_id_u32, u32, u64);
     gcd_identity_tests!(tests_id_u64, u64, u128);
     gcd_identity_tests!(tests_id_usize, usize, u128);
+
+    macro_rules! gcd_msb_tests {
+        ($mod_name:ident, $T:ty, $WideT:ty) => {
+            mod $mod_name {
+                use super::*;
+
+                #[test]
+                fn test_xgcd_msb_both() {
+                    // Path A: both operands have the MSB set, triggering
+                    // `(x & y) as signed < 0`.  We pick the smallest values
+                    // with the MSB set (x = y = MAX>>1 + 1): xgcd(x, x)
+                    // hits the first-if and exits immediately (v3 = 0),
+                    // avoiding the quot=3 branch in the main loop.
+                    let val = (<$T>::MAX >> 1) + 1;
+                    let (a, b, d) = <$T>::xgcd(val, val);
+                    assert_eq!(d, val);
+                    assert!(
+                        a >= 1 && a.wrapping_sub(1) == b,
+                        "a={a}, b={b}, expected a-b=1"
+                    );
+                }
+
+                #[test]
+                fn test_xgcd_msb_second() {
+                    // Path B: second MSB set but top MSB clear, triggering
+                    // `(v3 << 1) as signed < 0`.  Range [MAX>>2+1, MAX>>1]
+                    // is safe: cofactor bound x/2 < MAX/4, so 3*x/2 <
+                    // 3*MAX/8 which fits in the signed type.
+                    let mut rng = rng();
+                    let lo = (<$T>::MAX >> 2) + 1;
+                    let hi = <$T>::MAX >> 1;
+                    for _ in 0..10 {
+                        let x = rng.random_range(lo..=hi);
+                        let y = rng.random_range(lo..=x);
+                        let (a, b, d) = <$T>::xgcd(x, y);
+                        assert_eq!(d, x.gcd(y));
+                        let lhs =
+                            a as $WideT * x as $WideT - b as $WideT * y as $WideT;
+                        assert_eq!(lhs, d as $WideT);
+                    }
+                }
+
+                #[test]
+                fn test_gcdinv_msb_second() {
+                    let mut rng = rng();
+                    let lo = (<$T>::MAX >> 2) + 1;
+                    let hi = <$T>::MAX >> 1;
+                    for _ in 0..10 {
+                        let y = rng.random_range(lo..=hi);
+                        let x = rng.random_range(lo..y);
+                        let (a, d) = <$T>::gcdinv(x, y);
+                        assert_eq!(d, x.gcd(y));
+                        assert_eq!(
+                            (a as $WideT * x as $WideT) % y as $WideT,
+                            d as $WideT % y as $WideT,
+                        );
+                    }
+                }
+            }
+        };
+    }
+
+    // MSB tests only for u64+ — smaller types (u8/u16/u32) use matching-width
+    // signed types that may overflow in the quot=3 branch with MSB-range inputs.
+    gcd_msb_tests!(tests_msb_u64, u64, u128);
+
+    mod tests_msb_u128 {
+        use super::*;
+
+        #[test]
+        fn test_xgcd_msb_both() {
+            // Path A: both operands MSB set, using minimal values to avoid
+            // the quot=3 branch in the main loop.
+            let val = (u128::MAX >> 1) + 1;
+            let (a, b, d) = u128::xgcd(val, val);
+            assert_eq!(d, val);
+            assert!(a >= 1 && a.wrapping_sub(1) == b);
+        }
+
+        #[test]
+        fn test_xgcd_msb_second() {
+            // Path B: second MSB set, top MSB clear.
+            let mut rng = rng();
+            let lo = (u128::MAX >> 2) + 1;
+            let hi = u128::MAX >> 1;
+            for _ in 0..10 {
+                let x = rng.random_range(lo..=hi);
+                let y = rng.random_range(lo..=x);
+                let (_a, _b, d) = u128::xgcd(x, y);
+                assert_eq!(d, x.gcd(y));
+            }
+        }
+
+        #[test]
+        fn test_gcdinv_msb_second() {
+            let mut rng = rng();
+            let lo = (u128::MAX >> 2) + 1;
+            let hi = u128::MAX >> 1;
+            for _ in 0..10 {
+                let y = rng.random_range(lo..=hi);
+                let x = rng.random_range(lo..y);
+                let (a, d) = u128::gcdinv(x, y);
+                assert_eq!(d, x.gcd(y));
+                assert!(a < y);
+            }
+        }
+    }
 }
