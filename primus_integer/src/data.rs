@@ -30,7 +30,7 @@ pub trait Data: RawData {
     /// from the `remainder` function of the iterator.
     ///
     /// Due to each chunk having exactly `chunk_size` elements, the compiler can often optimize the
-    /// resulting code better than in the case of [`chunks`].
+    /// resulting code better than in the case of `chunks`.
     ///
     /// # Panics
     ///
@@ -57,7 +57,7 @@ pub trait Data: RawData {
     /// the index `mid` itself) and the second will contain all
     /// indices from `[mid, len)` (excluding the index `len` itself).
     ///
-    /// For a safe alternative see [`split_at`].
+    /// For a safe alternative see `split_at`.
     ///
     /// # Safety
     ///
@@ -121,7 +121,7 @@ pub trait DataMut: Data {
     /// the index `mid` itself) and the second will contain all
     /// indices from `[mid, len)` (excluding the index `len` itself).
     ///
-    /// For a safe alternative see [`split_at_mut`].
+    /// For a safe alternative see `split_at_mut`.
     ///
     /// # Safety
     ///
@@ -129,7 +129,6 @@ pub trait DataMut: Data {
     /// even if the resulting reference is not used. The caller has to ensure that
     /// `0 <= mid <= self.len()`.
     ///
-    /// [`split_at_mut`]: std::slice::split_at_mut
     /// [undefined behavior]: https://doc.rust-lang.org/reference/behavior-considered-undefined.html
     unsafe fn split_at_mut_unchecked(
         &mut self,

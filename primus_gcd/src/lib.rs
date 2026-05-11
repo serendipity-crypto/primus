@@ -31,6 +31,7 @@ pub trait Xgcd: Sized {
     /// assert!(!14u64.is_coprime(28));
     /// assert!(!0u64.is_coprime(0));
     /// ```
+    #[allow(clippy::wrong_self_convention)]
     fn is_coprime(self, other: Self) -> bool;
 
     /// Returns the greatest common divisor `g` of `x` and `y` and unsigned

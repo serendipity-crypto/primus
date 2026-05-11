@@ -1,8 +1,8 @@
 //! SIMD abstractions for unsigned integer types.
 //!
 //! This module provides traits and blanket implementations that extend the
-//! scalar [`UnsignedInteger`] operations to SIMD vectors when the `nightly`
-//! and `simd` features are enabled.
+//! scalar [`UnsignedInteger`](crate::UnsignedInteger) operations to SIMD
+//! vectors when the `nightly` and `simd` features are enabled.
 //!
 //! [`SimdUnsignedInteger`] marks unsigned integer types that can serve as
 //! SIMD lane elements. [`SimdArray`] extends [`Simd`] vectors with the

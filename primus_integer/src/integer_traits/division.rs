@@ -11,7 +11,11 @@ use num_traits::Zero;
 ///
 /// Types with `BITS ≤ 16` always use `div_wide` regardless of this flag: their
 /// cast target types (u16 / u32) are native on all supported targets.
-const FAST_DIV_WIDE: bool = cfg!(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64"));
+const FAST_DIV_WIDE: bool = cfg!(any(
+    target_arch = "x86",
+    target_arch = "x86_64",
+    target_arch = "aarch64"
+));
 
 /// A trait for types that support combined division and remainder operation.
 pub trait DivRem: Sized {

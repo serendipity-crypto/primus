@@ -22,8 +22,8 @@ use crate::integer_traits::*;
 /// standard Rust integer types (`u8`–`u128`, `i8`–`i128`, `usize`, `isize`).
 ///
 /// Rather than duplicating APIs, higher-level crates bound generic parameters
-/// on `Integer` (or [`UnsignedInteger`]) and rely on the fine-grained subtraits
-/// in [`crate::integer_traits`] for specific operations such as checked,
+/// on `Integer` (or [`UnsignedInteger`](crate::UnsignedInteger)) and rely on the
+/// fine-grained subtraits for specific operations such as checked,
 /// wrapping, overflowing, or widening arithmetic.
 pub trait Integer:
     Sized
