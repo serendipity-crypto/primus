@@ -1,3 +1,5 @@
+//! Extended GCD and modular inverse for unsigned integer types.
+//!
 //! This implementation refers to the following codebases.
 //! <https://flintlib.org/doc/ulong_extras.html#c.n_xgcd>
 //! <https://flintlib.org/doc/ulong_extras.html#c.n_gcdinv>
@@ -33,6 +35,10 @@ pub trait Xgcd: Sized {
     /// `1 = s r - c d` with `s < r/2` and `c < r/2`.
     ///
     /// Then `s + t q < r/2 + y_n / 2 q = (r + q y_n)/2 = x_n / 2`.
+    ///
+    /// # Panics if
+    ///
+    /// - `x < y`
     fn xgcd(x: Self, y: Self) -> (Self, Self, Self);
 
     /// Returns the greatest common divisor `g` of `x` and `y` and computes
@@ -44,6 +50,10 @@ pub trait Xgcd: Sized {
     ///
     /// This is merely an adaption of the extended Euclidean algorithm
     /// computing just one cofactor and reducing it modulo `y`.
+    ///
+    /// # Panics if
+    ///
+    /// - `x ≥ y`
     fn gcdinv(x: Self, y: Self) -> (Self, Self);
 }
 
@@ -78,9 +88,9 @@ macro_rules! impl_extended_gcd {
                 m << shift
             }
 
-            #[inline(always)]
+            #[inline]
             fn is_coprime(self, other: Self) -> bool {
-                self.gcd(other) <= 1
+                self.gcd(other) == 1
             }
 
             #[inline]
@@ -331,31 +341,139 @@ mod tests {
 
     use super::*;
 
-    type ValueT = u64;
-    type WideT = u128;
+    macro_rules! gcd_edge_tests {
+        ($mod_name:ident, $T:ty) => {
+            mod $mod_name {
+                use super::*;
 
-    #[test]
-    fn test_xgcd() {
-        let mut rng = rng();
+                #[test]
+                fn test_gcd_zero() {
+                    assert_eq!(<$T>::gcd(0_u8.into(), 0_u8.into()), 0_u8.into());
+                    assert_eq!(<$T>::gcd(42_u8.into(), 0_u8.into()), 42_u8.into());
+                    assert_eq!(<$T>::gcd(0_u8.into(), 42_u8.into()), 42_u8.into());
+                }
 
-        let x = rng.random_range(0..ValueT::MAX >> 1);
-        let y = rng.random_range(0..=x);
+                #[test]
+                fn test_gcd_one() {
+                    assert_eq!(<$T>::gcd(1_u8.into(), 1_u8.into()), 1_u8.into());
+                    assert_eq!(<$T>::gcd(1_u8.into(), 42_u8.into()), 1_u8.into());
+                    assert_eq!(<$T>::gcd(42_u8.into(), 1_u8.into()), 1_u8.into());
+                }
 
-        let (a, b, d) = ValueT::xgcd(x, y);
-        assert_eq!(
-            a as WideT * x as WideT - b as WideT * y as WideT,
-            d as WideT
-        );
+                #[test]
+                fn test_gcd_symmetry() {
+                    let mut rng = rng();
+                    for _ in 0..20 {
+                        let a = rng.random_range(<$T>::MIN..=<$T>::MAX);
+                        let b = rng.random_range(<$T>::MIN..=<$T>::MAX);
+                        assert_eq!(a.gcd(b), b.gcd(a));
+                    }
+                }
+
+                #[test]
+                fn test_is_coprime_zero() {
+                    assert!(!<$T>::is_coprime(0_u8.into(), 0_u8.into()));
+                    assert!(<$T>::is_coprime(0_u8.into(), 1_u8.into()));
+                    assert!(<$T>::is_coprime(1_u8.into(), 0_u8.into()));
+                    assert!(<$T>::is_coprime(1_u8.into(), 1_u8.into()));
+                }
+
+                #[test]
+                fn test_xgcd_d_is_gcd() {
+                    let mut rng = rng();
+                    for _ in 0..20 {
+                        let x = rng.random_range(<$T>::MIN..(<$T>::MAX >> 2));
+                        let y = rng.random_range(<$T>::MIN..=x);
+                        let (_a, _b, d) = <$T>::xgcd(x, y);
+                        assert_eq!(d, x.gcd(y));
+                    }
+                }
+
+                #[test]
+                fn test_xgcd_bezout() {
+                    // x = y: d = x, and a*x - b*x = x => (a - b) = 1
+                    let x = rng().random_range(1..(<$T>::MAX >> 2));
+                    let (_a, _b, d) = <$T>::xgcd(x, x);
+                    assert_eq!(d, x);
+
+                    // y = 1: gcd(x, 1) = 1
+                    let (a, _b, d) = <$T>::xgcd(x, 1_u8.into());
+                    assert_eq!(d, 1_u8.into());
+                    assert!(a < x);
+                }
+
+                #[test]
+                fn test_gcdinv_d_is_gcd() {
+                    let mut rng = rng();
+                    for _ in 0..20 {
+                        let y = rng.random_range(1..(<$T>::MAX >> 2));
+                        let x = rng.random_range(<$T>::MIN..y);
+                        let (a, d) = <$T>::gcdinv(x, y);
+                        assert_eq!(d, x.gcd(y));
+                        assert!(a < y, "a={a} should be < y={y}");
+                    }
+                }
+
+                #[test]
+                fn test_gcdinv_edge() {
+                    // x = 0
+                    let y = rng().random_range(1..(<$T>::MAX >> 2));
+                    let (a, d) = <$T>::gcdinv(0_u8.into(), y);
+                    assert_eq!(d, y);
+                    assert!(a < y);
+                }
+            }
+        };
     }
 
-    #[test]
-    fn test_gcdinv() {
-        let mut rng = rng();
+    macro_rules! gcd_identity_tests {
+        ($mod_name:ident, $T:ty, $WideT:ty) => {
+            mod $mod_name {
+                use super::*;
 
-        let y = rng.random_range(0..ValueT::MAX >> 1);
-        let x = rng.random_range(0..y);
+                #[test]
+                fn test_xgcd_identity() {
+                    let mut rng = rng();
+                    for _ in 0..20 {
+                        let x = rng.random_range(0..<$T>::MAX >> 1);
+                        let y = rng.random_range(0..=x);
+                        let (a, b, d) = <$T>::xgcd(x, y);
+                        assert_eq!(
+                            a as $WideT * x as $WideT - b as $WideT * y as $WideT,
+                            d as $WideT,
+                        );
+                    }
+                }
 
-        let (a, d) = ValueT::gcdinv(x, y);
-        assert_eq!((a as WideT * x as WideT) % y as WideT, d as WideT);
+                #[test]
+                fn test_gcdinv_identity() {
+                    let mut rng = rng();
+                    for _ in 0..20 {
+                        let y = rng.random_range(1..<$T>::MAX >> 1);
+                        let x = rng.random_range(0..y);
+                        let (a, d) = <$T>::gcdinv(x, y);
+                        assert_eq!(
+                            (a as $WideT * x as $WideT) % y as $WideT,
+                            d as $WideT % y as $WideT,
+                        );
+                    }
+                }
+            }
+        };
     }
+
+    // Edge case tests for all types, including u128
+    gcd_edge_tests!(tests_u8, u8);
+    gcd_edge_tests!(tests_u16, u16);
+    gcd_edge_tests!(tests_u32, u32);
+    gcd_edge_tests!(tests_u64, u64);
+    gcd_edge_tests!(tests_usize, usize);
+    gcd_edge_tests!(tests_u128, u128);
+
+    // Identity tests (a*x - b*y = d) — only for types that have a wider type
+    gcd_identity_tests!(tests_id_u8, u8, u16);
+    gcd_identity_tests!(tests_id_u16, u16, u32);
+    gcd_identity_tests!(tests_id_u32, u32, u64);
+    gcd_identity_tests!(tests_id_u64, u64, u128);
+    gcd_identity_tests!(tests_id_usize, usize, u128);
 }
