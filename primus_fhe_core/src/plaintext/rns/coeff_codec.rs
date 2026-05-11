@@ -1,24 +1,24 @@
 //! Pipeline:
 //!
-//!   plaintext m: Polynomial<T> in Z_t
+//!   plaintext m: `Polynomial<T>` in Z_t
 //!     │
 //!     │  encode_coeffs / add_encode_coeffs_assign
 //!     ▼
-//!   m·Δ: CrtPolynomial<T>  (coefficient domain, ready to NTT)
+//!   m·Δ: `CrtPolynomial<T>`  (coefficient domain, ready to NTT)
 //!     │
 //!     │  caller: NTT each modulus chunk
 //!     ▼
 //!   (encryption operates in DcrtPolynomial)
 //!     ⋮
-//!   phase output: DcrtPolynomial<T>
+//!   phase output: `DcrtPolynomial<T>`
 //!     │
 //!     │  caller: inverse-NTT each modulus chunk
 //!     ▼
-//!   coefficient-domain DcrtPolynomial<T>
+//!   coefficient-domain `DcrtPolynomial<T>`
 //!     │
 //!     │  decode_coeffs (consumes msg_mod_q as workspace + scratch buffers)
 //!     ▼
-//!   recovered m: Polynomial<T>
+//!   recovered m: `Polynomial<T>`
 
 use primus_factor::{FactorMul, ShoupFactor};
 use primus_integer::{

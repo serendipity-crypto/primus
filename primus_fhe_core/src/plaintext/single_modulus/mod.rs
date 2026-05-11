@@ -387,7 +387,7 @@ impl<T: UnsignedInteger> PlaintextCodec<T> {
         }
     }
 
-    /// Batch version of [`encode_value_with_delta`]: lifts, encodes with delta, and
+    /// Batch version of [`PlaintextCodec::encode_value_with_delta`]: lifts, encodes with delta, and
     /// adds into `accumulator` modulo the ciphertext modulus.
     #[inline]
     pub fn add_encode_slice_assign_with_delta(

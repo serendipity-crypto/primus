@@ -18,7 +18,7 @@ use super::DcrtGlwe;
 ///
 /// |--a1--|....|--ak--|--b--|
 ///
-/// where `a1`...`ak` and `b` are [`primus_poly::crt::CrtPolynomial`] with same poly length and moduli count, `k` is the dimension.
+/// where `a1`...`ak` and `b` are [`primus_poly::CrtPolynomial`] with same poly length and moduli count, `k` is the dimension.
 #[derive(Clone)]
 pub struct CrtGlwe<S>(pub S)
 where

@@ -80,7 +80,7 @@ impl<T: UnsignedInteger> CrtGlweExpandCoeffSyncPool<T> {
     }
 
     /// Pop a context from the pool, or create a new one if empty.
-    fn acquire(&self) -> CrtGlweExpandCoeffContext<T> {
+    pub fn acquire(&self) -> CrtGlweExpandCoeffContext<T> {
         self.contexts.lock().unwrap().pop().unwrap_or_else(|| {
             CrtGlweExpandCoeffContext::new(
                 self.dimension,
@@ -93,7 +93,7 @@ impl<T: UnsignedInteger> CrtGlweExpandCoeffSyncPool<T> {
     }
 
     /// Return a context to the pool for reuse.
-    fn release(&self, ctx: CrtGlweExpandCoeffContext<T>) {
+    pub fn release(&self, ctx: CrtGlweExpandCoeffContext<T>) {
         self.contexts.lock().unwrap().push(ctx);
     }
 

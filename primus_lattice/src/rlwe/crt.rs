@@ -13,7 +13,7 @@ pub type CrtRlweOwned<T> = CrtRlwe<Vec<T>>;
 ///
 /// |------a------|------b------|
 ///
-/// where `a` and `b` are [`primus_poly::crt::CrtPolynomial`] with same poly length and moduli count.
+/// where `a` and `b` are [`primus_poly::CrtPolynomial`] with same poly length and moduli count.
 #[derive(Clone)]
 pub struct CrtRlwe<S>(pub S)
 where
