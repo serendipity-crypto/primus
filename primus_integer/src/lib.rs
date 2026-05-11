@@ -22,10 +22,9 @@ pub use integer::Integer;
 pub use unsigned_integer::UnsignedInteger;
 
 pub use big_integer::{
-    BigUintOwned, BigUintMut, BigUintRef, multiply_many_values,
-    multiply_many_values_except, multiply_many_values_except_inplace,
+    BigUint, BigUintIter, BigUintIterMut, BigUintMut, BigUintOwned, BigUintRef,
+    multiply_many_values, multiply_many_values_except, multiply_many_values_except_inplace,
 };
-pub use big_integer::BigUint;
 
 pub use data::{Data, DataMut, DataOwned, RawData};
 

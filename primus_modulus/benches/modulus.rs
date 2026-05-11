@@ -21,10 +21,7 @@ fn bench_reduce_mul(c: &mut Criterion) {
     c.bench_function("Barrett_reduce_mul", |b| {
         b.iter(|| {
             for &(a, b_val) in &data {
-                black_box(barrett_mod.reduce_mul(
-                    black_box(a),
-                    black_box(b_val),
-                ));
+                black_box(barrett_mod.reduce_mul(black_box(a), black_box(b_val)));
             }
         })
     });
