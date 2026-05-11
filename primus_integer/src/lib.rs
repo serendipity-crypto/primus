@@ -15,6 +15,7 @@ mod data;
 mod simd;
 
 pub mod size;
+pub use size::Size;
 
 pub use integer_traits::*;
 

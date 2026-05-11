@@ -255,6 +255,7 @@ impl DivRemScalar for u128 {
 
         // Full-width divisor — Knuth Algorithm D.
         let len = dividend.len();
+        // SAFETY: `divisor != 0` checked above.
         let non_zero_divisor = unsafe { NonZeroU128::new_unchecked(divisor) };
 
         if dividend[len - 1] < divisor {
@@ -298,18 +299,34 @@ fn udiv256_by_128_to_128(u1: u128, u0: u128, mut v: NonZeroU128, r: &mut u128) -
     const N_UDWORD_BITS: u32 = 128;
 
     #[inline]
+    /// Left-shift a [`NonZeroU128`] by `n`, preserving non-zeroness.
+    ///
+    /// # Safety
+    ///
+    /// Caller must ensure `n < 128` and that `x << n != 0` (i.e. the shift
+    /// does not push every set bit out of the 128-bit word). Both conditions
+    /// are checked under `debug_assert!`.
     unsafe fn shl_nz(x: NonZeroU128, n: u32) -> NonZeroU128 {
         debug_assert!(n < N_UDWORD_BITS);
         let res: u128 = x.get() << n;
         debug_assert_ne!(res, 0);
+        // SAFETY: caller guarantees `res != 0` (see `# Safety` on `shl_nz`).
         unsafe { NonZeroU128::new_unchecked(res) }
     }
 
     #[inline]
+    /// Right-shift a [`NonZeroU128`] by `n`, preserving non-zeroness.
+    ///
+    /// # Safety
+    ///
+    /// Caller must ensure `n < 128` and that `x >> n != 0` (i.e. the shift
+    /// does not erase every set bit). Both conditions are checked under
+    /// `debug_assert!`.
     unsafe fn shr_nz(x: NonZeroU128, n: u32) -> NonZeroU128 {
         debug_assert!(n < N_UDWORD_BITS);
         let res: u128 = x.get() >> n;
         debug_assert_ne!(res, 0);
+        // SAFETY: caller guarantees `res != 0` (see `# Safety` on `shr_nz`).
         unsafe { NonZeroU128::new_unchecked(res) }
     }
 
@@ -325,6 +342,8 @@ fn udiv256_by_128_to_128(u1: u128, u0: u128, mut v: NonZeroU128, r: &mut u128) -
     debug_assert_ne!(s, N_UDWORD_BITS);
     if s > 0 {
         // Normalize the divisor.
+        // SAFETY: `s = v.leading_zeros()` so `v << s` still has its top bit
+        // set and is therefore non-zero; `s < 128` since `v != 0`.
         v = unsafe { shl_nz(v, s) };
         un128 = (u1 << s) | (u0 >> (N_UDWORD_BITS - s));
         un10 = u0 << s;
@@ -335,6 +354,8 @@ fn udiv256_by_128_to_128(u1: u128, u0: u128, mut v: NonZeroU128, r: &mut u128) -
     }
 
     // Break divisor up into two 64-bit digits.
+    // SAFETY: after normalization the top bit of `v` is set, so `v >> 64`
+    // still has at least one bit and is non-zero; `64 < 128`.
     vn1 = unsafe { shr_nz(v, N_UDWORD_BITS / 2) };
     let vn1_val = vn1.get();
     let vn1_u64 = vn1_val as u64; // safe: vn1 < 2^64 by construction

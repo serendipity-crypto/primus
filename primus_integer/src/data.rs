@@ -1,9 +1,29 @@
+//! Storage abstraction over slices, arrays, `Vec`, and `Box<[T]>`.
+//!
+//! [`RawData`] / [`Data`] / [`DataMut`] / [`DataOwned`] let generic types such
+//! as [`BigUint`](crate::BigUint) be parameterised over how their limbs are
+//! stored — borrowed (`&[T]`, `&mut [T]`), owned (`Vec<T>`, `Box<[T]>`), or
+//! fixed-size (`[T; N]`) — without duplicating the algorithmic code per
+//! backend.
+
 use std::slice::{Iter, IterMut};
 
+/// Sealed root of the storage trait hierarchy: every backend carries an
+/// element type [`Elem`](RawData::Elem) and nothing else.
+///
+/// Used as a bound when only the element type matters (for example to express
+/// "any storage of `u64`"). Concrete storage capabilities are added by
+/// [`Data`] (read access), [`DataMut`] (mutable access), and [`DataOwned`]
+/// (ownership and construction).
 pub trait RawData: Sized {
     type Elem;
 }
 
+/// Read-only access to a contiguous run of [`RawData::Elem`].
+///
+/// Implemented for `&[T]`, `&mut [T]`, `[T; N]`, `Vec<T>`, and `Box<[T]>`,
+/// forwarding to the corresponding `slice` methods. Generic code should bound
+/// on `Data` when it only needs to read the storage.
 pub trait Data: RawData {
     /// Returns a slice containing the entire data.
     fn as_slice(&self) -> &[Self::Elem];
@@ -72,6 +92,11 @@ pub trait Data: RawData {
     ) -> (&[<Self as RawData>::Elem], &[<Self as RawData>::Elem]);
 }
 
+/// Mutable access to a contiguous run of [`RawData::Elem`].
+///
+/// Extends [`Data`] with mutable slicing, iteration, and bulk-fill / copy.
+/// Implemented for the mutable backends (`&mut [T]`, `[T; N]`, `Vec<T>`,
+/// `Box<[T]>`).
 pub trait DataMut: Data {
     /// Returns a mutable slice containing the entire data.
     fn as_mut_slice(&mut self) -> &mut [<Self as RawData>::Elem];
@@ -139,6 +164,12 @@ pub trait DataMut: Data {
     );
 }
 
+/// Owned storage that can be constructed from a slice, an iterator, or a
+/// `Vec`, and consumed back into an iterator.
+///
+/// Implemented for [`Vec<T>`] and [`Box<[T]>`]. Generic code wanting to
+/// produce a fresh owned buffer (rather than fill an existing one) should
+/// bound on `DataOwned`.
 pub trait DataOwned: Data + FromIterator<<Self as RawData>::Elem> {
     type IntoIter: Iterator<Item = <Self as RawData>::Elem>;
 

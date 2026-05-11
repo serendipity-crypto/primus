@@ -1,4 +1,14 @@
-/// Copy from [tfhe-fft](https://github.com/zama-ai/tfhe-rs/blob/4a73b7bb4b2a3e4209f8210c64521a96f0f0b0c1/tfhe-fft/src/lib.rs#L89)
+/// Zip an arbitrary number of iterators into one yielding flat tuples.
+///
+/// `izip!(a, b, c)` is equivalent to `a.zip(b).zip(c).map(|((x, y), z)| (x, y, z))`
+/// but produces a flat `(x, y, z)` directly. Supports 1–16 input iterators.
+/// Useful when iterating several big-integer limb buffers in lock-step.
+///
+/// # Source
+///
+/// Copied verbatim from [tfhe-fft](https://github.com/zama-ai/tfhe-rs/blob/4a73b7bb4b2a3e4209f8210c64521a96f0f0b0c1/tfhe-fft/src/lib.rs#L89).
+/// The `@ __closure @` internal arm is structured this way to work around
+/// rust-analyzer issue [#13526](https://github.com/rust-lang/rust-analyzer/issues/13526).
 #[macro_export]
 macro_rules! izip {
     // implemented this way to avoid a bug with type hints in rust-analyzer
@@ -34,6 +44,20 @@ macro_rules! izip {
     };
 }
 
+/// Generate `<Poly>Iter` / `<Poly>IterMut` chunk-iterators for a wrapper type.
+///
+/// Given a wrapper `$poly` of the form `pub struct $poly<S>(S)` over slice
+/// storage, expands to two iterator types — `<$poly>Iter` and
+/// `<$poly>IterMut` — that walk the underlying buffer in fixed-size chunks of
+/// `[<$short_name _len>]` elements and yield `$poly<&[T]>` / `$poly<&mut [T]>`
+/// items. Used to give big-integer/polynomial wrappers row-iteration without
+/// duplicating boilerplate per wrapper type.
+///
+/// # Arguments
+///
+/// * `$poly` — the wrapper type name (e.g. `BigUint`).
+/// * `$short_name` — short label used to derive the chunk-length parameter
+///   name (e.g. `bit_uint` → `bit_uint_len`).
 #[macro_export]
 macro_rules! impl_iters {
     ($poly:ident, $short_name:ident) => {

@@ -46,6 +46,13 @@ pub trait UnsignedInteger:
         self.count_ones() == 1
     }
 
+    /// Reinterprets the signed companion value as `Self` using `as`.
+    ///
+    /// Performs a width-preserving bit-pattern cast (`value as Self`), so
+    /// negative values become their two's-complement unsigned encoding (for
+    /// example `-1i64` maps to `u64::MAX`). This is the inverse of
+    /// [`wrapping_add_signed`](Self::wrapping_add_signed) when interpreting
+    /// the result modulo `2^BITS`.
     fn cast_from_signed(value: Self::SignedInteger) -> Self;
 
     /// Wrapping (modular) addition with a signed integer. Computes `self + rhs`, wrapping around at the boundary of the type.

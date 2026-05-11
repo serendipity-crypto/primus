@@ -28,6 +28,14 @@ use crate::{Data, DataMut, RawData, UnsignedInteger, impl_iters, izip};
 /// buffer-based, fixed-width style usage in higher-level crates, where
 /// operands are expected to have the same limb length. This type does not try
 /// to canonicalize away leading zero limbs automatically.
+///
+/// In particular, [`PartialEq::eq`], [`cmp`](BigUint::cmp), and the arithmetic
+/// in-place methods all require that all participating [`BigUint`]s share the
+/// same storage length. Calling them on operands of differing length is a
+/// programmer error and triggers a `debug_assert!` in debug builds; in release
+/// builds the comparison/operation iterates the shorter common prefix and any
+/// extra trailing limbs are ignored, so prefer to enforce length equality at
+/// the call site.
 #[derive(Debug, Serialize, Deserialize)]
 #[repr(transparent)]
 pub struct BigUint<S>(pub S)
@@ -94,7 +102,7 @@ where
 {
     #[inline]
     fn eq(&self, other: &BigUint<A>) -> bool {
-        assert_eq!(self.len(), other.len());
+        debug_assert_eq!(self.len(), other.len());
         self.iter().zip(other.iter()).all(|(&a, &b)| a == b)
     }
 }
@@ -178,6 +186,7 @@ where
     where
         A: DataMut<Elem = T>,
     {
+        debug_assert!(!self.0.as_slice().is_empty());
         debug_assert_eq!(self.len(), result.len());
 
         let mut carry;
@@ -214,6 +223,7 @@ where
     where
         A: DataMut<Elem = T>,
     {
+        debug_assert!(!self.0.as_slice().is_empty());
         debug_assert_eq!(self.len(), result.len());
 
         let mut borrow;
