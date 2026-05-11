@@ -277,15 +277,19 @@ where
         let inv_gamma_mod_t = self.inv_gamma_mod_t;
         let msg = msg.as_mut();
 
-        // HPS γ-trick decode (Bajard et al. 2017), fused after the fast
-        // base-conversion products are materialized in `fast_convert_buffer`.
+        // HPS γ-trick decode (Bajard et al. 2017):
+        //  1. Multiply by t·γ mod q_i: msg_mod_q := t·γ·c mod q_i
+        //  2. Fast base-extend Q -> {t, γ}: msg_mod_t_gamma := round(t·γ·c/Q) mod {t,γ}
+        //  3. Multiply by -Q^{-1} mod {t,γ}: yields (y_t, y_γ) = (m·γ + ε, ε) approx
+        //  4. Centered-lift y_γ and recover m·γ mod t = y_t - centered(y_γ)
+        //  5. Multiply by γ^{-1} mod t to get m
+
         msg_mod_q.mul_factor_assign(&self.t_gamma_factor_mod_q, poly_length, &self.moduli_values);
 
-        self.converter_q_to_t_gamma.fast_convert_array_to_pair(
-            msg_mod_q.as_ref(),
-            poly_length,
-            fast_convert_buffer,
-            |index, y_t, y_gamma| {
+        self.converter_q_to_t_gamma
+            .fast_convert_array_to_pair_iter(msg_mod_q.as_ref(), poly_length, fast_convert_buffer)
+            .zip(msg.iter_mut())
+            .for_each(|((y_t, y_gamma), m)| {
                 let y_t = t_modulus.reduce_mul(y_t, minus_inv_q_mod_t);
                 let y_gamma = gamma_modulus.reduce_mul(y_gamma, minus_inv_q_mod_gamma);
 
@@ -293,8 +297,7 @@ where
                 if temp >= gamma {
                     temp -= gamma;
                 }
-                msg[index] = inv_gamma_mod_t.factor_mul_modulo(temp, t);
-            },
-        );
+                *m = inv_gamma_mod_t.factor_mul_modulo(temp, t);
+            });
     }
 }

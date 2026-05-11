@@ -174,15 +174,12 @@ impl<T: UnsignedInteger, M: FieldContext<T>> BaseConverter<T, M> {
         });
     }
 
-    pub fn fast_convert_array_to_pair<F>(
-        &self,
+    pub fn fast_convert_array_to_pair_iter<'a>(
+        &'a self,
         crt_poly_in: &[T],
         poly_length: usize,
-        fast_convert_buffer: &mut [T],
-        mut output: F,
-    ) where
-        F: FnMut(usize, T, T),
-    {
+        fast_convert_buffer: &'a mut [T],
+    ) -> impl Iterator<Item = (T, T)> + 'a {
         assert_eq!(
             self.obase_moduli_count(),
             2,
@@ -200,14 +197,12 @@ impl<T: UnsignedInteger, M: FieldContext<T>> BaseConverter<T, M> {
 
         fast_convert_buffer
             .chunks_exact(ibase_moduli_count)
-            .enumerate()
-            .for_each(|(index, product)| {
-                output(
-                    index,
+            .map(move |product| {
+                (
                     modulus_0.reduce_dot_product(product, row_0),
                     modulus_1.reduce_dot_product(product, row_1),
-                );
-            });
+                )
+            })
     }
 
     pub fn exact_convert_array(
