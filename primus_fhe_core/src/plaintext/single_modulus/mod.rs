@@ -48,12 +48,14 @@ pub enum PlaintextCodec<T: UnsignedInteger> {
 impl<T: UnsignedInteger> PlaintextCodec<T> {
     #[inline]
     pub fn new(t: T, q: Option<T>) -> Self {
+        assert!(t > T::ONE);
         match q {
             None if t.is_power_of_two() => {
-                let trailing_zeros = t.trailing_zeros();
+                let encode_shift = T::BITS - t.trailing_zeros();
+                assert!(encode_shift > 1);
                 Self::NativePow2 {
-                    encode_shift: T::BITS - trailing_zeros,
-                    decode_shift: T::BITS - trailing_zeros - 1,
+                    encode_shift,
+                    decode_shift: encode_shift - 1,
                     mask: t - T::ONE,
                 }
             }
@@ -63,7 +65,9 @@ impl<T: UnsignedInteger> PlaintextCodec<T> {
                 Self::NativeScaled { t, delta }
             }
             Some(q) if q.is_power_of_two() && t.is_power_of_two() => {
+                assert!(q > t);
                 let encode_shift = q.trailing_zeros() - t.trailing_zeros();
+                assert!(encode_shift > 1);
                 Self::Pow2 {
                     encode_shift,
                     decode_shift: encode_shift - 1,
@@ -72,6 +76,7 @@ impl<T: UnsignedInteger> PlaintextCodec<T> {
                 }
             }
             Some(q) => {
+                assert!(q > t);
                 let (mut delta, rem) = q.div_rem(t);
                 if rem > (t - T::ONE) / T::TWO {
                     delta += T::ONE;

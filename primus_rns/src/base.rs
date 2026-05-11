@@ -137,6 +137,14 @@ where
             .collect()
     }
 
+    #[inline]
+    pub fn decompose_to_rns_factor(&self, BigUint(value): BigUint<&[T]>) -> Vec<ShoupFactor<T>> {
+        self.moduli
+            .iter()
+            .map(|&modulus| ShoupFactor::new(value.modulo(modulus), modulus.value_unchecked()))
+            .collect()
+    }
+
     pub fn wrapping_decompose(&self, value: T, small_value_modulus: T) -> Vec<T> {
         if small_value_modulus != T::TWO {
             let half = (small_value_modulus + T::ONE) / T::TWO;

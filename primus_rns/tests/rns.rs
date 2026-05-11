@@ -130,7 +130,8 @@ fn test_bfv_dec() {
             m.reduce_mul_assign(a, b);
         });
 
-        converter.fast_convert(value_residue.as_ref(), value_t_gamma.as_mut());
+        let mut buffer = vec![0; moduli_count];
+        converter.fast_convert(value_residue.as_ref(), value_t_gamma.as_mut(), &mut buffer);
 
         izip!(
             value_t_gamma.iter_mut(),

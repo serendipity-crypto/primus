@@ -68,17 +68,27 @@ impl<T: UnsignedInteger, M: FieldContext<T>> BaseConverter<T, M> {
     }
 
     /// Convert residue numbers between different basis, output the result into `residues_out`.
-    pub fn fast_convert(&self, residues_in: &[T], residues_out: &mut [T]) {
+    pub fn fast_convert(
+        &self,
+        residues_in: &[T],
+        residues_out: &mut [T],
+        fast_convert_buffer: &mut [T],
+    ) {
         debug_assert_eq!(residues_in.len(), self.ibase_moduli_count());
+        debug_assert_eq!(fast_convert_buffer.len(), self.ibase_moduli_count());
         debug_assert_eq!(residues_out.len(), self.obase_moduli_count());
 
-        let temp: Vec<T> = izip!(
+        izip!(
             residues_in,
             self.ibase.inv_punctured_product_mod_modulus(),
-            self.ibase.moduli()
+            self.ibase.moduli(),
+            fast_convert_buffer.iter_mut()
         )
-        .map(|(&value, &inv, modulus)| inv.factor_mul_modulo(value, modulus.value_unchecked()))
-        .collect();
+        .for_each(|(&value, &inv, modulus, result)| {
+            *result = inv.factor_mul_modulo(value, modulus.value_unchecked());
+        });
+
+        let buf = &*fast_convert_buffer;
 
         izip!(
             residues_out,
@@ -86,22 +96,17 @@ impl<T: UnsignedInteger, M: FieldContext<T>> BaseConverter<T, M> {
             self.obase.moduli()
         )
         .for_each(|(ele, base_chang_row, modulus)| {
-            *ele = modulus.reduce_dot_product(&temp, base_chang_row);
+            *ele = modulus.reduce_dot_product(buf, base_chang_row);
         });
     }
 
-    pub fn fast_convert_array(
+    fn fill_fast_convert_array_buffer(
         &self,
         crt_poly_in: &[T],
-        crt_poly_out: &mut [T],
         poly_length: usize,
         fast_convert_buffer: &mut [T],
     ) {
         let ibase_moduli_count = self.ibase_moduli_count();
-
-        assert_eq!(fast_convert_buffer.len(), ibase_moduli_count * poly_length);
-
-        // let mut temp: Vec<T> = vec![T::ZERO; ibase_moduli_count * poly_length];
 
         izip!(
             crt_poly_in.chunks_exact(poly_length),
@@ -123,6 +128,7 @@ impl<T: UnsignedInteger, M: FieldContext<T>> BaseConverter<T, M> {
                         *ele = x.modulo(modulus);
                     });
                 } else {
+                    let modulus = modulus.value_unchecked();
                     izip!(
                         poly,
                         fast_convert_buffer
@@ -131,14 +137,28 @@ impl<T: UnsignedInteger, M: FieldContext<T>> BaseConverter<T, M> {
                             .step_by(ibase_moduli_count)
                     )
                     .for_each(|(&x, ele)| {
-                        *ele = x.mul_modulo(
-                            inv_punctured_product_mod_modulus,
-                            UintModulus(modulus.value_unchecked()),
-                        );
+                        *ele = inv_punctured_product_mod_modulus.factor_mul_modulo(x, modulus);
                     });
                 }
             },
         );
+    }
+
+    pub fn fast_convert_array(
+        &self,
+        crt_poly_in: &[T],
+        crt_poly_out: &mut [T],
+        poly_length: usize,
+        fast_convert_buffer: &mut [T],
+    ) {
+        let ibase_moduli_count = self.ibase_moduli_count();
+        let expected_out_len = self
+            .obase_moduli_count()
+            .checked_mul(poly_length)
+            .expect("RNS output length overflow");
+
+        assert_eq!(crt_poly_out.len(), expected_out_len);
+        self.fill_fast_convert_array_buffer(crt_poly_in, poly_length, fast_convert_buffer);
 
         izip!(
             crt_poly_out.chunks_exact_mut(poly_length),
@@ -152,6 +172,42 @@ impl<T: UnsignedInteger, M: FieldContext<T>> BaseConverter<T, M> {
                 },
             );
         });
+    }
+
+    pub fn fast_convert_array_to_pair<F>(
+        &self,
+        crt_poly_in: &[T],
+        poly_length: usize,
+        fast_convert_buffer: &mut [T],
+        mut output: F,
+    ) where
+        F: FnMut(usize, T, T),
+    {
+        assert_eq!(
+            self.obase_moduli_count(),
+            2,
+            "out base in fast_convert_array_to_pair must contain exactly two moduli"
+        );
+
+        let ibase_moduli_count = self.ibase_moduli_count();
+        self.fill_fast_convert_array_buffer(crt_poly_in, poly_length, fast_convert_buffer);
+
+        let mut rows = self.iter_base_change_matrix();
+        let row_0 = rows.next().expect("missing first output-base row");
+        let row_1 = rows.next().expect("missing second output-base row");
+        let modulus_0 = self.obase.moduli()[0];
+        let modulus_1 = self.obase.moduli()[1];
+
+        fast_convert_buffer
+            .chunks_exact(ibase_moduli_count)
+            .enumerate()
+            .for_each(|(index, product)| {
+                output(
+                    index,
+                    modulus_0.reduce_dot_product(product, row_0),
+                    modulus_1.reduce_dot_product(product, row_1),
+                );
+            });
     }
 
     pub fn exact_convert_array(
@@ -299,7 +355,8 @@ mod tests {
             println!("{:?}", value);
 
             let mut residues_out = vec![0; out_len];
-            converter.fast_convert(&residues_in, &mut residues_out);
+            let mut buffer = vec![0; in_len];
+            converter.fast_convert(&residues_in, &mut residues_out, &mut buffer);
 
             residues_in.extend_from_slice(&residues_out);
             let mut value = dbasis.compose(&residues_in);

@@ -5,7 +5,7 @@
 mod rns;
 mod single_modulus;
 
-pub use rns::RnsCoeffCodec;
+pub use rns::{RnsCoeffCodec, RnsCoeffDecodeContext, RnsCoeffDecodeContextRefMut};
 pub use single_modulus::PlaintextCodec;
 
 /// Plaintext embedding used when lifting residues from `Z_t` into the ciphertext modulus.
