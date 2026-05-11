@@ -7,7 +7,7 @@ where
     T: UnsignedInteger,
 {
     let (lo, hi) = lhs.carrying_mul(rhs, divisor >> 1u32);
-    T::div_wide_fast(lo, hi, divisor)
+    T::div_wide(lo, hi, divisor)
 }
 
 /// Computes `round(lhs * rhs / divisor)` when the product fits in one limb.

@@ -1,3 +1,14 @@
+//! SIMD abstractions for unsigned integer types.
+//!
+//! This module provides traits and blanket implementations that extend the
+//! scalar [`UnsignedInteger`] operations to SIMD vectors when the `nightly`
+//! and `simd` features are enabled.
+//!
+//! [`SimdUnsignedInteger`] marks unsigned integer types that can serve as
+//! SIMD lane elements. [`SimdArray`] extends [`Simd`] vectors with the
+//! arithmetic and comparison capabilities required by higher-level crates.
+//! [`SimdMaskArray`] provides the corresponding mask operations.
+
 use core::{
     fmt::Debug,
     iter::{Product, Sum},

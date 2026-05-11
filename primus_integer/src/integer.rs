@@ -14,7 +14,17 @@ use zeroize::Zeroize;
 
 use crate::integer_traits::*;
 
-/// An abstraction over integer types
+/// An abstraction over integer types.
+///
+/// `Integer` is the core numeric supertrait of this crate, aggregating all the
+/// arithmetic, bitwise, comparison, conversion, and serialization capabilities
+/// that a primitive integer-like type must provide. It is implemented for all
+/// standard Rust integer types (`u8`–`u128`, `i8`–`i128`, `usize`, `isize`).
+///
+/// Rather than duplicating APIs, higher-level crates bound generic parameters
+/// on `Integer` (or [`UnsignedInteger`]) and rely on the fine-grained subtraits
+/// in [`crate::integer_traits`] for specific operations such as checked,
+/// wrapping, overflowing, or widening arithmetic.
 pub trait Integer:
     Sized
     + Pod

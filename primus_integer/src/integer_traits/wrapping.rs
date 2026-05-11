@@ -200,7 +200,9 @@ impl_wrapping_shift!(WrappingShr, wrapping_shr, i64);
 impl_wrapping_shift!(WrappingShr, wrapping_shr, isize);
 impl_wrapping_shift!(WrappingShr, wrapping_shr, i128);
 
-// Well this is a bit funny, but all the more appropriate.
+// Forward our wrapping traits through std's Wrapping<T> so that generic
+// code bounded on WrappingAdd / WrappingSub / … can also operate on
+// std::num::Wrapping<T> values.
 impl<T: WrappingAdd> WrappingAdd for Wrapping<T>
 where
     Wrapping<T>: Add<Output = Wrapping<T>>,

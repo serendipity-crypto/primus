@@ -24,7 +24,13 @@ pub type WideningU64 = Widening<u64>;
 pub type WideningU128 = Widening<u128>;
 pub type WideningUsize = Widening<usize>;
 
-pub struct Widening<T: UnsignedInteger>(T, T);
+/// A double-width unsigned integer represented as a (low, high) limb pair.
+///
+/// `Widening<T>` stores the low limb in the first field and the high limb in
+/// the second field. It supports addition with carry propagation via [`Add`]
+/// and [`AddAssign`], accepting both owned and borrowed operands as well as
+/// plain `(T, T)` tuples.
+pub struct Widening<T: UnsignedInteger>(pub T, pub T);
 
 impl<T: UnsignedInteger> Add<Widening<T>> for Widening<T> {
     type Output = Self;

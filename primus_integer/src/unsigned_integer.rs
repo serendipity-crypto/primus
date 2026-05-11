@@ -3,10 +3,26 @@ use core::fmt::Debug;
 use primus_gcd::Xgcd;
 
 use crate::{
-    BorrowingSub, CarryingAdd, CarryingMul, DivRem, DivRemScalar, DivWideFast, Integer, WideningMul,
+    BorrowingSub, CarryingAdd, CarryingMul, DivRem, DivRemScalar, DivWide, Integer, WideningMul,
 };
 
-/// An abstract over unsigned integer type.
+/// An abstraction over unsigned integer types.
+///
+/// `UnsignedInteger` extends [`Integer`] with operations that only make sense
+/// for unsigned values: carrying add/sub, widening/carrying multiplication,
+/// division with remainder, fast wide division, the extended GCD
+/// ([`Xgcd`](primus_gcd::Xgcd)), and conversions from signed integers.
+///
+/// It is implemented for all standard Rust unsigned integer types (`u8`–`u128`,
+/// `usize`) and serves as the principal value-type bound throughout the
+/// crate hierarchy.
+///
+/// # Associated type
+///
+/// [`SignedInteger`](UnsignedInteger::SignedInteger) is the matching signed
+/// type (e.g. `i64` for `u64`) and is used internally by algorithms such as
+/// [`Xgcd::xgcd`](primus_gcd::Xgcd::xgcd) that need signed intermediate
+/// cofactors.
 pub trait UnsignedInteger:
     Integer
     + num_traits::Unsigned
@@ -15,7 +31,7 @@ pub trait UnsignedInteger:
     + WideningMul
     + CarryingMul
     + DivRem
-    + DivWideFast
+    + DivWide
     + DivRemScalar
     + Xgcd
     + TryFrom<usize, Error: Debug>

@@ -61,7 +61,7 @@ impl<T: UnsignedInteger> PlaintextCodec<T> {
             }
             None => {
                 // delta = round(2^BITS / t) = floor((2^BITS + t/2) / t)
-                let delta = T::div_wide_fast(t >> 1u32, T::ONE, t);
+                let delta = T::div_wide(t >> 1u32, T::ONE, t);
                 Self::NativeScaled { t, delta }
             }
             Some(q) if q.is_power_of_two() && t.is_power_of_two() => {
@@ -133,7 +133,7 @@ impl<T: UnsignedInteger> PlaintextCodec<T> {
                     }
                     Self::NativeScaled { t, .. } => {
                         assert!(magnitude < t);
-                        let encoded = T::div_wide_fast(t >> 1u32, magnitude, t);
+                        let encoded = T::div_wide(t >> 1u32, magnitude, t);
                         if is_negative {
                             encoded.wrapping_neg()
                         } else {
@@ -223,7 +223,7 @@ impl<T: UnsignedInteger> PlaintextCodec<T> {
                             let (magnitude, is_negative) =
                                 lift_centered_from_raw(*message, t, half);
                             assert!(magnitude < t);
-                            let encoded = T::div_wide_fast(t >> 1u32, magnitude, t);
+                            let encoded = T::div_wide(t >> 1u32, magnitude, t);
                             *output = if is_negative {
                                 encoded.wrapping_neg()
                             } else {
@@ -317,7 +317,7 @@ impl<T: UnsignedInteger> PlaintextCodec<T> {
                         for value in values.iter_mut() {
                             let (magnitude, is_negative) = lift_centered_from_raw(*value, t, half);
                             assert!(magnitude < t);
-                            let encoded = T::div_wide_fast(t >> 1u32, magnitude, t);
+                            let encoded = T::div_wide(t >> 1u32, magnitude, t);
                             *value = if is_negative {
                                 encoded.wrapping_neg()
                             } else {
@@ -558,7 +558,7 @@ impl<T: UnsignedInteger> PlaintextCodec<T> {
                     for (acc, &message) in accumulator.iter_mut().zip(messages) {
                         let v: T = checked_message(message);
                         assert!(v < t);
-                        Self::reduce_add_native(acc, T::div_wide_fast(t >> 1u32, v, t));
+                        Self::reduce_add_native(acc, T::div_wide(t >> 1u32, v, t));
                     }
                 }
                 Self::Scaled { t, q, .. } => {
@@ -629,7 +629,7 @@ impl<T: UnsignedInteger> PlaintextCodec<T> {
                             let (magnitude, is_negative) = lift_centered_from_raw(v, t, half);
                             let encoded = {
                                 assert!(magnitude < t);
-                                T::div_wide_fast(t >> 1u32, magnitude, t)
+                                T::div_wide(t >> 1u32, magnitude, t)
                             };
                             let encoded = if is_negative {
                                 encoded.wrapping_neg()
@@ -764,7 +764,7 @@ impl<T: UnsignedInteger> PlaintextCodec<T> {
             }
             Self::NativeScaled { t, .. } => {
                 assert!(message < t);
-                T::div_wide_fast(t >> 1u32, message, t)
+                T::div_wide(t >> 1u32, message, t)
             }
             Self::Scaled { t, q, .. } => {
                 assert!(message < t);
@@ -794,7 +794,7 @@ impl<T: UnsignedInteger> PlaintextCodec<T> {
             Self::NativeScaled { t, .. } => {
                 for (message, output) in messages.iter().zip(output) {
                     assert!(*message < t);
-                    *output = T::div_wide_fast(t >> 1u32, *message, t);
+                    *output = T::div_wide(t >> 1u32, *message, t);
                 }
             }
             Self::Scaled { t, q, .. } => {
@@ -829,7 +829,7 @@ impl<T: UnsignedInteger> PlaintextCodec<T> {
             Self::NativeScaled { t, .. } => {
                 for value in values.iter_mut() {
                     assert!(*value < t);
-                    *value = T::div_wide_fast(t >> 1u32, *value, t);
+                    *value = T::div_wide(t >> 1u32, *value, t);
                 }
             }
             Self::Scaled { t, q, .. } => {
