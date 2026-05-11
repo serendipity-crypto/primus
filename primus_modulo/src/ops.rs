@@ -449,7 +449,7 @@ where
     ///
     /// # Errors
     ///
-    /// If there dose not exist the such inverse, a [`ModuloError`] will be returned.
+    /// If there does not exist such an inverse, a [`ModuloError`] will be returned.
     fn try_inv_modulo(self, modulus: M) -> Result<Self::Output, ModuloError<Self>>;
 }
 

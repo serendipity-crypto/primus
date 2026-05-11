@@ -2,7 +2,10 @@ use core::fmt::Debug;
 
 use thiserror::Error;
 
-/// Errors that may occur.
+/// Error type for modular reduction operations that can fail.
+///
+/// Currently only covers the case where a multiplicative inverse does not
+/// exist (the value and modulus are not coprime).
 #[derive(Error, Debug)]
 pub enum ReduceError<T> {
     /// Error that occurs when the given value has no inverse element with the given modulus.

@@ -7,8 +7,13 @@ pub trait LazyModulo<M> {
 
     /// Calculates `self (mod 2*modulus)`.
     ///
-    /// If modulus doesn't support this special case,
-    /// just fall back to [crate::ops::Modulo] trait.
+    /// # Correctness
+    ///
+    /// The result is only guaranteed to be in `[0, 2*modulus)`, not the
+    /// canonical `[0, modulus)`.
+    ///
+    /// If the modulus type does not natively support lazy reduction,
+    /// implementations should fall back to [`Modulo`](crate::ops::Modulo).
     fn lazy_modulo(self, modulus: M) -> Self::Output;
 }
 
@@ -52,7 +57,7 @@ pub trait LazyMulModulo<M, B = Self> {
     ///
     /// # Correctness
     ///
-    /// - `self*b < modulus²`
+    /// - `self * b < modulus²`
     ///
     /// If modulus doesn't support this special case,
     /// just fall back to [crate::ops::MulModulo] trait.
@@ -77,7 +82,7 @@ pub trait LazyMulModuloAssign<M, B = Self> {
     ///
     /// # Correctness
     ///
-    /// - `self*b < modulus²`
+    /// - `self * b < modulus²`
     ///
     /// If modulus doesn't support this special case,
     /// just fall back to [crate::ops::MulModuloAssign] trait.
