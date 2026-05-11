@@ -347,8 +347,9 @@ mod tests {
         for log_n in 2..12 {
             let n = 1 << log_n;
             let perm = generate_ntt_permutation(1, n);
-            for i in 0..n {
-                assert_eq!(perm[i], i as u32, "identity failed at index {i} for N={n}");
+
+            for (i, &item) in perm.iter().enumerate() {
+                assert_eq!(item, i as u32, "identity failed at index {i} for N={n}");
             }
         }
     }

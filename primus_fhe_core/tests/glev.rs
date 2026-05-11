@@ -178,13 +178,7 @@ fn test_key_switching() {
     msgs.iter()
         .zip(dcrt_glevs.iter_mut())
         .for_each(|(msg, glev)| {
-            dcrt_sk.encrypt_crt_msg_to_dcrt_glev_inplace(
-                &msg,
-                glev,
-                &glev_params,
-                &table,
-                &mut rng,
-            );
+            dcrt_sk.encrypt_crt_msg_to_dcrt_glev_inplace(msg, glev, &glev_params, &table, &mut rng);
         });
 
     let mut cipher: Vec<DcrtPolynomial<Vec<ValueT>>> = (0..dimension)

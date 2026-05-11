@@ -232,7 +232,7 @@ fn test_dcrt_glwe_expand_coefficients() {
         .base_q()
         .wrapping_decompose_small_polynomial_inplace(&input1, &mut msg1, poly_length, t);
 
-    dcrt_sk.encrypt_inplace(&mut msg1, &mut c1, &glwe_params, table, &mut rng);
+    dcrt_sk.encrypt_inplace(&msg1, &mut c1, &glwe_params, table, &mut rng);
 
     let mut c_expand: Vec<DcrtGlweCiphertext<Vec<ValueT>>> =
         vec![DcrtGlweCiphertext::zero(rns_glwe_len); 256];
@@ -350,7 +350,7 @@ fn test_dcrt_glwe_expand_coefficients_parallel() {
         .base_q()
         .wrapping_decompose_small_polynomial_inplace(&input1, &mut msg1, poly_length, t);
 
-    dcrt_sk.encrypt_inplace(&mut msg1, &mut c1, &glwe_params, table, &mut rng);
+    dcrt_sk.encrypt_inplace(&msg1, &mut c1, &glwe_params, table, &mut rng);
 
     let mut c_expand: Vec<DcrtGlweCiphertext<Vec<ValueT>>> =
         vec![DcrtGlweCiphertext::zero(rns_glwe_len); 256];

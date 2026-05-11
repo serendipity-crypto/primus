@@ -388,7 +388,7 @@ mod tests {
             );
 
             basis.decomposer_iter().for_each(|once_decomposer| {
-                let mut temp = carries.clone();
+                let mut temp = carries;
                 once_decomposer.unsigned_decompose_slice_inplace(
                     &adjust_big_uint_values,
                     &mut decomposed_unsigned_values,

@@ -47,7 +47,7 @@ fn test_rns3() {
         println!("{:?}", base_q.decompose(BigUint(&input)));
 
         let mut input: BigUint<[ValueT; 2]> = BigUint([0; 2]);
-        if r < (t + 1) / 2 {
+        if r < t.div_ceil(2) {
             input[0] = r;
         } else {
             let _ = q.sub_value_inplace(t - r, &mut input);
@@ -55,7 +55,7 @@ fn test_rns3() {
 
         let d = base_q.decompose(input.view());
 
-        if r < (t + 1) / 2 {
+        if r < t.div_ceil(2) {
             assert_eq!(d[0], r);
             assert_eq!(d[1], r);
         } else {

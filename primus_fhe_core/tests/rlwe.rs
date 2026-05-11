@@ -9,7 +9,7 @@ use primus_poly::Polynomial;
 use primus_reduce::FieldContext;
 
 const POLY_LENGTH: usize = 1024;
-const NOISE_ALPHA: f64 = 2.980_232_238_769_5312e-8; // 2^-25
+const NOISE_ALPHA: f64 = 2.980_232_238_769_531_2e-8; // 2^-25
 const SECRET_KEY_GAUSSIAN_STANDARD_DEVIATION: f64 = 3.2;
 const PLAIN_MODULI: [usize; 2] = [256, 257];
 const SECRET_KEY_TYPES: [RingSecretKeyType; 3] = [

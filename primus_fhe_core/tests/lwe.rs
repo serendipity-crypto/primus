@@ -4,7 +4,7 @@ use primus_modulus::{BarrettModulus, NativeModulus, PowOf2Modulus};
 use primus_reduce::RingContext;
 
 const DIMENSION: usize = 670;
-const NOISE_ALPHA: f64 = 2.980_232_238_769_5312e-8; // 2^-25
+const NOISE_ALPHA: f64 = 2.980_232_238_769_531_2e-8; // 2^-25
 const PLAIN_MODULI: [usize; 2] = [256, 257];
 const SECRET_KEY_TYPES: [LweSecretKeyType; 2] =
     [LweSecretKeyType::Binary, LweSecretKeyType::Ternary];
