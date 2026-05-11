@@ -58,14 +58,19 @@ impl<T: UnsignedInteger> ReduceDouble<T> for UintModulus<T> {
 
     #[inline(always)]
     fn reduce_double(self, value: T) -> Self::Output {
-        self.reduce_add(value, value)
+        let d = value.wrapping_shl(1);
+        if d < value || d >= self.0 {
+            d.wrapping_sub(self.0)
+        } else {
+            d
+        }
     }
 }
 
 impl<T: UnsignedInteger> ReduceDoubleAssign<T> for UintModulus<T> {
     #[inline(always)]
     fn reduce_double_assign(self, value: &mut T) {
-        self.reduce_add_assign(value, *value);
+        *value = self.reduce_double(*value);
     }
 }
 

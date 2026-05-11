@@ -560,8 +560,7 @@ mod tests {
                         let y = rng.random_range(lo..=x);
                         let (a, b, d) = <$T>::xgcd(x, y);
                         assert_eq!(d, x.gcd(y));
-                        let lhs =
-                            a as $WideT * x as $WideT - b as $WideT * y as $WideT;
+                        let lhs = a as $WideT * x as $WideT - b as $WideT * y as $WideT;
                         assert_eq!(lhs, d as $WideT);
                     }
                 }

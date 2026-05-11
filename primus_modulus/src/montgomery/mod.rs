@@ -144,9 +144,10 @@ impl<T: UnsignedInteger> MontgomeryModulus<T> {
             let (r, c) = result.overflowing_add(T::ONE);
             result = r;
             if c {
-                // This means we had an overflow
-                // After division by R, we need to handle this
-                // But with proper m, sum_lo should be 0, so we just take result
+                // Double-carry edge case: the addition of `carry1`
+                // overflowed again.  The result after implicit division
+                // by R still needs one modulus correction to guarantee
+                // the result is in [0, value).
                 return result.wrapping_sub(self.value);
             }
         }

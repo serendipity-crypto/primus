@@ -1,4 +1,4 @@
-use core::{marker::PhantomData, panic};
+use core::marker::PhantomData;
 
 use primus_integer::UnsignedInteger;
 
