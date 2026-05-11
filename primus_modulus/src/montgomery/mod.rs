@@ -35,29 +35,41 @@ impl<T: UnsignedInteger> MontgomeryModulus<T> {
     /// Panics if:
     /// - `value` is 0 or 1
     /// - `value` is even (Montgomery reduction requires odd modulus)
+    ///
+    /// For a fallible variant see [`try_new`](Self::try_new).
     pub fn new(value: T) -> Self {
         assert!(value > T::ONE, "modulus can't be 0 or 1.");
         assert!(
             value & T::ONE == T::ONE,
             "Montgomery reduction requires odd modulus."
         );
+        Self::new_unchecked(value)
+    }
 
-        // Compute N' = -N^(-1) mod R
-        // We need n_prime such that N * n_prime ≡ -1 (mod R)
-        // Since R = 2^BITS, we compute this iteratively
+    /// Creates a new [`MontgomeryModulus<T>`] without validating the modulus.
+    ///
+    /// # Correctness
+    ///
+    /// `value` must be odd and greater than 1.
+    #[inline]
+    pub fn new_unchecked(value: T) -> Self {
         let n_prime = compute_n_prime(value);
-
-        // Compute R^2 mod N
-        // R = 2^BITS, so R mod N = 2^BITS mod N
-        // Then R^2 mod N = (R mod N)^2 mod N
         let (r, r2) = compute_r2(value);
-
         Self {
             value,
             r,
             r2,
             n_prime,
         }
+    }
+
+    /// Fallible constructor returning `None` if `value` is ≤ 1 or even.
+    #[inline]
+    pub fn try_new(value: T) -> Option<Self> {
+        if value <= T::ONE || value & T::ONE != T::ONE {
+            return None;
+        }
+        Some(Self::new_unchecked(value))
     }
 
     /// Returns the value of this [`MontgomeryModulus<T>`].
@@ -87,7 +99,7 @@ impl<T: UnsignedInteger> MontgomeryModulus<T> {
     /// Converts a value to Montgomery form.
     ///
     /// Computes `value * R mod N` where R = 2^T::BITS.
-    #[inline]
+    #[inline(always)]
     pub fn to_montgomery(&self, value: T) -> T {
         // To convert to Montgomery form: x' = x * R mod N
         // We compute this as REDC(x * R^2 mod N)
@@ -99,7 +111,7 @@ impl<T: UnsignedInteger> MontgomeryModulus<T> {
     /// Converts a value from Montgomery form.
     ///
     /// Computes `value * R^(-1) mod N` where R = 2^T::BITS.
-    #[inline]
+    #[inline(always)]
     pub fn from_montgomery(&self, value: T) -> T {
         let m = value.wrapping_mul(self.n_prime);
 
@@ -120,7 +132,7 @@ impl<T: UnsignedInteger> MontgomeryModulus<T> {
     ///
     /// Given T = [t_hi, t_lo] representing t_hi * 2^BITS + t_lo,
     /// computes T * R^(-1) mod N efficiently.
-    #[inline]
+    #[inline(always)]
     pub fn montgomery_reduce(&self, value: [T; 2]) -> T {
         // REDC algorithm:
         // 1. m = (T mod R) * N' mod R = t_lo * N' mod R

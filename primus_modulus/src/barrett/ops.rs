@@ -33,88 +33,63 @@ impl<T: UnsignedInteger> LazyReduce<T> for BarrettModulus<T> {
     }
 }
 
-impl<T: UnsignedInteger> LazyReduce<[T; 2]> for BarrettModulus<T> {
-    type Output = T;
-
-    /// Calculates `value (mod 2*modulus)`.
+impl<T: UnsignedInteger> BarrettModulus<T> {
+    /// Barrett reduction for a 2-limb value `(hi·B + lo)`.
+    ///
+    /// Step 1: `q = floor((hi·B + lo) · µ / B²)`
+    /// Step 2: `r = lo - q · modulus`
     #[inline]
-    fn lazy_reduce(self, value: [T; 2]) -> Self::Output {
-        // Step 1.
+    fn lazy_reduce_2limb(&self, lo: T, hi: T) -> T {
         //                        ratio[1]  ratio[0]
-        //                   *    value[1]  value[0]
+        //                   *          hi        lo
         //   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         //                      +-------------------+
-        //                      |         a         |    <-- value[0] * ratio[0]
+        //                      |         a         |    <-- lo * ratio[0]
         //                      +-------------------+
         //             +------------------+
-        //             |        b         |              <-- value[0] * ratio[1]
+        //             |        b         |              <-- lo * ratio[1]
         //             +------------------+
         //             +------------------+
-        //             |        c         |              <-- value[1] * ratio[0]
+        //             |        c         |              <-- hi * ratio[0]
         //             +------------------+
         //   +------------------+
-        //   |        d         |                        <-- value[1] * ratio[1]
+        //   |        d         |                        <-- hi * ratio[1]
         //   +------------------+
         //   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         //             +--------+
         //             |   q₃   |
         //             +--------+
-        let ah = value[0].widening_mul_hw(self.ratio[0]);
+        let ah = lo.widening_mul_hw(self.ratio[0]);
 
-        let b = value[0].carrying_mul(self.ratio[1], ah);
-        let c = value[1].widening_mul(self.ratio[0]);
+        let b = lo.carrying_mul(self.ratio[1], ah);
+        let c = hi.widening_mul(self.ratio[0]);
 
-        let d = value[1].wrapping_mul(self.ratio[1]);
+        let d = hi.wrapping_mul(self.ratio[1]);
 
         let bch = b.1 + c.1 + b.0.overflowing_add(c.0).1.as_into();
 
         let q = d.wrapping_add(bch);
 
         // Step 2.
-        value[0].wrapping_sub(q.wrapping_mul(self.value))
+        lo.wrapping_sub(q.wrapping_mul(self.value))
+    }
+}
+
+impl<T: UnsignedInteger> LazyReduce<[T; 2]> for BarrettModulus<T> {
+    type Output = T;
+
+    #[inline]
+    fn lazy_reduce(self, value: [T; 2]) -> Self::Output {
+        self.lazy_reduce_2limb(value[0], value[1])
     }
 }
 
 impl<T: UnsignedInteger> LazyReduce<(T, T)> for BarrettModulus<T> {
     type Output = T;
 
-    /// Calculates `value (mod 2*modulus)`.
     #[inline]
     fn lazy_reduce(self, value: (T, T)) -> Self::Output {
-        // Step 1.
-        //                        ratio[1]  ratio[0]
-        //                   *    value.1   value.0
-        //   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        //                      +-------------------+
-        //                      |         a         |    <-- value.0 * ratio[0]
-        //                      +-------------------+
-        //             +------------------+
-        //             |        b         |              <-- value.0 * ratio[1]
-        //             +------------------+
-        //             +------------------+
-        //             |        c         |              <-- value.1 * ratio[0]
-        //             +------------------+
-        //   +------------------+
-        //   |        d         |                        <-- value.1 * ratio[1]
-        //   +------------------+
-        //   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        //             +--------+
-        //             |   q₃   |
-        //             +--------+
-
-        let ah = value.0.widening_mul_hw(self.ratio[0]);
-
-        let b = value.0.carrying_mul(self.ratio[1], ah);
-        let c = value.1.widening_mul(self.ratio[0]);
-
-        let d = value.1.wrapping_mul(self.ratio[1]);
-
-        let bch = b.1 + c.1 + b.0.overflowing_add(c.0).1.as_into();
-
-        let q = d.wrapping_add(bch);
-
-        // Step 2.
-        value.0.wrapping_sub(q.wrapping_mul(self.value))
+        self.lazy_reduce_2limb(value.0, value.1)
     }
 }
 

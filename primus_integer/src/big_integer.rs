@@ -37,6 +37,13 @@ where
 
 impl_iters!(BigUint, bit_uint);
 
+/// Owned [`BigUint`] backed by a [`Vec`].
+pub type BigUintOwned<T> = BigUint<Vec<T>>;
+/// Borrowed [`BigUint`] backed by an immutable slice.
+pub type BigUintRef<'a, T> = BigUint<&'a [T]>;
+/// Mutably borrowed [`BigUint`] backed by a mutable slice.
+pub type BigUintMut<'a, T> = BigUint<&'a mut [T]>;
+
 impl<S> Clone for BigUint<S>
 where
     S: RawData + Clone,

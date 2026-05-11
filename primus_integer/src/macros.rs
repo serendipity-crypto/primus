@@ -47,6 +47,7 @@ macro_rules! impl_iters {
 
             impl<'a, T: UnsignedInteger> [<$poly Iter>]<'a, T> {
                 #[inline]
+                #[allow(dead_code)]
                 pub fn new(data:&'a [T], [<$short_name _len>]:usize) -> Self{
                     Self {
                         iter: data.chunks_exact([<$short_name _len>])
@@ -76,6 +77,7 @@ macro_rules! impl_iters {
 
             impl<'a, T: UnsignedInteger> [<$poly IterMut>]<'a, T> {
                 #[inline]
+                #[allow(dead_code)]
                 pub fn new(data:&'a mut [T], [<$short_name _len>]:usize) -> Self{
                     Self {
                         iter: data.chunks_exact_mut([<$short_name _len>])
