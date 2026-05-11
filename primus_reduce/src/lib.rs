@@ -1,3 +1,14 @@
+//! Traits for modular reduction operations.
+//!
+//! This crate defines the algebraic interface between modulus types
+//! (implemented in `primus_modulus`) and values.  Each arithmetic
+//! operation — reduce, add, sub, mul, square, neg, exp, dot-product,
+//! inverse, division — has its own fine-grained trait so that modulus
+//! types only need to implement the subset they actually support.
+//!
+//! The two marker supertraits [`RingContext`] and [`FieldContext`]
+//! aggregate the full ring / field operation sets respectively.
+
 mod common;
 mod error;
 
@@ -17,7 +28,9 @@ use rand::distr::Uniform;
 pub trait Modulus: Copy {
     type ValueT: Integer;
 
-    /// Returns the modulus value.
+    /// Returns the modulus value, or `None` when the modulus is implicit
+    /// (e.g. a native power-of-two modulus where the value is `2^BITS` and
+    /// cannot be represented in `ValueT`).
     fn value(self) -> Option<Self::ValueT>;
 
     /// Returns the modulus value without checking.

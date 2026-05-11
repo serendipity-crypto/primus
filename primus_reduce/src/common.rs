@@ -4,7 +4,8 @@ use primus_integer::UnsignedInteger;
 
 use super::*;
 
-/// An trait indicate the modulus can perform operation like a ring.
+/// A marker trait indicating the modulus can perform ring operations
+/// (add, sub, neg, mul, square, exp, dot-product).
 pub trait RingContext<T>:
     Sized
     + Debug
@@ -65,7 +66,8 @@ impl<T: UnsignedInteger, M> RingContext<T> for M where
 {
 }
 
-/// An trait indicate the modulus can perform operation like a field.
+/// A marker trait indicating the modulus can perform field operations
+/// (ring + lazy reduce, multiplicative inverse, division).
 pub trait FieldContext<T>:
     RingContext<T>
     + LazyReduce<T, Output = T>
