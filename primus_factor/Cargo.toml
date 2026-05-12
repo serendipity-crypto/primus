@@ -8,8 +8,13 @@ primus_integer = { path = "../primus_integer" }
 
 [dev-dependencies]
 rand = { workspace = true }
+criterion = { workspace = true }
 
 [features]
 default = []
 nightly = ["primus_integer/nightly"]
 simd = ["primus_integer/simd"]
+
+[[bench]]
+name = "shoup_factor"
+harness = false

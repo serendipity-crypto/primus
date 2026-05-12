@@ -1,6 +1,6 @@
 use primus_integer::{DivRemScalar, UnsignedInteger};
 
-use crate::{FactorMul, LazyFactorMul};
+use crate::{FactorMul, FactorSliceOps, LazyFactorMul, LazyFactorSliceOps};
 
 #[cfg(all(feature = "nightly", feature = "simd"))]
 mod simd;
@@ -40,40 +40,6 @@ pub mod default_lanes {
     pub const VECTOR_BITS: usize = 512;
     #[cfg(not(target_feature = "avx512f"))]
     pub const VECTOR_BITS: usize = 256;
-}
-
-/// Slice-level multiplication by a precomputed [`ShoupFactor`].
-///
-/// Implementations may use SIMD internally when the `nightly` and `simd`
-/// features are enabled. Callers keep the normal scalar slice layout and the
-/// remainder is handled by the scalar path.
-pub trait ShoupFactorSliceOps<T: UnsignedInteger> {
-    /// Calculates `factor * value (mod 2*modulus)` for each element in-place.
-    fn lazy_factor_mul_slice_assign(self, values: &mut [T], modulus: T);
-
-    /// Calculates `factor * input (mod 2*modulus)` into `output`.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `input.len() != output.len()`.
-    fn lazy_factor_mul_slice_to(self, input: &[T], output: &mut [T], modulus: T);
-
-    /// Calculates `factor * value (mod modulus)` for each element in-place.
-    fn factor_mul_slice_assign(self, values: &mut [T], modulus: T);
-
-    /// Calculates `factor * input (mod modulus)` into `output`.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `input.len() != output.len()`.
-    fn factor_mul_slice_to(self, input: &[T], output: &mut [T], modulus: T);
-
-    /// Calculates `acc += factor * rhs (mod modulus)` element-wise.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `acc.len() != rhs.len()`.
-    fn add_factor_mul_slice_assign(self, acc: &mut [T], rhs: &[T], modulus: T);
 }
 
 /// A number used for fast modular multiplication.
@@ -248,7 +214,7 @@ pub(super) fn scalar_add_factor_mul_slice_assign<T: UnsignedInteger>(
 macro_rules! impl_shoup_factor_slice_ops_scalar {
     ($($t:ty),* $(,)?) => {
         $(
-            impl ShoupFactorSliceOps<$t> for ShoupFactor<$t> {
+            impl LazyFactorSliceOps<$t> for ShoupFactor<$t> {
                 #[inline]
                 fn lazy_factor_mul_slice_assign(self, values: &mut [$t], modulus: $t) {
                     scalar_lazy_factor_mul_slice_assign(self, values, modulus);
@@ -258,7 +224,9 @@ macro_rules! impl_shoup_factor_slice_ops_scalar {
                 fn lazy_factor_mul_slice_to(self, input: &[$t], output: &mut [$t], modulus: $t) {
                     scalar_lazy_factor_mul_slice_to(self, input, output, modulus);
                 }
+            }
 
+            impl FactorSliceOps<$t> for ShoupFactor<$t> {
                 #[inline]
                 fn factor_mul_slice_assign(self, values: &mut [$t], modulus: $t) {
                     scalar_factor_mul_slice_assign(self, values, modulus);
@@ -281,7 +249,7 @@ macro_rules! impl_shoup_factor_slice_ops_scalar {
 #[cfg(all(feature = "nightly", feature = "simd"))]
 macro_rules! impl_shoup_factor_slice_ops_simd {
     ($t:ty, $lanes:expr) => {
-        impl ShoupFactorSliceOps<$t> for ShoupFactor<$t> {
+        impl LazyFactorSliceOps<$t> for ShoupFactor<$t> {
             #[inline]
             fn lazy_factor_mul_slice_assign(self, values: &mut [$t], modulus: $t) {
                 simd::lazy_factor_mul_slice_assign::<$t, { $lanes }>(self, values, modulus);
@@ -291,7 +259,9 @@ macro_rules! impl_shoup_factor_slice_ops_simd {
             fn lazy_factor_mul_slice_to(self, input: &[$t], output: &mut [$t], modulus: $t) {
                 simd::lazy_factor_mul_slice_to::<$t, { $lanes }>(self, input, output, modulus);
             }
+        }
 
+        impl FactorSliceOps<$t> for ShoupFactor<$t> {
             #[inline]
             fn factor_mul_slice_assign(self, values: &mut [$t], modulus: $t) {
                 simd::factor_mul_slice_assign::<$t, { $lanes }>(self, values, modulus);
