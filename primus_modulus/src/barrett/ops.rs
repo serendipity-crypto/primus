@@ -464,12 +464,14 @@ fn multiply_add<T: UnsignedInteger>(c: &mut [T; 2], a: T, b: T) {
 }
 
 impl<T: UnsignedInteger> ReduceDotProduct<T> for BarrettModulus<T> {
+    type Output = T;
+
     #[inline]
     fn reduce_dot_product(self, a: impl AsRef<[T]>, b: impl AsRef<[T]>) -> T {
         let a = a.as_ref();
         let b = b.as_ref();
 
-        debug_assert_eq!(a.len(), b.len());
+        assert_eq!(a.len(), b.len(), "reduce_dot_product: length mismatch");
 
         let mut a_iter = a.chunks_exact(16);
         let mut b_iter = b.chunks_exact(16);

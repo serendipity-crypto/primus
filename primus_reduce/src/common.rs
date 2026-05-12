@@ -6,6 +6,9 @@ use super::*;
 
 /// A marker trait indicating the modulus can perform ring operations
 /// (add, sub, neg, mul, square, exp, dot-product).
+///
+/// Granted automatically (blanket impl) when the type implements every
+/// listed `Reduce*` trait with `Output = T`.
 pub trait RingContext<T>:
     Sized
     + Debug
@@ -32,7 +35,7 @@ pub trait RingContext<T>:
     + ReduceSquareAssign<T>
     + ReduceExp<T>
     + ReduceExpPowOf2<T>
-    + ReduceDotProduct<T>
+    + ReduceDotProduct<T, Output = T>
 {
 }
 
@@ -62,12 +65,16 @@ impl<T: UnsignedInteger, M> RingContext<T> for M where
         + ReduceSquareAssign<T>
         + ReduceExp<T>
         + ReduceExpPowOf2<T>
-        + ReduceDotProduct<T>
+        + ReduceDotProduct<T, Output = T>
 {
 }
 
 /// A marker trait indicating the modulus can perform field operations
 /// (ring + lazy reduce, multiplicative inverse, division).
+///
+/// Granted automatically (blanket impl) when the type already satisfies
+/// [`RingContext`] and additionally implements the listed
+/// `LazyReduce*` / inverse / division traits.
 pub trait FieldContext<T>:
     RingContext<T>
     + LazyReduce<T, Output = T>

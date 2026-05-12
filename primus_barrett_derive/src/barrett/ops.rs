@@ -316,6 +316,8 @@ pub(crate) fn impl_reduce_ops(name: &Ident, modulus: &TokenStream, ty: &syn::Pat
         }
 
         impl ::primus_modulus::reduce::ops::ReduceDotProduct<#ty> for #name {
+            type Output = #ty;
+
             #[inline]
             fn reduce_dot_product(self, a: impl AsRef<[#ty]>, b: impl AsRef<[#ty]>) -> #ty {
                 use ::primus_modulus::reduce::ops::*;
@@ -331,7 +333,7 @@ pub(crate) fn impl_reduce_ops(name: &Ident, modulus: &TokenStream, ty: &syn::Pat
                 let a = a.as_ref();
                 let b = b.as_ref();
 
-                debug_assert_eq!(a.len(), b.len());
+                assert_eq!(a.len(), b.len(), "reduce_dot_product: length mismatch");
 
                 let mut a_iter = a.chunks_exact(16);
                 let mut b_iter = b.chunks_exact(16);

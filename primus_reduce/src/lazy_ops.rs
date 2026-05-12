@@ -7,18 +7,24 @@ pub trait LazyReduce<T> {
     ///
     /// # Correctness
     ///
-    /// The result is only guaranteed to be in `[0, 2*modulus)`, not the
-    /// canonical `[0, modulus)`.  Callers must perform a final reduction
-    /// when a canonical result is required.
+    /// Input range for `value` is **implementation-defined** (same as
+    /// [`Reduce`](crate::Reduce)). The result is only guaranteed to be in
+    /// `[0, 2*modulus)`, not the canonical `[0, modulus)`; callers must
+    /// perform a final reduction when a canonical result is required.
     ///
     /// If the modulus type does not natively support lazy reduction,
     /// implementations should fall back to [`Reduce`](crate::Reduce).
+    #[must_use]
     fn lazy_reduce(self, value: T) -> Self::Output;
 }
 
 /// The lazy modulo assignment operation.
 pub trait LazyReduceAssign<T> {
     /// Calculates `value (mod 2*modulus)` where `self` is modulus.
+    ///
+    /// # Correctness
+    ///
+    /// Input range is implementation-defined. Result is in `[0, 2*modulus)`.
     ///
     /// If modulus doesn't support this special case,
     /// just fall back to [crate::ReduceAssign] trait.
@@ -35,9 +41,11 @@ pub trait LazyReduceMul<T, B = T> {
     /// # Correctness
     ///
     /// - `a * b < modulus²`
+    /// - Result is in `[0, 2*modulus)`
     ///
     /// If modulus doesn't support this special case,
     /// just fall back to [crate::ReduceMul] trait.
+    #[must_use]
     fn lazy_reduce_mul(self, a: T, b: B) -> Self::Output;
 }
 
@@ -48,6 +56,7 @@ pub trait LazyReduceMulAssign<T, B = T> {
     /// # Correctness
     ///
     /// - `a * b < modulus²`
+    /// - Result is in `[0, 2*modulus)`
     ///
     /// If modulus doesn't support this special case,
     /// just fall back to [crate::ReduceMulAssign] trait.
@@ -66,9 +75,11 @@ pub trait LazyReduceMulAdd<T, B = T, C = T> {
     /// - `a < modulus`
     /// - `b < modulus`
     /// - `c < modulus`
+    /// - Result is in `[0, 2*modulus)`
     ///
     /// If modulus doesn't support this special case,
     /// just fall back to [crate::ReduceMulAdd] trait.
+    #[must_use]
     fn lazy_reduce_mul_add(self, a: T, b: B, c: C) -> Self::Output;
 }
 
@@ -81,6 +92,7 @@ pub trait LazyReduceMulAddAssign<T, B = T, C = T> {
     /// - `a < modulus`
     /// - `b < modulus`
     /// - `c < modulus`
+    /// - Result is in `[0, 2*modulus)`
     ///
     /// If modulus doesn't support this special case,
     /// just fall back to [crate::ReduceMulAddAssign] trait.

@@ -556,7 +556,7 @@ where
 impl<M, T, A> DotProductModulo<M, T> for A
 where
     A: AsRef<[T]>,
-    M: ReduceDotProduct<T>,
+    M: ReduceDotProduct<T, Output = T>,
 {
     #[inline(always)]
     fn dot_product_modulo<B>(self, b: B, modulus: M) -> T
@@ -587,7 +587,7 @@ where
 impl<M, T, A> DotProductModuloIter<M, T> for A
 where
     A: IntoIterator<Item = T>,
-    M: ReduceDotProduct<T>,
+    M: ReduceDotProduct<T, Output = T>,
 {
     #[inline(always)]
     fn dot_product_modulo_iter<B>(self, b: B, modulus: M) -> T
