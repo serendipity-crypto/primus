@@ -1,4 +1,4 @@
-use core::simd::{LaneCount, Simd, SupportedLaneCount, cmp::SimdPartialOrd};
+use core::simd::{Simd, cmp::SimdPartialOrd};
 
 use primus_integer::{DivRemScalar, SimdArray, SimdMaskArray, SimdUnsignedInteger, WideningMul};
 
@@ -11,20 +11,14 @@ use super::ShoupFactor;
 /// This is efficient if many operations are multiplied by
 /// the same number and then reduced with the same modulus.
 #[derive(Debug, Clone, Copy, Default)]
-pub struct SimdShoupFactor<T: SimdUnsignedInteger, const N: usize>
-where
-    LaneCount<N>: SupportedLaneCount,
-{
+pub struct SimdShoupFactor<T: SimdUnsignedInteger, const N: usize> {
     /// value
     value: Simd<T, N>,
     /// quotient
     quotient: Simd<T, N>,
 }
 
-impl<T: SimdUnsignedInteger, const N: usize> From<ShoupFactor<T>> for SimdShoupFactor<T, N>
-where
-    LaneCount<N>: SupportedLaneCount,
-{
+impl<T: SimdUnsignedInteger, const N: usize> From<ShoupFactor<T>> for SimdShoupFactor<T, N> {
     #[inline]
     fn from(factor: ShoupFactor<T>) -> Self {
         Self {
@@ -36,7 +30,6 @@ where
 
 impl<T: SimdUnsignedInteger, const N: usize> SimdShoupFactor<T, N>
 where
-    LaneCount<N>: SupportedLaneCount,
     Simd<T, N>: SimdArray<T, N>,
 {
     /// Constructs a [`SimdShoupFactor<T, N>`].
@@ -108,7 +101,6 @@ where
 
 impl<T: SimdUnsignedInteger, const N: usize> LazyFactorMul<Simd<T, N>> for SimdShoupFactor<T, N>
 where
-    LaneCount<N>: SupportedLaneCount,
     Simd<T, N>: SimdArray<T, N>,
 {
     #[inline]
@@ -120,7 +112,6 @@ where
 
 impl<T: SimdUnsignedInteger, const N: usize> FactorMul<Simd<T, N>> for SimdShoupFactor<T, N>
 where
-    LaneCount<N>: SupportedLaneCount,
     Simd<T, N>: SimdArray<T, N>,
 {
     #[inline]

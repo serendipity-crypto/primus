@@ -1,6 +1,4 @@
-use core::simd::{
-    LaneCount, Mask, Simd, SimdElement, SupportedLaneCount, cmp::SimdPartialOrd, num::SimdInt,
-};
+use core::simd::{Mask, Simd, SimdElement, cmp::SimdPartialOrd, num::SimdInt};
 
 use super::CarryingAdd;
 
@@ -8,15 +6,14 @@ macro_rules! impl_simd_uint_carrying_add {
     ($($T:ty),*) => {
         $(
             impl<const N:usize> CarryingAdd for Simd<$T, N>
-            where
-                LaneCount<N>: SupportedLaneCount,
+
             {
                 type CarryT = Mask<<$T as SimdElement>::Mask, N>;
 
                 #[inline]
                 fn carrying_add(self, rhs: Self, carry: Self::CarryT) -> (Self, Self::CarryT) {
                     let a = self + rhs;
-                    let b = a - carry.to_int().cast();
+                    let b = a - carry.to_simd().cast();
                     (b, a.simd_lt(self) | b.simd_lt(a))
                 }
             }
@@ -30,7 +27,7 @@ impl_simd_uint_carrying_add! {u8, u16, u32, u64, usize}
 mod tests {
     use core::{
         fmt::Debug,
-        simd::{LaneCount, Mask, Simd, SupportedLaneCount},
+        simd::{Mask, Simd},
     };
 
     use rand::distr::{Distribution, StandardUniform};
@@ -41,7 +38,6 @@ mod tests {
     fn test_carry_add_per_type_lane_count<T, const N: usize>()
     where
         T: SimdElement + CarryingAdd<CarryT = bool> + PartialEq + Debug,
-        LaneCount<N>: SupportedLaneCount,
         Simd<T, N>: CarryingAdd<CarryT = Mask<<T as SimdElement>::Mask, N>>,
         StandardUniform: Distribution<Simd<T, N>> + Distribution<Mask<<T as SimdElement>::Mask, N>>,
     {

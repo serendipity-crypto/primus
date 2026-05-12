@@ -1,13 +1,10 @@
-use core::simd::{LaneCount, Simd, SupportedLaneCount, num::SimdUint};
+use core::simd::{Simd, num::SimdUint};
 
 use super::CarryingMul;
 
 macro_rules! simd_uint_carrying_mul_impl {
     ($T:ty, $W:ty, $Bits:literal) => {
-        impl<const N: usize> CarryingMul for Simd<$T, N>
-        where
-            LaneCount<N>: SupportedLaneCount,
-        {
+        impl<const N: usize> CarryingMul for Simd<$T, N> {
             #[inline]
             fn carrying_mul(self, rhs: Self, carry: Self) -> (Self, Self) {
                 let wide = self.cast::<$W>() * rhs.cast::<$W>() + carry.cast::<$W>();
@@ -43,10 +40,7 @@ simd_uint_carrying_mul_impl! {u32, u64, 32}
 
 macro_rules! simd_uint_carrying_mul_large {
     ($T:ty, $Half:literal) => {
-        impl<const N: usize> CarryingMul for Simd<$T, N>
-        where
-            LaneCount<N>: SupportedLaneCount,
-        {
+        impl<const N: usize> CarryingMul for Simd<$T, N> {
             #[inline]
             fn carrying_mul(self, rhs: Self, carry: Self) -> (Self, Self) {
                 let lower_mask = Self::splat(!0 >> $Half);
@@ -197,7 +191,7 @@ simd_uint_carrying_mul_large! {usize, 32}
 mod tests {
     use core::{
         fmt::Debug,
-        simd::{LaneCount, Simd, SimdElement, SupportedLaneCount},
+        simd::{Simd, SimdElement},
     };
 
     use rand::distr::{Distribution, StandardUniform};
@@ -208,7 +202,6 @@ mod tests {
     fn test_carry_mul_per_type_lane_count<T, const N: usize>()
     where
         T: SimdElement + CarryingMul + PartialEq + Debug,
-        LaneCount<N>: SupportedLaneCount,
         Simd<T, N>: CarryingMul,
         StandardUniform: Distribution<Simd<T, N>>,
     {

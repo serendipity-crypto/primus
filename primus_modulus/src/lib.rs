@@ -1,3 +1,5 @@
+#![cfg_attr(all(feature = "nightly", feature = "simd"), feature(portable_simd))]
+
 //! Concrete modulus types implementing the [`primus_reduce`] traits.
 //!
 //! | Type | Reduction | Use case |
@@ -28,3 +30,6 @@ pub use montgomery::MontgomeryModulus;
 pub use native::NativeModulus;
 pub use power_of_two::PowOf2Modulus;
 pub use unsigned_integer::UintModulus;
+
+#[cfg(all(feature = "nightly", feature = "simd"))]
+pub use barrett::SimdBarrettModulus;

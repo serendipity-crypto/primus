@@ -14,7 +14,7 @@ use core::{
     iter::{Product, Sum},
     ops::*,
     simd::{
-        LaneCount, Mask, MaskElement, Simd, SimdCast, SimdElement, SupportedLaneCount,
+        Mask, MaskElement, Select, Simd, SimdCast, SimdElement,
         cmp::{SimdOrd, SimdPartialEq, SimdPartialOrd},
         num::SimdUint,
     },
@@ -36,7 +36,6 @@ impl_simd_unsigned_integer! {u8 u16 u32 u64 usize}
 
 pub trait SimdArray<T: SimdUnsignedInteger, const N: usize>
 where
-    LaneCount<N>: SupportedLaneCount,
     Self: Send + Sync + Clone + Copy + Default,
     Self: PartialEq + PartialOrd + Eq + Ord,
     Self: Debug,
@@ -74,7 +73,7 @@ where
 
 macro_rules! impl_simd_array {
     ($($t:ty)*) => ($(
-        impl<const N: usize> SimdArray<$t, N> for Simd<$t, N> where LaneCount<N>: SupportedLaneCount {}
+        impl<const N: usize> SimdArray<$t, N> for Simd<$t, N>  {}
     )*)
 }
 
@@ -83,7 +82,6 @@ impl_simd_array! {u8 u16 u32 u64 usize}
 #[allow(clippy::len_without_is_empty)]
 pub trait SimdMaskArray<T: MaskElement, const N: usize>
 where
-    LaneCount<N>: SupportedLaneCount,
     Self: Send + Sync + Clone + Copy + Default,
     Self: PartialEq + PartialOrd,
     Self: Debug,
@@ -137,12 +135,12 @@ where
     /// Panics if any element is not 0 or -1.
     #[must_use = "method returns a new mask and does not mutate the original value"]
     #[track_caller]
-    fn from_int(value: Simd<T, N>) -> Self;
+    fn from_simd(value: Simd<T, N>) -> Self;
 
     /// Converts the mask to a vector of integers, where 0 represents `false` and -1
     /// represents `true`.
     #[must_use = "method returns a new vector and does not mutate the original value"]
-    fn to_int(self) -> Simd<T, N>;
+    fn to_simd(self) -> Simd<T, N>;
 
     /// Returns true if any element is set, or false otherwise.
     #[must_use = "method returns a new bool and does not mutate the original value"]
@@ -156,15 +154,13 @@ where
 macro_rules! impl_mask_array {
     ($($t:ty)*) => ($(
         impl<const N: usize> SimdMaskArray<$t, N> for Mask<$t, N>
-        where
-            LaneCount<N>: SupportedLaneCount
         {
             #[inline]
             fn select<U>(self, true_values: Simd<U, N>, false_values: Simd<U, N>) -> Simd<U, N>
             where
                 U: SimdElement<Mask = $t>
             {
-                self.select(true_values, false_values)
+                Select::select(self, true_values, false_values)
             }
 
             #[inline]
@@ -183,13 +179,13 @@ macro_rules! impl_mask_array {
             }
 
             #[inline]
-            fn from_int(value: Simd<$t, N>) -> Self {
-                Self::from_int(value)
+            fn from_simd(value: Simd<$t, N>) -> Self {
+                Self::from_simd(value)
             }
 
             #[inline]
-            fn to_int(self) -> Simd<$t, N> {
-                self.to_int()
+            fn to_simd(self) -> Simd<$t, N> {
+                self.to_simd()
             }
 
             #[inline]

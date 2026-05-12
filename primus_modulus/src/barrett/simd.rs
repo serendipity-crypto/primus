@@ -1,4 +1,4 @@
-use std::simd::{LaneCount, Simd, SupportedLaneCount};
+use std::simd::Simd;
 
 use primus_integer::{CarryingAdd, CarryingMul, SimdArray, SimdUnsignedInteger, WideningMul};
 use primus_reduce::lazy_ops::*;
@@ -14,7 +14,6 @@ use super::BarrettModulus;
 #[derive(Debug, Clone, Copy)]
 pub struct SimdBarrettModulus<T: SimdUnsignedInteger, const N: usize>
 where
-    LaneCount<N>: SupportedLaneCount,
     Simd<T, N>: SimdArray<T, N>,
 {
     value: Simd<T, N>,
@@ -23,7 +22,6 @@ where
 
 impl<T: SimdUnsignedInteger, const N: usize> From<BarrettModulus<T>> for SimdBarrettModulus<T, N>
 where
-    LaneCount<N>: SupportedLaneCount,
     Simd<T, N>: SimdArray<T, N>,
 {
     #[inline]
@@ -38,7 +36,6 @@ where
 
 impl<T: SimdUnsignedInteger, const N: usize> LazyReduce<Simd<T, N>> for SimdBarrettModulus<T, N>
 where
-    LaneCount<N>: SupportedLaneCount,
     Simd<T, N>: SimdArray<T, N>,
 {
     type Output = Simd<T, N>;
@@ -56,7 +53,6 @@ where
 impl<T: SimdUnsignedInteger, const N: usize> LazyReduce<[Simd<T, N>; 2]>
     for SimdBarrettModulus<T, N>
 where
-    LaneCount<N>: SupportedLaneCount,
     Simd<T, N>: SimdArray<T, N>,
 {
     type Output = Simd<T, N>;
@@ -82,7 +78,6 @@ where
 impl<T: SimdUnsignedInteger, const N: usize> LazyReduce<(Simd<T, N>, Simd<T, N>)>
     for SimdBarrettModulus<T, N>
 where
-    LaneCount<N>: SupportedLaneCount,
     Simd<T, N>: SimdArray<T, N>,
 {
     type Output = Simd<T, N>;
@@ -108,7 +103,6 @@ where
 impl<T: SimdUnsignedInteger, const N: usize> LazyReduceAssign<Simd<T, N>>
     for SimdBarrettModulus<T, N>
 where
-    LaneCount<N>: SupportedLaneCount,
     Simd<T, N>: SimdArray<T, N>,
 {
     #[inline]
@@ -119,7 +113,6 @@ where
 
 impl<T: SimdUnsignedInteger, const N: usize> LazyReduceMul<Simd<T, N>> for SimdBarrettModulus<T, N>
 where
-    LaneCount<N>: SupportedLaneCount,
     Simd<T, N>: SimdArray<T, N>,
 {
     type Output = Simd<T, N>;
@@ -133,7 +126,6 @@ where
 impl<T: SimdUnsignedInteger, const N: usize> LazyReduceMulAssign<Simd<T, N>>
     for SimdBarrettModulus<T, N>
 where
-    LaneCount<N>: SupportedLaneCount,
     Simd<T, N>: SimdArray<T, N>,
 {
     #[inline]
@@ -145,7 +137,6 @@ where
 impl<T: SimdUnsignedInteger, const N: usize> LazyReduceMulAdd<Simd<T, N>>
     for SimdBarrettModulus<T, N>
 where
-    LaneCount<N>: SupportedLaneCount,
     Simd<T, N>: SimdArray<T, N>,
 {
     type Output = Simd<T, N>;
@@ -159,7 +150,6 @@ where
 impl<T: SimdUnsignedInteger, const N: usize> LazyReduceMulAddAssign<Simd<T, N>>
     for SimdBarrettModulus<T, N>
 where
-    LaneCount<N>: SupportedLaneCount,
     Simd<T, N>: SimdArray<T, N>,
 {
     #[inline]

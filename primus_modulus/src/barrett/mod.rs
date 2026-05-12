@@ -1,5 +1,3 @@
-#![cfg_attr(all(feature = "nightly", feature = "simd"), feature(portable_simd))]
-
 use core::fmt::Display;
 
 use crate::integer::{DivRemScalar, UnsignedInteger};

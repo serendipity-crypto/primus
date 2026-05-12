@@ -1,13 +1,10 @@
-use core::simd::{LaneCount, Simd, SupportedLaneCount, num::SimdUint};
+use core::simd::{Simd, num::SimdUint};
 
 use super::WideningMul;
 
 macro_rules! impl_simd_uint_widening_mul {
     ($T:ty, $W:ty, $Bits:literal) => {
-        impl<const N: usize> WideningMul for Simd<$T, N>
-        where
-            LaneCount<N>: SupportedLaneCount,
-        {
+        impl<const N: usize> WideningMul for Simd<$T, N> {
             #[inline]
             fn widening_mul(self, rhs: Self) -> (Self, Self) {
                 let wide = self.cast::<$W>() * rhs.cast::<$W>();
@@ -35,10 +32,7 @@ impl_simd_uint_widening_mul! {u32, u64, 32}
 // keeps shuffling registers in this Rust translation.
 macro_rules! simd_uint_widening_mul_large {
     ($T:ty, $Half:literal) => {
-        impl<const N: usize> WideningMul for ::core::simd::Simd<$T, N>
-        where
-            LaneCount<N>: SupportedLaneCount,
-        {
+        impl<const N: usize> WideningMul for ::core::simd::Simd<$T, N> {
             #[inline]
             fn widening_mul(self, rhs: Self) -> (Self, Self) {
                 let lower_mask = Self::splat(!0 >> $Half);
@@ -114,7 +108,7 @@ simd_uint_widening_mul_large! { usize, 32 }
 #[cfg(test)]
 mod tests {
     use core::fmt::Debug;
-    use core::simd::{LaneCount, Simd, SimdElement, SupportedLaneCount};
+    use core::simd::{Simd, SimdElement};
 
     use rand::distr::{Distribution, StandardUniform};
     use rand::{SeedableRng, rngs::StdRng};
@@ -124,7 +118,6 @@ mod tests {
     fn test_widen_mul_per_type_lane_count<T, const N: usize>()
     where
         T: SimdElement + WideningMul + PartialEq + Debug,
-        LaneCount<N>: SupportedLaneCount,
         Simd<T, N>: WideningMul,
         StandardUniform: Distribution<Simd<T, N>>,
     {

@@ -1,6 +1,4 @@
-use core::simd::{
-    LaneCount, Mask, Simd, SimdElement, SupportedLaneCount, cmp::SimdPartialOrd, num::SimdInt,
-};
+use core::simd::{Mask, Simd, SimdElement, cmp::SimdPartialOrd, num::SimdInt};
 
 use super::BorrowingSub;
 
@@ -8,15 +6,13 @@ macro_rules! simd_uint_borrowing_sub_impl {
     ($($T:ty),+) => {
         $(
             impl<const N:usize> BorrowingSub for Simd<$T, N>
-            where
-                LaneCount<N>: SupportedLaneCount,
             {
                 type BorrowT = Mask<<$T as SimdElement>::Mask, N>;
 
                 #[inline]
                 fn borrowing_sub(self, rhs: Self, borrow: Self::BorrowT) -> (Self, Self::BorrowT) {
                     let a = self - rhs;
-                    let b = a + borrow.to_int().cast();
+                    let b = a + borrow.to_simd().cast();
                     (b, a.simd_gt(self) | b.simd_gt(a))
                 }
             }
@@ -30,7 +26,7 @@ simd_uint_borrowing_sub_impl! {u8, u16, u32, u64, usize}
 mod tests {
     use core::{
         fmt::Debug,
-        simd::{LaneCount, Mask, Simd, SupportedLaneCount},
+        simd::{Mask, Simd},
     };
 
     use rand::distr::{Distribution, StandardUniform};
@@ -41,7 +37,6 @@ mod tests {
     fn test_borrow_sub_per_type_lane_count<T, const N: usize>()
     where
         T: SimdElement + BorrowingSub<BorrowT = bool> + PartialEq + Debug,
-        LaneCount<N>: SupportedLaneCount,
         Simd<T, N>: BorrowingSub<BorrowT = Mask<<T as SimdElement>::Mask, N>>,
         StandardUniform: Distribution<Simd<T, N>> + Distribution<Mask<<T as SimdElement>::Mask, N>>,
     {
