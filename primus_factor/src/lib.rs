@@ -14,7 +14,7 @@ pub trait FactorMul<T>: LazyFactorMul<T> {
 }
 
 pub use multiply::MultiplyFactor;
-pub use shoup_factor::ShoupFactor;
+pub use shoup_factor::{ShoupFactor, ShoupFactorSliceOps};
 
 #[cfg(all(feature = "nightly", feature = "simd"))]
-pub use shoup_factor::SimdShoupFactor;
+pub use shoup_factor::{SimdShoupFactor, default_lanes, simd_kernel};

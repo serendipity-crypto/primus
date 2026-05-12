@@ -120,3 +120,128 @@ where
         t.simd_ge(modulus).select(t - modulus, t)
     }
 }
+
+#[inline]
+pub fn lazy_factor_mul_slice_assign<T: SimdUnsignedInteger, const N: usize>(
+    factor: ShoupFactor<T>,
+    values: &mut [T],
+    modulus: T,
+) where
+    Simd<T, N>: SimdArray<T, N>,
+{
+    let simd_factor = SimdShoupFactor::<T, N>::from(factor);
+    let simd_modulus = Simd::splat(modulus);
+
+    let (chunks, remainder) = values.as_chunks_mut::<N>();
+    for chunk in chunks {
+        let value = Simd::from_array(*chunk);
+        *chunk = simd_factor
+            .lazy_factor_mul_modulo(value, simd_modulus)
+            .to_array();
+    }
+
+    super::scalar_lazy_factor_mul_slice_assign(factor, remainder, modulus);
+}
+
+#[inline]
+pub fn lazy_factor_mul_slice_to<T: SimdUnsignedInteger, const N: usize>(
+    factor: ShoupFactor<T>,
+    input: &[T],
+    output: &mut [T],
+    modulus: T,
+) where
+    Simd<T, N>: SimdArray<T, N>,
+{
+    assert_eq!(input.len(), output.len());
+
+    let simd_factor = SimdShoupFactor::<T, N>::from(factor);
+    let simd_modulus = Simd::splat(modulus);
+
+    let (input_chunks, input_rem) = input.as_chunks::<N>();
+    let (output_chunks, output_rem) = output.as_chunks_mut::<N>();
+    for (input, output) in input_chunks.iter().zip(output_chunks) {
+        let value = Simd::from_array(*input);
+        *output = simd_factor
+            .lazy_factor_mul_modulo(value, simd_modulus)
+            .to_array();
+    }
+
+    super::scalar_lazy_factor_mul_slice_to(factor, input_rem, output_rem, modulus);
+}
+
+#[inline]
+pub fn factor_mul_slice_assign<T: SimdUnsignedInteger, const N: usize>(
+    factor: ShoupFactor<T>,
+    values: &mut [T],
+    modulus: T,
+) where
+    Simd<T, N>: SimdArray<T, N>,
+{
+    let simd_factor = SimdShoupFactor::<T, N>::from(factor);
+    let simd_modulus = Simd::splat(modulus);
+
+    let (chunks, remainder) = values.as_chunks_mut::<N>();
+    for chunk in chunks {
+        let value = Simd::from_array(*chunk);
+        *chunk = simd_factor
+            .factor_mul_modulo(value, simd_modulus)
+            .to_array();
+    }
+
+    super::scalar_factor_mul_slice_assign(factor, remainder, modulus);
+}
+
+#[inline]
+pub fn factor_mul_slice_to<T: SimdUnsignedInteger, const N: usize>(
+    factor: ShoupFactor<T>,
+    input: &[T],
+    output: &mut [T],
+    modulus: T,
+) where
+    Simd<T, N>: SimdArray<T, N>,
+{
+    assert_eq!(input.len(), output.len());
+
+    let simd_factor = SimdShoupFactor::<T, N>::from(factor);
+    let simd_modulus = Simd::splat(modulus);
+
+    let (input_chunks, input_rem) = input.as_chunks::<N>();
+    let (output_chunks, output_rem) = output.as_chunks_mut::<N>();
+    for (input, output) in input_chunks.iter().zip(output_chunks) {
+        let value = Simd::from_array(*input);
+        *output = simd_factor
+            .factor_mul_modulo(value, simd_modulus)
+            .to_array();
+    }
+
+    super::scalar_factor_mul_slice_to(factor, input_rem, output_rem, modulus);
+}
+
+#[inline]
+pub fn add_factor_mul_slice_assign<T: SimdUnsignedInteger, const N: usize>(
+    factor: ShoupFactor<T>,
+    acc: &mut [T],
+    rhs: &[T],
+    modulus: T,
+) where
+    Simd<T, N>: SimdArray<T, N>,
+{
+    assert_eq!(acc.len(), rhs.len());
+
+    let simd_factor = SimdShoupFactor::<T, N>::from(factor);
+    let simd_modulus = Simd::splat(modulus);
+
+    let (acc_chunks, acc_rem) = acc.as_chunks_mut::<N>();
+    let (rhs_chunks, rhs_rem) = rhs.as_chunks::<N>();
+    for (acc, rhs) in acc_chunks.iter_mut().zip(rhs_chunks) {
+        let acc_value = Simd::from_array(*acc);
+        let product = simd_factor.factor_mul_modulo(Simd::from_array(*rhs), simd_modulus);
+        let sum = acc_value + product;
+        *acc = sum
+            .simd_ge(simd_modulus)
+            .select(sum - simd_modulus, sum)
+            .to_array();
+    }
+
+    super::scalar_add_factor_mul_slice_assign(factor, acc_rem, rhs_rem, modulus);
+}

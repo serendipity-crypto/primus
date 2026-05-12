@@ -8,6 +8,74 @@ mod simd;
 #[cfg(all(feature = "nightly", feature = "simd"))]
 pub use simd::SimdShoupFactor;
 
+/// Lower-level SIMD slice kernels with an explicit lane count, for callers
+/// that want to override the default vector width.
+///
+/// The default trait impls in [`ShoupFactorSliceOps`] pick a lane count at
+/// compile time based on the target CPU's SIMD width (see [`default_lanes`]).
+/// Reach for this module only when you have measured a different `N` that
+/// performs better on your workload.
+#[cfg(all(feature = "nightly", feature = "simd"))]
+pub mod simd_kernel {
+    pub use super::simd::{
+        add_factor_mul_slice_assign, factor_mul_slice_assign, factor_mul_slice_to,
+        lazy_factor_mul_slice_assign, lazy_factor_mul_slice_to,
+    };
+}
+
+/// Compile-time SIMD vector width chosen for the current target.
+#[cfg(all(feature = "nightly", feature = "simd"))]
+pub mod default_lanes {
+    /// Native SIMD vector width in bits.
+    ///
+    /// * AVX-512 → 512 bits
+    /// * AVX2 → 256 bits
+    /// * other (NEON / SSE2 / no SIMD) → 256 bits as a "wide fallback".
+    ///   `portable_simd` lowers oversize vectors to multiple native
+    ///   instructions, which on 128-bit ISAs behaves like 2× loop unrolling
+    ///   and is usually as fast or faster than a 128-bit default. Build with
+    ///   `-C target-cpu=native` (or `-C target-feature=+avx512f`) to get a
+    ///   wider native width when the host supports it.
+    #[cfg(target_feature = "avx512f")]
+    pub const VECTOR_BITS: usize = 512;
+    #[cfg(not(target_feature = "avx512f"))]
+    pub const VECTOR_BITS: usize = 256;
+}
+
+/// Slice-level multiplication by a precomputed [`ShoupFactor`].
+///
+/// Implementations may use SIMD internally when the `nightly` and `simd`
+/// features are enabled. Callers keep the normal scalar slice layout and the
+/// remainder is handled by the scalar path.
+pub trait ShoupFactorSliceOps<T: UnsignedInteger> {
+    /// Calculates `factor * value (mod 2*modulus)` for each element in-place.
+    fn lazy_factor_mul_slice_assign(self, values: &mut [T], modulus: T);
+
+    /// Calculates `factor * input (mod 2*modulus)` into `output`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `input.len() != output.len()`.
+    fn lazy_factor_mul_slice_to(self, input: &[T], output: &mut [T], modulus: T);
+
+    /// Calculates `factor * value (mod modulus)` for each element in-place.
+    fn factor_mul_slice_assign(self, values: &mut [T], modulus: T);
+
+    /// Calculates `factor * input (mod modulus)` into `output`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `input.len() != output.len()`.
+    fn factor_mul_slice_to(self, input: &[T], output: &mut [T], modulus: T);
+
+    /// Calculates `acc += factor * rhs (mod modulus)` element-wise.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `acc.len() != rhs.len()`.
+    fn add_factor_mul_slice_assign(self, acc: &mut [T], rhs: &[T], modulus: T);
+}
+
 /// A number used for fast modular multiplication.
 ///
 /// This is efficient if many operations are multiplied by
@@ -108,6 +176,159 @@ impl<T: UnsignedInteger> FactorMul<T> for ShoupFactor<T> {
     }
 }
 
+#[inline]
+fn reduce_add<T: UnsignedInteger>(a: T, b: T, modulus: T) -> T {
+    let sum = a + b;
+    if sum >= modulus { sum - modulus } else { sum }
+}
+
+#[inline]
+pub(super) fn scalar_lazy_factor_mul_slice_assign<T: UnsignedInteger>(
+    factor: ShoupFactor<T>,
+    values: &mut [T],
+    modulus: T,
+) {
+    values
+        .iter_mut()
+        .for_each(|value| *value = factor.lazy_factor_mul_modulo(*value, modulus));
+}
+
+#[inline]
+pub(super) fn scalar_lazy_factor_mul_slice_to<T: UnsignedInteger>(
+    factor: ShoupFactor<T>,
+    input: &[T],
+    output: &mut [T],
+    modulus: T,
+) {
+    assert_eq!(input.len(), output.len());
+    input
+        .iter()
+        .zip(output)
+        .for_each(|(&value, output)| *output = factor.lazy_factor_mul_modulo(value, modulus));
+}
+
+#[inline]
+pub(super) fn scalar_factor_mul_slice_assign<T: UnsignedInteger>(
+    factor: ShoupFactor<T>,
+    values: &mut [T],
+    modulus: T,
+) {
+    values
+        .iter_mut()
+        .for_each(|value| *value = factor.factor_mul_modulo(*value, modulus));
+}
+
+#[inline]
+pub(super) fn scalar_factor_mul_slice_to<T: UnsignedInteger>(
+    factor: ShoupFactor<T>,
+    input: &[T],
+    output: &mut [T],
+    modulus: T,
+) {
+    assert_eq!(input.len(), output.len());
+    input
+        .iter()
+        .zip(output)
+        .for_each(|(&value, output)| *output = factor.factor_mul_modulo(value, modulus));
+}
+
+#[inline]
+pub(super) fn scalar_add_factor_mul_slice_assign<T: UnsignedInteger>(
+    factor: ShoupFactor<T>,
+    acc: &mut [T],
+    rhs: &[T],
+    modulus: T,
+) {
+    assert_eq!(acc.len(), rhs.len());
+    acc.iter_mut().zip(rhs).for_each(|(acc, &rhs)| {
+        *acc = reduce_add(*acc, factor.factor_mul_modulo(rhs, modulus), modulus);
+    });
+}
+
+macro_rules! impl_shoup_factor_slice_ops_scalar {
+    ($($t:ty),* $(,)?) => {
+        $(
+            impl ShoupFactorSliceOps<$t> for ShoupFactor<$t> {
+                #[inline]
+                fn lazy_factor_mul_slice_assign(self, values: &mut [$t], modulus: $t) {
+                    scalar_lazy_factor_mul_slice_assign(self, values, modulus);
+                }
+
+                #[inline]
+                fn lazy_factor_mul_slice_to(self, input: &[$t], output: &mut [$t], modulus: $t) {
+                    scalar_lazy_factor_mul_slice_to(self, input, output, modulus);
+                }
+
+                #[inline]
+                fn factor_mul_slice_assign(self, values: &mut [$t], modulus: $t) {
+                    scalar_factor_mul_slice_assign(self, values, modulus);
+                }
+
+                #[inline]
+                fn factor_mul_slice_to(self, input: &[$t], output: &mut [$t], modulus: $t) {
+                    scalar_factor_mul_slice_to(self, input, output, modulus);
+                }
+
+                #[inline]
+                fn add_factor_mul_slice_assign(self, acc: &mut [$t], rhs: &[$t], modulus: $t) {
+                    scalar_add_factor_mul_slice_assign(self, acc, rhs, modulus);
+                }
+            }
+        )*
+    };
+}
+
+#[cfg(all(feature = "nightly", feature = "simd"))]
+macro_rules! impl_shoup_factor_slice_ops_simd {
+    ($t:ty, $lanes:expr) => {
+        impl ShoupFactorSliceOps<$t> for ShoupFactor<$t> {
+            #[inline]
+            fn lazy_factor_mul_slice_assign(self, values: &mut [$t], modulus: $t) {
+                simd::lazy_factor_mul_slice_assign::<$t, { $lanes }>(self, values, modulus);
+            }
+
+            #[inline]
+            fn lazy_factor_mul_slice_to(self, input: &[$t], output: &mut [$t], modulus: $t) {
+                simd::lazy_factor_mul_slice_to::<$t, { $lanes }>(self, input, output, modulus);
+            }
+
+            #[inline]
+            fn factor_mul_slice_assign(self, values: &mut [$t], modulus: $t) {
+                simd::factor_mul_slice_assign::<$t, { $lanes }>(self, values, modulus);
+            }
+
+            #[inline]
+            fn factor_mul_slice_to(self, input: &[$t], output: &mut [$t], modulus: $t) {
+                simd::factor_mul_slice_to::<$t, { $lanes }>(self, input, output, modulus);
+            }
+
+            #[inline]
+            fn add_factor_mul_slice_assign(self, acc: &mut [$t], rhs: &[$t], modulus: $t) {
+                simd::add_factor_mul_slice_assign::<$t, { $lanes }>(self, acc, rhs, modulus);
+            }
+        }
+    };
+}
+
+#[cfg(all(feature = "nightly", feature = "simd"))]
+impl_shoup_factor_slice_ops_simd!(u8, default_lanes::VECTOR_BITS / 8);
+#[cfg(all(feature = "nightly", feature = "simd"))]
+impl_shoup_factor_slice_ops_simd!(u16, default_lanes::VECTOR_BITS / 16);
+#[cfg(all(feature = "nightly", feature = "simd"))]
+impl_shoup_factor_slice_ops_simd!(u32, default_lanes::VECTOR_BITS / 32);
+#[cfg(all(feature = "nightly", feature = "simd"))]
+impl_shoup_factor_slice_ops_simd!(u64, default_lanes::VECTOR_BITS / 64);
+
+#[cfg(all(feature = "nightly", feature = "simd", target_pointer_width = "64"))]
+impl_shoup_factor_slice_ops_simd!(usize, default_lanes::VECTOR_BITS / 64);
+#[cfg(all(feature = "nightly", feature = "simd", target_pointer_width = "32"))]
+impl_shoup_factor_slice_ops_simd!(usize, default_lanes::VECTOR_BITS / 32);
+
+#[cfg(not(all(feature = "nightly", feature = "simd")))]
+impl_shoup_factor_slice_ops_scalar!(u8, u16, u32, u64, usize);
+
+impl_shoup_factor_slice_ops_scalar!(u128);
+
 #[cfg(test)]
 mod tests {
     use rand::{
@@ -143,5 +364,101 @@ mod tests {
             .collect();
 
         assert_eq!(shoup_res, normal_res);
+    }
+
+    #[test]
+    fn test_shoup_slice_ops() {
+        let mut rng = rand::rng();
+
+        let modulus: ValueT = 132120577;
+        let distr = Uniform::new(0, modulus).unwrap();
+
+        let shoup = ShoupFactor::new(rng.sample(distr), modulus);
+        let data: Vec<ValueT> = distr.sample_iter(&mut rng).take(N + 5).collect();
+
+        let expected_lazy: Vec<ValueT> = data
+            .iter()
+            .map(|&v| shoup.lazy_factor_mul_modulo(v, modulus))
+            .collect();
+        let mut lazy_assign = data.clone();
+        shoup.lazy_factor_mul_slice_assign(&mut lazy_assign, modulus);
+        assert_eq!(lazy_assign, expected_lazy);
+
+        let expected: Vec<ValueT> = data
+            .iter()
+            .map(|&v| shoup.factor_mul_modulo(v, modulus))
+            .collect();
+
+        let mut assign = data.clone();
+        shoup.factor_mul_slice_assign(&mut assign, modulus);
+        assert_eq!(assign, expected);
+
+        let mut output = vec![ValueT::default(); data.len()];
+        shoup.factor_mul_slice_to(&data, &mut output, modulus);
+        assert_eq!(output, expected);
+
+        let mut acc: Vec<ValueT> = distr.sample_iter(&mut rng).take(data.len()).collect();
+        let expected_add: Vec<ValueT> = acc
+            .iter()
+            .zip(&data)
+            .map(|(&acc, &value)| {
+                ((acc as WideT + ((shoup.value as WideT * value as WideT) % modulus as WideT))
+                    % modulus as WideT) as ValueT
+            })
+            .collect();
+
+        shoup.add_factor_mul_slice_assign(&mut acc, &data, modulus);
+        assert_eq!(acc, expected_add);
+    }
+
+    #[test]
+    fn test_shoup_slice_ops_u128_scalar_backend() {
+        let modulus = 1_125_899_906_826_241u128;
+        let shoup = ShoupFactor::new(123_456_789u128, modulus);
+        let data = [
+            0u128,
+            1,
+            42,
+            132_120_577,
+            536_813_569,
+            modulus - 1,
+            modulus / 2,
+        ];
+
+        let expected: Vec<_> = data
+            .iter()
+            .map(|&value| shoup.factor_mul_modulo(value, modulus))
+            .collect();
+        let mut output = vec![0u128; data.len()];
+
+        shoup.factor_mul_slice_to(&data, &mut output, modulus);
+        assert_eq!(output, expected);
+    }
+
+    /// Verifies that the SIMD kernel works at a non-default lane count.
+    #[cfg(all(feature = "nightly", feature = "simd"))]
+    #[test]
+    fn test_shoup_simd_kernel_custom_lanes() {
+        let mut rng = rand::rng();
+
+        let modulus: ValueT = 132120577;
+        let distr = Uniform::new(0, modulus).unwrap();
+
+        let shoup = ShoupFactor::new(rng.sample(distr), modulus);
+        let data: Vec<ValueT> = distr.sample_iter(&mut rng).take(67).collect();
+
+        let expected: Vec<ValueT> = data
+            .iter()
+            .map(|&v| shoup.factor_mul_modulo(v, modulus))
+            .collect();
+
+        // Force a different lane count than the compile-time default.
+        let mut output = vec![ValueT::default(); data.len()];
+        simd_kernel::factor_mul_slice_to::<ValueT, 16>(shoup, &data, &mut output, modulus);
+        assert_eq!(output, expected);
+
+        let mut output = vec![ValueT::default(); data.len()];
+        simd_kernel::factor_mul_slice_to::<ValueT, 4>(shoup, &data, &mut output, modulus);
+        assert_eq!(output, expected);
     }
 }
