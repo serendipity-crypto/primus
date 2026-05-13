@@ -21,12 +21,16 @@ mod common;
 mod error;
 
 pub mod lazy_ops;
+pub mod lazy_slice_ops;
 pub mod ops;
+pub mod slice_ops;
 
 pub use common::{FieldContext, RingContext};
 pub use error::ReduceError;
 pub use lazy_ops::*;
+pub use lazy_slice_ops::*;
 pub use ops::*;
+pub use slice_ops::*;
 
 use num_traits::ConstZero;
 use primus_integer::Integer;

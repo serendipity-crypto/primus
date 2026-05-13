@@ -5,9 +5,50 @@ use crate::integer::{DivRemScalar, UnsignedInteger};
 mod ops;
 #[cfg(all(feature = "nightly", feature = "simd"))]
 mod simd;
+mod slice;
 
 #[cfg(all(feature = "nightly", feature = "simd"))]
 pub use simd::SimdBarrettModulus;
+
+/// Lower-level SIMD slice kernels with an explicit lane count, for callers
+/// that want to override the default vector width.
+///
+/// The default slice trait impls in [`slice`] pick a lane count at compile
+/// time based on the target CPU's SIMD width (see [`default_lanes`]).
+/// Reach for this module only when you have measured a different `N` that
+/// performs better on your workload.
+#[cfg(all(feature = "nightly", feature = "simd"))]
+pub mod simd_kernel {
+    pub use super::simd::{
+        lazy_reduce_add_mul_slice_assign, lazy_reduce_mul_add_slice_to,
+        lazy_reduce_mul_slice_assign, lazy_reduce_mul_slice_to,
+        lazy_reduce_scalar_mul_add_slice_to, lazy_reduce_sub_mul_slice_assign,
+        reduce_add_mul_slice_assign, reduce_add_slice_assign, reduce_add_slice_to,
+        reduce_mul_add_slice_to, reduce_mul_slice_assign, reduce_mul_slice_to,
+        reduce_neg_slice_assign, reduce_neg_slice_to, reduce_once_slice_assign,
+        reduce_once_slice_to, reduce_scalar_mul_add_slice_to, reduce_sub_mul_slice_assign,
+        reduce_sub_slice_assign, reduce_sub_slice_to,
+    };
+}
+
+/// Compile-time SIMD vector width chosen for the current target.
+#[cfg(all(feature = "nightly", feature = "simd"))]
+pub mod default_lanes {
+    /// Native SIMD vector width in bits.
+    ///
+    /// * AVX-512 → 512 bits
+    /// * AVX2 → 256 bits
+    /// * other (NEON / SSE2 / no SIMD) → 256 bits as a "wide fallback".
+    ///   `portable_simd` lowers oversize vectors to multiple native
+    ///   instructions, which on 128-bit ISAs behaves like 2× loop unrolling
+    ///   and is usually as fast or faster than a 128-bit default. Build with
+    ///   `-C target-cpu=native` (or `-C target-feature=+avx512f`) to get a
+    ///   wider native width when the host supports it.
+    #[cfg(target_feature = "avx512f")]
+    pub const VECTOR_BITS: usize = 512;
+    #[cfg(not(target_feature = "avx512f"))]
+    pub const VECTOR_BITS: usize = 256;
+}
 
 /// A modulus, using barrett reduction algorithm.
 ///
