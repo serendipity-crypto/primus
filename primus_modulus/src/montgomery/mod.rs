@@ -5,6 +5,7 @@ use primus_integer::DivRemScalar;
 use crate::integer::UnsignedInteger;
 
 mod ops;
+mod slice;
 
 /// A modulus using Montgomery reduction algorithm.
 ///

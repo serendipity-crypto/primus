@@ -74,7 +74,7 @@ impl<T: UnsignedInteger, M> RingContext<T> for M where
 ///
 /// Granted automatically (blanket impl) when the type already satisfies
 /// [`RingContext`] and additionally implements the listed
-/// `LazyReduce*` / inverse / division traits.
+/// `LazyReduce*` / inverse / division / slice traits.
 pub trait FieldContext<T>:
     RingContext<T>
     + LazyReduce<T, Output = T>
@@ -90,6 +90,8 @@ pub trait FieldContext<T>:
     + ReduceInvAssign<T>
     + ReduceDiv<T, Output = T>
     + ReduceDivAssign<T>
+    + ReduceMulAddSlice<T>
+    + LazyReduceMulAddSlice<T>
 {
 }
 
@@ -108,5 +110,7 @@ impl<T: UnsignedInteger, M> FieldContext<T> for M where
         + ReduceInvAssign<T>
         + ReduceDiv<T, Output = T>
         + ReduceDivAssign<T>
+        + ReduceMulAddSlice<T>
+        + LazyReduceMulAddSlice<T>
 {
 }

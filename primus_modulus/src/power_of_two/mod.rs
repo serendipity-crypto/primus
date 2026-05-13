@@ -1,6 +1,7 @@
 use primus_integer::UnsignedInteger;
 
 mod ops;
+mod slice;
 
 /// Power of 2 modulus.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -3,6 +3,7 @@ use core::marker::PhantomData;
 use primus_integer::UnsignedInteger;
 
 mod ops;
+mod slice;
 
 /// Native modulus.
 ///

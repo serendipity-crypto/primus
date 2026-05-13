@@ -20,6 +20,10 @@ rand = { workspace = true }
 name = "modulus"
 harness = false
 
+[[bench]]
+name = "barrett_slice"
+harness = false
+
 [features]
 default = ["derive"]
 nightly = ["primus_integer/nightly"]

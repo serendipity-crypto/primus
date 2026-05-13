@@ -414,5 +414,117 @@ pub(crate) fn impl_reduce_ops(name: &Ident, modulus: &TokenStream, ty: &syn::Pat
                 result
             }
         }
+
+        impl ::primus_modulus::reduce::slice_ops::ReduceMulAddSlice<#ty> for #name {
+            #[inline]
+            fn reduce_add_mul_slice_assign(self, acc: &mut [#ty], a: &[#ty], b: &[#ty]) {
+                use ::primus_modulus::reduce::ops::ReduceMulAdd;
+                debug_assert_eq!(acc.len(), a.len());
+                debug_assert_eq!(acc.len(), b.len());
+                acc.iter_mut().zip(a).zip(b).for_each(|((acc, &a), &b)| {
+                    *acc = self.reduce_mul_add(a, b, *acc);
+                });
+            }
+
+            #[inline]
+            fn reduce_sub_mul_slice_assign(self, acc: &mut [#ty], a: &[#ty], b: &[#ty]) {
+                use ::primus_modulus::reduce::ops::{ReduceMul, ReduceSubAssign};
+                debug_assert_eq!(acc.len(), a.len());
+                debug_assert_eq!(acc.len(), b.len());
+                acc.iter_mut().zip(a).zip(b).for_each(|((acc, &a), &b)| {
+                    let prod = self.reduce_mul(a, b);
+                    self.reduce_sub_assign(acc, prod);
+                });
+            }
+
+            #[inline]
+            fn reduce_mul_add_slice_to(
+                self,
+                a: &[#ty],
+                b: &[#ty],
+                c: &[#ty],
+                output: &mut [#ty],
+            ) {
+                use ::primus_modulus::reduce::ops::ReduceMulAdd;
+                debug_assert_eq!(a.len(), b.len());
+                debug_assert_eq!(a.len(), c.len());
+                debug_assert_eq!(a.len(), output.len());
+                a.iter().zip(b).zip(c).zip(output).for_each(|(((&a, &b), &c), o)| {
+                    *o = self.reduce_mul_add(a, b, c);
+                });
+            }
+
+            #[inline]
+            fn reduce_scalar_mul_add_slice_to(
+                self,
+                scalar: #ty,
+                b: &[#ty],
+                c: &[#ty],
+                output: &mut [#ty],
+            ) {
+                use ::primus_modulus::reduce::ops::ReduceMulAdd;
+                debug_assert_eq!(b.len(), c.len());
+                debug_assert_eq!(b.len(), output.len());
+                b.iter().zip(c).zip(output).for_each(|((&b, &c), o)| {
+                    *o = self.reduce_mul_add(scalar, b, c);
+                });
+            }
+        }
+
+        impl ::primus_modulus::reduce::lazy_slice_ops::LazyReduceMulAddSlice<#ty> for #name {
+            #[inline]
+            fn lazy_reduce_add_mul_slice_assign(self, acc: &mut [#ty], a: &[#ty], b: &[#ty]) {
+                use ::primus_modulus::reduce::lazy_ops::LazyReduceMulAdd;
+                debug_assert_eq!(acc.len(), a.len());
+                debug_assert_eq!(acc.len(), b.len());
+                acc.iter_mut().zip(a).zip(b).for_each(|((acc, &a), &b)| {
+                    *acc = self.lazy_reduce_mul_add(a, b, *acc);
+                });
+            }
+
+            #[inline]
+            fn lazy_reduce_sub_mul_slice_assign(self, acc: &mut [#ty], a: &[#ty], b: &[#ty]) {
+                use ::primus_modulus::reduce::ops::{ReduceMul, ReduceSubAssign};
+                debug_assert_eq!(acc.len(), a.len());
+                debug_assert_eq!(acc.len(), b.len());
+                acc.iter_mut().zip(a).zip(b).for_each(|((acc, &a), &b)| {
+                    let prod = self.reduce_mul(a, b);
+                    self.reduce_sub_assign(acc, prod);
+                });
+            }
+
+            #[inline]
+            fn lazy_reduce_mul_add_slice_to(
+                self,
+                a: &[#ty],
+                b: &[#ty],
+                c: &[#ty],
+                output: &mut [#ty],
+            ) {
+                use ::primus_modulus::reduce::lazy_ops::LazyReduceMulAdd;
+                debug_assert_eq!(a.len(), b.len());
+                debug_assert_eq!(a.len(), c.len());
+                debug_assert_eq!(a.len(), output.len());
+                a.iter().zip(b).zip(c).zip(output).for_each(|(((&a, &b), &c), o)| {
+                    *o = self.lazy_reduce_mul_add(a, b, c);
+                });
+            }
+
+            #[inline]
+            fn lazy_reduce_scalar_mul_add_slice_to(
+                self,
+                scalar: #ty,
+                b: &[#ty],
+                c: &[#ty],
+                output: &mut [#ty],
+            ) {
+                use ::primus_modulus::reduce::lazy_ops::LazyReduceMulAdd;
+                debug_assert_eq!(b.len(), c.len());
+                debug_assert_eq!(b.len(), output.len());
+                b.iter().zip(c).zip(output).for_each(|((&b, &c), o)| {
+                    *o = self.lazy_reduce_mul_add(scalar, b, c);
+                });
+            }
+        }
     }
 }

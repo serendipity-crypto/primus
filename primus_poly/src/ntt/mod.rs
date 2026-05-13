@@ -1,6 +1,6 @@
 use num_traits::Zero;
-use primus_integer::{ByteCount, Data, DataMut, DataOwned, RawData, Size, UnsignedInteger, izip};
-use primus_reduce::{lazy_ops::LazyReduceMulAdd, ops::ReduceMulAdd};
+use primus_integer::{ByteCount, Data, DataMut, DataOwned, RawData, Size, UnsignedInteger};
+use primus_reduce::{LazyReduceMulAddSlice, ReduceMulAddSlice};
 
 mod basic;
 mod random;
@@ -100,12 +100,11 @@ where
         b: &NttPolynomial<B>,
         modulus: M,
     ) where
-        M: Copy + ReduceMulAdd<T, Output = T>,
+        M: Copy + ReduceMulAddSlice<T>,
         A: RawData<Elem = T> + Data,
         B: RawData<Elem = T> + Data,
     {
-        izip!(self.iter_mut(), a.iter(), b.iter())
-            .for_each(|(z, &x, &y)| *z = modulus.reduce_mul_add(x, y, *z));
+        modulus.reduce_add_mul_slice_assign(self.as_mut_slice(), a.as_slice(), b.as_slice());
     }
 
     /// Performs `self = self + (a * b)`.
@@ -116,11 +115,10 @@ where
         b: &NttPolynomial<A>,
         modulus: M,
     ) where
-        M: Copy + LazyReduceMulAdd<T, Output = T>,
+        M: Copy + LazyReduceMulAddSlice<T>,
         A: RawData<Elem = T> + Data,
     {
-        izip!(self.iter_mut(), a.iter(), b.iter())
-            .for_each(|(z, &x, &y)| *z = modulus.lazy_reduce_mul_add(x, y, *z));
+        modulus.lazy_reduce_add_mul_slice_assign(self.as_mut_slice(), a.as_slice(), b.as_slice());
     }
 }
 
@@ -170,11 +168,15 @@ where
         result: &mut NttPolynomial<A>,
         modulus: M,
     ) where
-        M: Copy + ReduceMulAdd<T, Output = T>,
+        M: Copy + ReduceMulAddSlice<T>,
         A: RawData<Elem = T> + DataMut,
     {
-        izip!(result.iter_mut(), self.iter(), b.iter(), c.iter())
-            .for_each(|(d, &a, &b, &c)| *d = modulus.reduce_mul_add(a, b, c));
+        modulus.reduce_mul_add_slice_to(
+            self.as_slice(),
+            b.as_slice(),
+            c.as_slice(),
+            result.as_mut_slice(),
+        );
     }
 
     /// Performs `result = self * b + c`.
@@ -186,11 +188,15 @@ where
         result: &mut NttPolynomial<A>,
         modulus: M,
     ) where
-        M: Copy + LazyReduceMulAdd<T, Output = T>,
+        M: Copy + LazyReduceMulAddSlice<T>,
         A: RawData<Elem = T> + DataMut,
     {
-        izip!(result.iter_mut(), self.iter(), b.iter(), c.iter())
-            .for_each(|(d, &a, &b, &c)| *d = modulus.lazy_reduce_mul_add(a, b, c));
+        modulus.lazy_reduce_mul_add_slice_to(
+            self.as_slice(),
+            b.as_slice(),
+            c.as_slice(),
+            result.as_mut_slice(),
+        );
     }
 }
 
