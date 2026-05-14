@@ -9,7 +9,7 @@ type ValueT = u64;
 
 fn bench_reduce_mul(c: &mut Criterion) {
     // Barrett
-    let barrett_mod = BarrettModulus::<ValueT>::new(0xFFFF_FFFF_0000_0000 - 1);
+    let barrett_mod = BarrettModulus::<ValueT>::new((1u64 << 62) - 1);
     let m = barrett_mod.value();
 
     let distr = Uniform::new(0, m).unwrap();
