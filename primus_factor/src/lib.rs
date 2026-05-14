@@ -52,6 +52,24 @@ pub trait FactorSliceOps<T> {
     ///
     /// Panics if `acc.len() != rhs.len()`.
     fn add_factor_mul_slice_assign(self, acc: &mut [T], rhs: &[T], modulus: T);
+
+    /// Calculates `acc -= factor * rhs (mod modulus)` element-wise.
+    ///
+    /// Useful for NTT inverse butterflies where `factor` is a fixed twiddle.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `acc.len() != rhs.len()`.
+    fn sub_factor_mul_slice_assign(self, acc: &mut [T], rhs: &[T], modulus: T);
+
+    /// Calculates `output[i] = factor * b[i] + c[i] (mod modulus)`.
+    ///
+    /// Useful for NTT forward butterflies where `factor` is a fixed twiddle.
+    ///
+    /// # Panics
+    ///
+    /// Panics if any of `b`, `c`, `output` lengths differ.
+    fn factor_mul_add_slice_to(self, b: &[T], c: &[T], output: &mut [T], modulus: T);
 }
 
 pub use multiply::MultiplyFactor;

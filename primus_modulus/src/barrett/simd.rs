@@ -1,6 +1,6 @@
 use std::simd::{
     Simd,
-    cmp::{SimdPartialEq, SimdPartialOrd},
+    cmp::{SimdOrd, SimdPartialEq, SimdPartialOrd},
 };
 
 use primus_integer::{
@@ -180,7 +180,11 @@ fn simd_reduce_once<T: SimdUnsignedInteger, const N: usize>(
 where
     Simd<T, N>: SimdArray<T, N>,
 {
-    v.simd_ge(m).select(v - m, v)
+    // `min(v, v - m)` trick: when `v < m`, `v - m` wraps to a huge value so
+    // unsigned min picks `v`; when `v >= m`, `v - m` is the canonical form
+    // and is smaller than `v`. Lowers to a single `vpminuq` on AVX-512
+    // (vs. compare + blend + sub).
+    v.simd_min(v - m)
 }
 
 #[inline]
@@ -193,7 +197,7 @@ where
     Simd<T, N>: SimdArray<T, N>,
 {
     let sum = a + b;
-    sum.simd_ge(m).select(sum - m, sum)
+    sum.simd_min(sum - m)
 }
 
 #[inline]
@@ -205,10 +209,11 @@ fn simd_reduce_sub<T: SimdUnsignedInteger, const N: usize>(
 where
     Simd<T, N>: SimdArray<T, N>,
 {
-    // Branchless: pre-add `m` when `a < b` so the subtract stays unsigned.
-    let need_aug = a.simd_lt(b);
-    let a_aug = need_aug.select(a + m, a);
-    a_aug - b
+    // Branchless: compute the wrapping difference first, then add `m` back
+    // only on lanes where the original `a < b` borrowed. On AVX-512 this
+    // tends to lower to `vpsubq` + `vpcmpltuq` + `vpaddq{k}` (masked add).
+    let diff = a - b;
+    a.simd_lt(b).select(diff + m, diff)
 }
 
 #[inline]
@@ -612,8 +617,35 @@ pub fn lazy_reduce_sub_mul_slice_assign<T: SimdUnsignedInteger, const N: usize>(
 ) where
     Simd<T, N>: SimdArray<T, N>,
 {
-    // No genuine lazy form for sub-mul on Barrett — route to canonical.
-    reduce_sub_mul_slice_assign::<T, N>(modulus, acc, a, b);
+    // True lazy form: skip the `reduce_once` on the product.
+    //
+    // `prod_lazy ∈ [0, 2m)`, `acc ∈ [0, m)`. We want
+    // `(acc − prod_lazy) mod m` in `[0, 2m)`:
+    //   - `acc ≥ prod_lazy` ⇒ `diff = acc − prod_lazy ∈ [0, m)`
+    //   - `acc <  prod_lazy` ⇒ `acc − prod_lazy + 2m ∈ [1, 2m − 1]`
+    //
+    // Barrett guarantees `2m < 2^BITS`, so the wrapping add of `2m` to the
+    // wrap-borrowed `diff` produces the correct value modulo `2^BITS`.
+    debug_assert_eq!(acc.len(), a.len());
+    debug_assert_eq!(acc.len(), b.len());
+    let sm = SimdBarrettModulus::<T, N>::from(modulus);
+    let m = Simd::splat(modulus.value());
+    let two_m = m + m;
+    let (acc_chunks, acc_rem) = acc.as_chunks_mut::<N>();
+    let (a_chunks, a_rem) = a.as_chunks::<N>();
+    let (b_chunks, b_rem) = b.as_chunks::<N>();
+    for ((accc, ac), bc) in acc_chunks.iter_mut().zip(a_chunks).zip(b_chunks) {
+        let accv = Simd::from_array(*accc);
+        let av = Simd::from_array(*ac);
+        let bv = Simd::from_array(*bc);
+        let prod_lazy = sm.lazy_reduce_mul(av, bv);
+        let diff = accv - prod_lazy;
+        *accc = accv
+            .simd_lt(prod_lazy)
+            .select(diff + two_m, diff)
+            .to_array();
+    }
+    super::slice::scalar_lazy_reduce_sub_mul_slice_assign(modulus, acc_rem, a_rem, b_rem);
 }
 
 #[inline]

@@ -1,4 +1,7 @@
-use core::simd::{Simd, cmp::SimdPartialOrd};
+use core::simd::{
+    Simd,
+    cmp::{SimdOrd, SimdPartialOrd},
+};
 
 use primus_integer::{DivRemScalar, SimdArray, SimdMaskArray, SimdUnsignedInteger, WideningMul};
 
@@ -237,11 +240,71 @@ pub fn add_factor_mul_slice_assign<T: SimdUnsignedInteger, const N: usize>(
         let acc_value = Simd::from_array(*acc);
         let product = simd_factor.factor_mul_modulo(Simd::from_array(*rhs), simd_modulus);
         let sum = acc_value + product;
-        *acc = sum
-            .simd_ge(simd_modulus)
-            .select(sum - simd_modulus, sum)
-            .to_array();
+        // `acc, product ∈ [0, modulus)` ⇒ `sum ∈ [0, 2*modulus)`. The
+        // `min(sum, sum - m)` trick lowers to `vpminuq` on AVX-512.
+        *acc = sum.simd_min(sum - simd_modulus).to_array();
     }
 
     super::scalar_add_factor_mul_slice_assign(factor, acc_rem, rhs_rem, modulus);
+}
+
+#[inline]
+pub fn sub_factor_mul_slice_assign<T: SimdUnsignedInteger, const N: usize>(
+    factor: ShoupFactor<T>,
+    acc: &mut [T],
+    rhs: &[T],
+    modulus: T,
+) where
+    Simd<T, N>: SimdArray<T, N>,
+{
+    assert_eq!(acc.len(), rhs.len());
+
+    let simd_factor = SimdShoupFactor::<T, N>::from(factor);
+    let simd_modulus = Simd::splat(modulus);
+
+    let (acc_chunks, acc_rem) = acc.as_chunks_mut::<N>();
+    let (rhs_chunks, rhs_rem) = rhs.as_chunks::<N>();
+    for (acc, rhs) in acc_chunks.iter_mut().zip(rhs_chunks) {
+        let acc_value = Simd::from_array(*acc);
+        let product = simd_factor.factor_mul_modulo(Simd::from_array(*rhs), simd_modulus);
+        // Branchless `(acc - product) mod modulus`.
+        let diff = acc_value - product;
+        *acc = acc_value
+            .simd_lt(product)
+            .select(diff + simd_modulus, diff)
+            .to_array();
+    }
+
+    super::scalar_sub_factor_mul_slice_assign(factor, acc_rem, rhs_rem, modulus);
+}
+
+#[inline]
+pub fn factor_mul_add_slice_to<T: SimdUnsignedInteger, const N: usize>(
+    factor: ShoupFactor<T>,
+    b: &[T],
+    c: &[T],
+    output: &mut [T],
+    modulus: T,
+) where
+    Simd<T, N>: SimdArray<T, N>,
+{
+    assert_eq!(b.len(), c.len());
+    assert_eq!(b.len(), output.len());
+
+    let simd_factor = SimdShoupFactor::<T, N>::from(factor);
+    let simd_modulus = Simd::splat(modulus);
+
+    let (b_chunks, b_rem) = b.as_chunks::<N>();
+    let (c_chunks, c_rem) = c.as_chunks::<N>();
+    let (out_chunks, out_rem) = output.as_chunks_mut::<N>();
+    for ((bc, cc), oc) in b_chunks.iter().zip(c_chunks).zip(out_chunks) {
+        let bv = Simd::from_array(*bc);
+        let cv = Simd::from_array(*cc);
+        let product = simd_factor.factor_mul_modulo(bv, simd_modulus);
+        // `product, c ∈ [0, modulus)` ⇒ `sum ∈ [0, 2*modulus)`.
+        let sum = product + cv;
+        *oc = sum.simd_min(sum - simd_modulus).to_array();
+    }
+
+    super::scalar_factor_mul_add_slice_to(factor, b_rem, c_rem, out_rem, modulus);
 }

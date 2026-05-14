@@ -18,8 +18,9 @@ pub use simd::SimdShoupFactor;
 #[cfg(all(feature = "nightly", feature = "simd"))]
 pub mod simd_kernel {
     pub use super::simd::{
-        add_factor_mul_slice_assign, factor_mul_slice_assign, factor_mul_slice_to,
-        lazy_factor_mul_slice_assign, lazy_factor_mul_slice_to,
+        add_factor_mul_slice_assign, factor_mul_add_slice_to, factor_mul_slice_assign,
+        factor_mul_slice_to, lazy_factor_mul_slice_assign, lazy_factor_mul_slice_to,
+        sub_factor_mul_slice_assign,
     };
 }
 
@@ -192,6 +193,41 @@ pub(super) fn scalar_add_factor_mul_slice_assign<T: UnsignedInteger>(
     });
 }
 
+#[inline]
+pub(super) fn scalar_sub_factor_mul_slice_assign<T: UnsignedInteger>(
+    factor: ShoupFactor<T>,
+    acc: &mut [T],
+    rhs: &[T],
+    modulus: T,
+) {
+    assert_eq!(acc.len(), rhs.len());
+    acc.iter_mut().zip(rhs).for_each(|(acc, &rhs)| {
+        let prod = factor.factor_mul_modulo(rhs, modulus);
+        // `*acc - prod (mod modulus)`. Both are in `[0, modulus)`.
+        *acc = if *acc >= prod {
+            *acc - prod
+        } else {
+            acc.wrapping_add(modulus).wrapping_sub(prod)
+        };
+    });
+}
+
+#[inline]
+pub(super) fn scalar_factor_mul_add_slice_to<T: UnsignedInteger>(
+    factor: ShoupFactor<T>,
+    b: &[T],
+    c: &[T],
+    output: &mut [T],
+    modulus: T,
+) {
+    assert_eq!(b.len(), c.len());
+    assert_eq!(b.len(), output.len());
+    b.iter().zip(c).zip(output).for_each(|((&b, &c), o)| {
+        let prod = factor.factor_mul_modulo(b, modulus);
+        *o = reduce_add(prod, c, modulus);
+    });
+}
+
 macro_rules! impl_shoup_factor_slice_ops_scalar {
     ($($t:ty),* $(,)?) => {
         $(
@@ -221,6 +257,22 @@ macro_rules! impl_shoup_factor_slice_ops_scalar {
                 #[inline]
                 fn add_factor_mul_slice_assign(self, acc: &mut [$t], rhs: &[$t], modulus: $t) {
                     scalar_add_factor_mul_slice_assign(self, acc, rhs, modulus);
+                }
+
+                #[inline]
+                fn sub_factor_mul_slice_assign(self, acc: &mut [$t], rhs: &[$t], modulus: $t) {
+                    scalar_sub_factor_mul_slice_assign(self, acc, rhs, modulus);
+                }
+
+                #[inline]
+                fn factor_mul_add_slice_to(
+                    self,
+                    b: &[$t],
+                    c: &[$t],
+                    output: &mut [$t],
+                    modulus: $t,
+                ) {
+                    scalar_factor_mul_add_slice_to(self, b, c, output, modulus);
                 }
             }
         )*
@@ -256,6 +308,22 @@ macro_rules! impl_shoup_factor_slice_ops_simd {
             #[inline]
             fn add_factor_mul_slice_assign(self, acc: &mut [$t], rhs: &[$t], modulus: $t) {
                 simd::add_factor_mul_slice_assign::<$t, { $lanes }>(self, acc, rhs, modulus);
+            }
+
+            #[inline]
+            fn sub_factor_mul_slice_assign(self, acc: &mut [$t], rhs: &[$t], modulus: $t) {
+                simd::sub_factor_mul_slice_assign::<$t, { $lanes }>(self, acc, rhs, modulus);
+            }
+
+            #[inline]
+            fn factor_mul_add_slice_to(
+                self,
+                b: &[$t],
+                c: &[$t],
+                output: &mut [$t],
+                modulus: $t,
+            ) {
+                simd::factor_mul_add_slice_to::<$t, { $lanes }>(self, b, c, output, modulus);
             }
         }
     };
@@ -360,6 +428,38 @@ mod tests {
 
         shoup.add_factor_mul_slice_assign(&mut acc, &data, modulus);
         assert_eq!(acc, expected_add);
+
+        // sub_factor_mul: acc -= factor * data (mod modulus)
+        let acc_init: Vec<ValueT> = distr.sample_iter(&mut rng).take(data.len()).collect();
+        let expected_sub: Vec<ValueT> = acc_init
+            .iter()
+            .zip(&data)
+            .map(|(&acc, &value)| {
+                let prod = ((shoup.value as WideT * value as WideT) % modulus as WideT) as ValueT;
+                if acc >= prod {
+                    acc - prod
+                } else {
+                    acc + modulus - prod
+                }
+            })
+            .collect();
+        let mut acc_sub = acc_init.clone();
+        shoup.sub_factor_mul_slice_assign(&mut acc_sub, &data, modulus);
+        assert_eq!(acc_sub, expected_sub);
+
+        // factor_mul_add: out = factor * data + c (mod modulus)
+        let c: Vec<ValueT> = distr.sample_iter(&mut rng).take(data.len()).collect();
+        let expected_mul_add: Vec<ValueT> = data
+            .iter()
+            .zip(&c)
+            .map(|(&v, &c)| {
+                let prod = (shoup.value as WideT * v as WideT) % modulus as WideT;
+                ((prod + c as WideT) % modulus as WideT) as ValueT
+            })
+            .collect();
+        let mut out_mul_add = vec![ValueT::default(); data.len()];
+        shoup.factor_mul_add_slice_to(&data, &c, &mut out_mul_add, modulus);
+        assert_eq!(out_mul_add, expected_mul_add);
     }
 
     #[test]

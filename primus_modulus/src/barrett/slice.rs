@@ -257,16 +257,26 @@ pub(super) fn scalar_lazy_reduce_sub_mul_slice_assign<T: UnsignedInteger>(
     a: &[T],
     b: &[T],
 ) {
-    // Lazy here means: result is allowed in [0, 2*modulus). We compute
-    // `acc - a*b` by rewriting it as `acc + (modulus - a*b mod modulus)`
-    // so the intermediate stays unsigned, then keep the canonical-add
-    // path; tightening to [0, 2m) is only profitable when no further
-    // borrow is needed. We just route to canonical for now.
+    // Lazy form: skip `reduce_once` on the product.
+    //
+    // `prod_lazy ∈ [0, 2m)`, `acc ∈ [0, m)`. We want
+    // `(acc − prod_lazy) mod m` in `[0, 2m)`:
+    //   - `acc ≥ prod_lazy` ⇒ `diff = acc − prod_lazy ∈ [0, m)`
+    //   - `acc <  prod_lazy` ⇒ `acc − prod_lazy + 2m ∈ [1, 2m − 1]`
+    //
+    // Barrett guarantees `2m < 2^BITS`, so the wrapping add of `2m` to the
+    // wrap-borrowed `diff` produces the correct value modulo `2^BITS`.
     debug_assert_eq!(acc.len(), a.len());
     debug_assert_eq!(acc.len(), b.len());
+    let two_m = modulus.value() << 1u32;
     acc.iter_mut().zip(a).zip(b).for_each(|((acc, &a), &b)| {
-        let prod = modulus.reduce_mul(a, b);
-        modulus.reduce_sub_assign(acc, prod);
+        let prod_lazy = modulus.lazy_reduce_mul(a, b);
+        let diff = acc.wrapping_sub(prod_lazy);
+        *acc = if *acc < prod_lazy {
+            diff.wrapping_add(two_m)
+        } else {
+            diff
+        };
     });
 }
 
@@ -832,6 +842,38 @@ mod tests {
             if *v >= MODULUS {
                 *v -= MODULUS;
             }
+        }
+        assert_eq!(acc_v, expected);
+    }
+
+    #[test]
+    fn lazy_sub_mul_slice_matches_canonical_mod_m() {
+        let m = BarrettModulus::<V>::new(MODULUS);
+        let acc = rand_slice(LEN);
+        let a = rand_slice(LEN);
+        let b = rand_slice(LEN);
+        let expected: Vec<V> = acc
+            .iter()
+            .zip(&a)
+            .zip(&b)
+            .map(|((&acc, &a), &b)| {
+                let prod = mul_mod(a, b);
+                if acc >= prod {
+                    acc - prod
+                } else {
+                    acc + MODULUS - prod
+                }
+            })
+            .collect();
+
+        let mut acc_v = acc.clone();
+        m.lazy_reduce_sub_mul_slice_assign(&mut acc_v, &a, &b);
+        // Lazy result is in [0, 2m); fold once for comparison.
+        for v in acc_v.iter_mut() {
+            if *v >= MODULUS {
+                *v -= MODULUS;
+            }
+            assert!(*v < MODULUS);
         }
         assert_eq!(acc_v, expected);
     }
