@@ -8,6 +8,40 @@
 //! SIMD lane elements. [`SimdArray`] extends [`Simd`] vectors with the
 //! arithmetic and comparison capabilities required by higher-level crates.
 //! [`SimdMaskArray`] provides the corresponding mask operations.
+//!
+//! [`default_lanes`] exposes the compile-time SIMD vector width chosen for
+//! the current target, used by downstream crates (`primus_modulus`,
+//! `primus_factor`, …) to pick a default lane count for their slice kernels.
+
+/// Compile-time SIMD vector width chosen for the current target.
+///
+/// This is the single source of truth for the default lane count used by
+/// SIMD slice kernels across the workspace. Downstream crates should read
+/// [`VECTOR_BITS`] (or call [`lanes`]) instead of re-defining their own
+/// per-target constant.
+pub mod default_lanes {
+    /// Native SIMD vector width in bits.
+    ///
+    /// * AVX-512 → 512 bits
+    /// * AVX2 → 256 bits
+    /// * other (NEON / SSE2 / no SIMD) → 256 bits as a "wide fallback".
+    ///   `portable_simd` lowers oversize vectors to multiple native
+    ///   instructions, which on 128-bit ISAs behaves like 2× loop unrolling
+    ///   and is usually as fast or faster than a 128-bit default. Build with
+    ///   `-C target-cpu=native` (or `-C target-feature=+avx512f`) to get a
+    ///   wider native width when the host supports it.
+    #[cfg(target_feature = "avx512f")]
+    pub const VECTOR_BITS: usize = 512;
+    #[cfg(not(target_feature = "avx512f"))]
+    pub const VECTOR_BITS: usize = 256;
+
+    /// Default lane count for an integer type of `BITS` bits.
+    #[inline]
+    #[must_use]
+    pub const fn lanes_for_bits(bits: usize) -> usize {
+        VECTOR_BITS / bits
+    }
+}
 
 use core::{
     fmt::Debug,

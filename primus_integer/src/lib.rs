@@ -30,4 +30,4 @@ pub use big_integer::{
 pub use data::{Data, DataMut, DataOwned, RawData};
 
 #[cfg(all(feature = "nightly", feature = "simd"))]
-pub use simd::{SimdArray, SimdMaskArray, SimdUnsignedInteger};
+pub use simd::{SimdArray, SimdMaskArray, SimdUnsignedInteger, default_lanes};

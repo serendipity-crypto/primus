@@ -3,7 +3,7 @@ use std::hint::black_box;
 use criterion::{Criterion, criterion_group, criterion_main};
 use primus_modulus::BarrettModulus;
 use primus_reduce::{
-    LazyReduceMulAdd, LazyReduceMulAddSlice, ReduceAdd, ReduceAddAssign, ReduceAddSlice, ReduceMul,
+    LazyReduceMulAdd, LazyReduceMulAddSlice, ReduceAddAssign, ReduceAddSlice, ReduceMul,
     ReduceMulAdd, ReduceMulAddSlice, ReduceMulSlice,
 };
 use rand::distr::{Distribution, Uniform};

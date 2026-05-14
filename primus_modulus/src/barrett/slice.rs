@@ -587,18 +587,18 @@ macro_rules! impl_barrett_slice_simd {
 }
 
 #[cfg(all(feature = "nightly", feature = "simd"))]
-impl_barrett_slice_simd!(u8, super::default_lanes::VECTOR_BITS / 8);
+impl_barrett_slice_simd!(u8, primus_integer::default_lanes::VECTOR_BITS / 8);
 #[cfg(all(feature = "nightly", feature = "simd"))]
-impl_barrett_slice_simd!(u16, super::default_lanes::VECTOR_BITS / 16);
+impl_barrett_slice_simd!(u16, primus_integer::default_lanes::VECTOR_BITS / 16);
 #[cfg(all(feature = "nightly", feature = "simd"))]
-impl_barrett_slice_simd!(u32, super::default_lanes::VECTOR_BITS / 32);
+impl_barrett_slice_simd!(u32, primus_integer::default_lanes::VECTOR_BITS / 32);
 #[cfg(all(feature = "nightly", feature = "simd"))]
-impl_barrett_slice_simd!(u64, super::default_lanes::VECTOR_BITS / 64);
+impl_barrett_slice_simd!(u64, primus_integer::default_lanes::VECTOR_BITS / 64);
 
 #[cfg(all(feature = "nightly", feature = "simd", target_pointer_width = "64"))]
-impl_barrett_slice_simd!(usize, super::default_lanes::VECTOR_BITS / 64);
+impl_barrett_slice_simd!(usize, primus_integer::default_lanes::VECTOR_BITS / 64);
 #[cfg(all(feature = "nightly", feature = "simd", target_pointer_width = "32"))]
-impl_barrett_slice_simd!(usize, super::default_lanes::VECTOR_BITS / 32);
+impl_barrett_slice_simd!(usize, primus_integer::default_lanes::VECTOR_BITS / 32);
 
 #[cfg(test)]
 mod tests {

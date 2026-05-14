@@ -58,4 +58,4 @@ pub use multiply::MultiplyFactor;
 pub use shoup_factor::ShoupFactor;
 
 #[cfg(all(feature = "nightly", feature = "simd"))]
-pub use shoup_factor::{SimdShoupFactor, default_lanes, simd_kernel};
+pub use shoup_factor::{SimdShoupFactor, simd_kernel};

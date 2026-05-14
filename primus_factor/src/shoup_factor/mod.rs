@@ -12,34 +12,15 @@ pub use simd::SimdShoupFactor;
 /// that want to override the default vector width.
 ///
 /// The default trait impls in [`ShoupFactorSliceOps`] pick a lane count at
-/// compile time based on the target CPU's SIMD width (see [`default_lanes`]).
-/// Reach for this module only when you have measured a different `N` that
-/// performs better on your workload.
+/// compile time based on the target CPU's SIMD width
+/// (see [`primus_integer::default_lanes`]). Reach for this module only when
+/// you have measured a different `N` that performs better on your workload.
 #[cfg(all(feature = "nightly", feature = "simd"))]
 pub mod simd_kernel {
     pub use super::simd::{
         add_factor_mul_slice_assign, factor_mul_slice_assign, factor_mul_slice_to,
         lazy_factor_mul_slice_assign, lazy_factor_mul_slice_to,
     };
-}
-
-/// Compile-time SIMD vector width chosen for the current target.
-#[cfg(all(feature = "nightly", feature = "simd"))]
-pub mod default_lanes {
-    /// Native SIMD vector width in bits.
-    ///
-    /// * AVX-512 → 512 bits
-    /// * AVX2 → 256 bits
-    /// * other (NEON / SSE2 / no SIMD) → 256 bits as a "wide fallback".
-    ///   `portable_simd` lowers oversize vectors to multiple native
-    ///   instructions, which on 128-bit ISAs behaves like 2× loop unrolling
-    ///   and is usually as fast or faster than a 128-bit default. Build with
-    ///   `-C target-cpu=native` (or `-C target-feature=+avx512f`) to get a
-    ///   wider native width when the host supports it.
-    #[cfg(target_feature = "avx512f")]
-    pub const VECTOR_BITS: usize = 512;
-    #[cfg(not(target_feature = "avx512f"))]
-    pub const VECTOR_BITS: usize = 256;
 }
 
 /// A number used for fast modular multiplication.
@@ -281,18 +262,18 @@ macro_rules! impl_shoup_factor_slice_ops_simd {
 }
 
 #[cfg(all(feature = "nightly", feature = "simd"))]
-impl_shoup_factor_slice_ops_simd!(u8, default_lanes::VECTOR_BITS / 8);
+impl_shoup_factor_slice_ops_simd!(u8, primus_integer::default_lanes::VECTOR_BITS / 8);
 #[cfg(all(feature = "nightly", feature = "simd"))]
-impl_shoup_factor_slice_ops_simd!(u16, default_lanes::VECTOR_BITS / 16);
+impl_shoup_factor_slice_ops_simd!(u16, primus_integer::default_lanes::VECTOR_BITS / 16);
 #[cfg(all(feature = "nightly", feature = "simd"))]
-impl_shoup_factor_slice_ops_simd!(u32, default_lanes::VECTOR_BITS / 32);
+impl_shoup_factor_slice_ops_simd!(u32, primus_integer::default_lanes::VECTOR_BITS / 32);
 #[cfg(all(feature = "nightly", feature = "simd"))]
-impl_shoup_factor_slice_ops_simd!(u64, default_lanes::VECTOR_BITS / 64);
+impl_shoup_factor_slice_ops_simd!(u64, primus_integer::default_lanes::VECTOR_BITS / 64);
 
 #[cfg(all(feature = "nightly", feature = "simd", target_pointer_width = "64"))]
-impl_shoup_factor_slice_ops_simd!(usize, default_lanes::VECTOR_BITS / 64);
+impl_shoup_factor_slice_ops_simd!(usize, primus_integer::default_lanes::VECTOR_BITS / 64);
 #[cfg(all(feature = "nightly", feature = "simd", target_pointer_width = "32"))]
-impl_shoup_factor_slice_ops_simd!(usize, default_lanes::VECTOR_BITS / 32);
+impl_shoup_factor_slice_ops_simd!(usize, primus_integer::default_lanes::VECTOR_BITS / 32);
 
 #[cfg(not(all(feature = "nightly", feature = "simd")))]
 impl_shoup_factor_slice_ops_scalar!(u8, u16, u32, u64, usize);

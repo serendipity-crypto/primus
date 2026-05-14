@@ -35,4 +35,4 @@ pub use unsigned_integer::UintModulus;
 pub use barrett::SimdBarrettModulus;
 
 #[cfg(all(feature = "nightly", feature = "simd"))]
-pub use barrett::{default_lanes as barrett_default_lanes, simd_kernel as barrett_simd_kernel};
+pub use barrett::simd_kernel as barrett_simd_kernel;
