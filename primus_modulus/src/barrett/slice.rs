@@ -7,10 +7,10 @@
 
 use primus_integer::UnsignedInteger;
 use primus_reduce::{
-    LazyReduceMul, LazyReduceMulAdd, LazyReduceMulAddSlice, LazyReduceMulSlice, ReduceAdd,
-    ReduceAddAssign, ReduceAddSlice, ReduceMul, ReduceMulAdd, ReduceMulAddSlice, ReduceMulSlice,
-    ReduceNeg, ReduceNegAssign, ReduceNegSlice, ReduceOnce, ReduceOnceAssign, ReduceOnceSlice,
-    ReduceSub, ReduceSubAssign, ReduceSubSlice,
+    LazyReduceMul, LazyReduceMulAdd, LazyReduceMulAddSlice, LazyReduceMulSlice, Reduce, ReduceAdd,
+    ReduceAddAssign, ReduceAddSlice, ReduceDotProduct, ReduceMul, ReduceMulAdd, ReduceMulAddSlice,
+    ReduceMulSlice, ReduceNeg, ReduceNegAssign, ReduceNegSlice, ReduceOnce, ReduceOnceAssign,
+    ReduceOnceSlice, ReduceSub, ReduceSubAssign, ReduceSubSlice,
 };
 
 use super::BarrettModulus;
@@ -315,6 +315,106 @@ pub(super) fn scalar_lazy_reduce_scalar_mul_add_slice_to<T: UnsignedInteger>(
 }
 
 // ---------------------------------------------------------------------------
+// dot_product helpers (used by the scalar trait impl AND as the tail of the
+// SIMD kernel — both call into `multiply_add` to accumulate widening products
+// into a double-word, then `BarrettModulus::reduce` to fold back to `[0, m)`).
+//
+// `DOT_PRODUCT_INNER_CHUNK = 16` is the maximum chunk size such that
+// `K * m^2 < 2^128` for any valid `BarrettModulus<T>` (where `m < 2^(T::BITS - 1)`
+// is enforced by `BarrettModulus::new`). On a `T = u64` modulus capped at
+// `2^62`, accumulating 16 widening products keeps the high limb strictly
+// below `2^64` and the low limb's carry strictly below `2^64`.
+// ---------------------------------------------------------------------------
+
+pub(super) const DOT_PRODUCT_INNER_CHUNK: usize = 16;
+
+/// `c += a * b` on a double-word accumulator.
+#[inline]
+pub(super) fn multiply_add<T: UnsignedInteger>(c: &mut [T; 2], a: T, b: T) {
+    let (lw, hw) = a.widening_mul(b);
+    let carry;
+    (c[0], carry) = c[0].overflowing_add(lw);
+    (c[1], _) = c[1].carrying_add(hw, carry);
+}
+
+#[inline]
+pub(super) fn scalar_reduce_dot_product<T: UnsignedInteger>(
+    modulus: BarrettModulus<T>,
+    a: &[T],
+    b: &[T],
+) -> T {
+    assert_eq!(a.len(), b.len(), "reduce_dot_product: length mismatch");
+
+    let mut a_iter = a.chunks_exact(DOT_PRODUCT_INNER_CHUNK);
+    let mut b_iter = b.chunks_exact(DOT_PRODUCT_INNER_CHUNK);
+
+    let inter = (&mut a_iter)
+        .zip(&mut b_iter)
+        .map(|(a_s, b_s)| {
+            let mut c: [T; 2] = [T::ZERO, T::ZERO];
+            for (&a, &b) in a_s.iter().zip(b_s) {
+                multiply_add(&mut c, a, b);
+            }
+            modulus.reduce(c)
+        })
+        .fold(T::ZERO, |acc: T, b| modulus.reduce_add(acc, b));
+
+    let mut c: [T; 2] = [T::ZERO, T::ZERO];
+    a_iter
+        .remainder()
+        .iter()
+        .zip(b_iter.remainder())
+        .for_each(|(&a, &b)| {
+            multiply_add(&mut c, a, b);
+        });
+    modulus.reduce_add(modulus.reduce(c), inter)
+}
+
+#[inline]
+pub(super) fn scalar_reduce_dot_product_iter<T: UnsignedInteger>(
+    modulus: BarrettModulus<T>,
+    a: impl IntoIterator<Item = T>,
+    b: impl IntoIterator<Item = T>,
+) -> T {
+    let mut a_iter = a.into_iter();
+    let mut b_iter = b.into_iter();
+
+    let mut a_temp_array = [T::ZERO; DOT_PRODUCT_INNER_CHUNK];
+    let mut b_temp_array = [T::ZERO; DOT_PRODUCT_INNER_CHUNK];
+
+    let mut i = 0;
+    let mut result = T::ZERO;
+
+    while let (Some(a_next), Some(b_next)) = (a_iter.next(), b_iter.next()) {
+        if i < DOT_PRODUCT_INNER_CHUNK {
+            a_temp_array[i] = a_next;
+            b_temp_array[i] = b_next;
+            i += 1;
+        } else {
+            let mut c: [T; 2] = [T::ZERO, T::ZERO];
+            for (&a, b) in a_temp_array.iter().zip(b_temp_array) {
+                multiply_add(&mut c, a, b);
+            }
+            modulus.reduce_add_assign(&mut result, modulus.reduce(c));
+
+            a_temp_array.fill(T::ZERO);
+            b_temp_array.fill(T::ZERO);
+            a_temp_array[0] = a_next;
+            b_temp_array[0] = b_next;
+            i = 1;
+        }
+    }
+
+    let mut c: [T; 2] = [T::ZERO, T::ZERO];
+    for (&a, &b) in a_temp_array[..i].iter().zip(b_temp_array[..i].iter()) {
+        multiply_add(&mut c, a, b);
+    }
+    modulus.reduce_add_assign(&mut result, modulus.reduce(c));
+
+    result
+}
+
+// ---------------------------------------------------------------------------
 // Trait impls — wires `BarrettModulus<T>` to either the scalar helpers or
 // the SIMD kernels in `super::simd`, selected per type via the macros below.
 // ---------------------------------------------------------------------------
@@ -459,6 +559,28 @@ macro_rules! impl_barrett_slice_scalar {
                     scalar_lazy_reduce_scalar_mul_add_slice_to(self, scalar, b, c, output)
                 }
             }
+
+            impl ReduceDotProduct<$t> for BarrettModulus<$t> {
+                type Output = $t;
+
+                #[inline]
+                fn reduce_dot_product(
+                    self,
+                    a: impl AsRef<[$t]>,
+                    b: impl AsRef<[$t]>,
+                ) -> $t {
+                    scalar_reduce_dot_product(self, a.as_ref(), b.as_ref())
+                }
+
+                #[inline]
+                fn reduce_dot_product_iter(
+                    self,
+                    a: impl IntoIterator<Item = $t>,
+                    b: impl IntoIterator<Item = $t>,
+                ) -> $t {
+                    scalar_reduce_dot_product_iter(self, a, b)
+                }
+            }
         )*
     };
 }
@@ -591,6 +713,28 @@ macro_rules! impl_barrett_slice_simd {
                 super::simd::lazy_reduce_scalar_mul_add_slice_to::<$t, { $lanes }>(
                     self, scalar, b, c, output,
                 )
+            }
+        }
+
+        impl ReduceDotProduct<$t> for BarrettModulus<$t> {
+            type Output = $t;
+
+            #[inline]
+            fn reduce_dot_product(
+                self,
+                a: impl AsRef<[$t]>,
+                b: impl AsRef<[$t]>,
+            ) -> $t {
+                super::simd::reduce_dot_product::<$t, { $lanes }>(self, a.as_ref(), b.as_ref())
+            }
+
+            #[inline]
+            fn reduce_dot_product_iter(
+                self,
+                a: impl IntoIterator<Item = $t>,
+                b: impl IntoIterator<Item = $t>,
+            ) -> $t {
+                scalar_reduce_dot_product_iter(self, a, b)
             }
         }
     };

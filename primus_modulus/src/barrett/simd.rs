@@ -6,7 +6,7 @@ use std::simd::{
 use primus_integer::{
     CarryingAdd, CarryingMul, SimdArray, SimdMaskArray, SimdUnsignedInteger, WideningMul,
 };
-use primus_reduce::lazy_ops::*;
+use primus_reduce::{ReduceAdd, lazy_ops::*};
 
 use super::BarrettModulus;
 
@@ -698,4 +698,82 @@ pub fn lazy_reduce_scalar_mul_add_slice_to<T: SimdUnsignedInteger, const N: usiz
         *oc = sm.lazy_reduce_mul_add(sv, bv, cv).to_array();
     }
     super::slice::scalar_lazy_reduce_scalar_mul_add_slice_to(modulus, scalar, b_rem, c_rem, o_rem);
+}
+
+// ---------------------------------------------------------------------------
+// SIMD dot_product
+//
+// Outer chunk size = `K * N`, where `K = super::slice::DOT_PRODUCT_INNER_CHUNK`
+// (currently 16). Inside each outer chunk we accumulate `K` SIMD widening
+// products into a `[Simd<T, N>; 2]` double-word per lane, then collapse the
+// double-word back into a single SIMD word in `[0, m)` via Barrett + the
+// `min(v, v - m)` reduce_once trick. Cross-chunk accumulation stays in `[0, m)`
+// lane-wise via `simd_reduce_add`, so the running SIMD accumulator never grows.
+// After the chunked loop, a horizontal modular sum collapses the N lanes to a
+// scalar, and any tail shorter than `K * N` is handled by the scalar helper.
+//
+// Hi-limb safety: each scalar widening product has `hi < m^2 / 2^BITS`, and the
+// lo-limb's running sum can carry at most `K - 1` extra units into hi. With
+// `m < 2^(BITS - 1)` enforced by `BarrettModulus::new` and `K ≤ 16`, both
+// limbs stay strictly below `2^BITS` — identical bound to the scalar path.
+// ---------------------------------------------------------------------------
+
+#[inline]
+pub fn reduce_dot_product<T: SimdUnsignedInteger, const N: usize>(
+    modulus: BarrettModulus<T>,
+    a: &[T],
+    b: &[T],
+) -> T
+where
+    Simd<T, N>: SimdArray<T, N>,
+{
+    assert_eq!(a.len(), b.len(), "reduce_dot_product: length mismatch");
+
+    let k = super::slice::DOT_PRODUCT_INNER_CHUNK;
+    let outer = k * N;
+
+    let sm = SimdBarrettModulus::<T, N>::from(modulus);
+    let m_simd = Simd::splat(modulus.value());
+    let one = Simd::<T, N>::splat(T::ONE);
+    let zero = Simd::<T, N>::splat(T::ZERO);
+
+    let mut total_acc = Simd::<T, N>::splat(T::ZERO);
+
+    let mut a_outer = a.chunks_exact(outer);
+    let mut b_outer = b.chunks_exact(outer);
+
+    for (a_chunk, b_chunk) in (&mut a_outer).zip(&mut b_outer) {
+        // Each outer chunk is exactly `K * N` elements, so the inner
+        // `as_chunks::<N>` always splits into `K` lane-wide subchunks with
+        // an empty tail.
+        let (a_lanes, _) = a_chunk.as_chunks::<N>();
+        let (b_lanes, _) = b_chunk.as_chunks::<N>();
+        let mut lo = Simd::<T, N>::splat(T::ZERO);
+        let mut hi = Simd::<T, N>::splat(T::ZERO);
+        for (a_n, b_n) in a_lanes.iter().zip(b_lanes) {
+            let av = Simd::<T, N>::from_array(*a_n);
+            let bv = Simd::<T, N>::from_array(*b_n);
+            let (l, h) = av.widening_mul(bv);
+            // Inline carry: lighter than `CarryingAdd::carrying_add` on
+            // AVX2, where the latter expands to add + mask cast + sub +
+            // 2x compare + or to surface a hi-carry we never use.
+            let new_lo = lo + l;
+            let carry = new_lo.simd_lt(lo).select(one, zero);
+            lo = new_lo;
+            hi = hi + h + carry;
+        }
+        let r = sm.lazy_reduce([lo, hi]);
+        let r = simd_reduce_once(r, m_simd);
+        total_acc = simd_reduce_add(total_acc, r, m_simd);
+    }
+
+    let tail_result =
+        super::slice::scalar_reduce_dot_product(modulus, a_outer.remainder(), b_outer.remainder());
+
+    let lanes = total_acc.to_array();
+    let mut result = T::ZERO;
+    for &v in lanes.iter() {
+        result = modulus.reduce_add(result, v);
+    }
+    modulus.reduce_add(result, tail_result)
 }

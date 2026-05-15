@@ -3,8 +3,8 @@ use std::hint::black_box;
 use criterion::{Criterion, criterion_group, criterion_main};
 use primus_modulus::BarrettModulus;
 use primus_reduce::{
-    LazyReduceMulAdd, LazyReduceMulAddSlice, ReduceAddAssign, ReduceAddSlice, ReduceMul,
-    ReduceMulAdd, ReduceMulAddSlice, ReduceMulSlice,
+    LazyReduceMulAdd, LazyReduceMulAddSlice, ReduceAdd, ReduceAddAssign, ReduceAddSlice,
+    ReduceDotProduct, ReduceMul, ReduceMulAdd, ReduceMulAddSlice, ReduceMulSlice,
 };
 use rand::distr::{Distribution, Uniform};
 
@@ -177,6 +177,36 @@ fn bench_mul_add_to(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_dot_product(c: &mut Criterion) {
+    let m = BarrettModulus::<V>::new(MODULUS);
+    let mut group = c.benchmark_group("dot_product");
+    for &n in &[1024usize, 4096, 16384] {
+        let a = rand_vec(n, MODULUS);
+        let b = rand_vec(n, MODULUS);
+
+        group.bench_function(format!("per_elem/n={n}"), |bencher| {
+            bencher.iter(|| {
+                let a = black_box(&a);
+                let b = black_box(&b);
+                let mut acc: V = 0;
+                for (&x, &y) in a.iter().zip(b) {
+                    acc = m.reduce_add(acc, m.reduce_mul(x, y));
+                }
+                acc
+            });
+        });
+
+        group.bench_function(format!("slice/n={n}"), |bencher| {
+            bencher.iter(|| {
+                let a = black_box(&a);
+                let b = black_box(&b);
+                m.reduce_dot_product(a, b)
+            });
+        });
+    }
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_add,
@@ -184,5 +214,6 @@ criterion_group!(
     bench_add_mul_assign,
     bench_lazy_add_mul_assign,
     bench_mul_add_to,
+    bench_dot_product,
 );
 criterion_main!(benches);

@@ -455,94 +455,6 @@ impl<T: UnsignedInteger> ReduceExpPowOf2<T> for BarrettModulus<T> {
     }
 }
 
-/// `c += a * b`
-fn multiply_add<T: UnsignedInteger>(c: &mut [T; 2], a: T, b: T) {
-    let (lw, hw) = a.widening_mul(b);
-    let carry;
-    (c[0], carry) = c[0].overflowing_add(lw);
-    (c[1], _) = c[1].carrying_add(hw, carry);
-}
-
-impl<T: UnsignedInteger> ReduceDotProduct<T> for BarrettModulus<T> {
-    type Output = T;
-
-    #[inline]
-    fn reduce_dot_product(self, a: impl AsRef<[T]>, b: impl AsRef<[T]>) -> T {
-        let a = a.as_ref();
-        let b = b.as_ref();
-
-        assert_eq!(a.len(), b.len(), "reduce_dot_product: length mismatch");
-
-        let mut a_iter = a.chunks_exact(16);
-        let mut b_iter = b.chunks_exact(16);
-
-        let inter = (&mut a_iter)
-            .zip(&mut b_iter)
-            .map(|(a_s, b_s)| {
-                let mut c: [T; 2] = [T::ZERO, T::ZERO];
-                for (&a, &b) in a_s.iter().zip(b_s) {
-                    multiply_add(&mut c, a, b);
-                }
-                self.reduce(c)
-            })
-            .fold(T::ZERO, |acc: T, b| self.reduce_add(acc, b));
-
-        let mut c: [T; 2] = [T::ZERO, T::ZERO];
-        a_iter
-            .remainder()
-            .iter()
-            .zip(b_iter.remainder())
-            .for_each(|(&a, &b)| {
-                multiply_add(&mut c, a, b);
-            });
-        self.reduce_add(self.reduce(c), inter)
-    }
-
-    #[inline]
-    fn reduce_dot_product_iter(
-        self,
-        a: impl IntoIterator<Item = T>,
-        b: impl IntoIterator<Item = T>,
-    ) -> T {
-        let mut a_iter = a.into_iter();
-        let mut b_iter = b.into_iter();
-
-        let mut a_temp_array = [T::ZERO; 16];
-        let mut b_temp_array = [T::ZERO; 16];
-
-        let mut i = 0;
-        let mut result = T::ZERO;
-
-        while let (Some(a_next), Some(b_next)) = (a_iter.next(), b_iter.next()) {
-            if i < 16 {
-                a_temp_array[i] = a_next;
-                b_temp_array[i] = b_next;
-                i += 1;
-            } else {
-                let mut c: [T; 2] = [T::ZERO, T::ZERO];
-                for (&a, b) in a_temp_array.iter().zip(b_temp_array) {
-                    multiply_add(&mut c, a, b);
-                }
-                self.reduce_add_assign(&mut result, self.reduce(c));
-
-                a_temp_array.fill(T::ZERO);
-                b_temp_array.fill(T::ZERO);
-                a_temp_array[0] = a_next;
-                b_temp_array[0] = b_next;
-                i = 1;
-            }
-        }
-
-        let mut c: [T; 2] = [T::ZERO, T::ZERO];
-        for (&a, &b) in a_temp_array[..i].iter().zip(b_temp_array[..i].iter()) {
-            multiply_add(&mut c, a, b);
-        }
-        self.reduce_add_assign(&mut result, self.reduce(c));
-
-        result
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use num_traits::{One, Zero};
@@ -616,6 +528,60 @@ mod tests {
                 "\nval:{value}\ninv:{inv}\nmod:{}",
                 modulus.value()
             );
+        }
+    }
+
+    #[test]
+    fn test_reduce_dot_product_barrett() {
+        // Cross-check `BarrettModulus<u32>::reduce_dot_product` against a
+        // naive u64 reference. Covers small/large `n`, including the SIMD-tail
+        // boundary at multiples of 16 lanes.
+        const M: u32 = 0x3fff_fffb; // largest u32 prime accepted by Barrett (< 2^30)
+        let modulus = BarrettModulus::<u32>::new(M);
+        let distr = rand::distr::Uniform::new(0, M).unwrap();
+        let mut rng = rng();
+
+        for &n in &[0usize, 1, 7, 15, 16, 17, 31, 32, 33, 127, 128, 129, 1000] {
+            let a: Vec<u32> = (0..n).map(|_| distr.sample(&mut rng)).collect();
+            let b: Vec<u32> = (0..n).map(|_| distr.sample(&mut rng)).collect();
+
+            let got = modulus.reduce_dot_product(&a, &b);
+            let expected = a
+                .iter()
+                .zip(&b)
+                .fold(0u64, |acc, (&x, &y)| (acc + x as u64 * y as u64) % M as u64)
+                as u32;
+            assert_eq!(got, expected, "len={n}");
+
+            // Iterator path should agree with the slice path.
+            let got_iter = modulus.reduce_dot_product_iter(a.iter().copied(), b.iter().copied());
+            assert_eq!(got_iter, expected, "iter len={n}");
+        }
+    }
+
+    #[test]
+    fn test_reduce_dot_product_barrett_u64() {
+        // Same as above but for u64 to exercise the wider SIMD lane path.
+        // `M ≈ 2^62 - 1` is the largest size accepted by `BarrettModulus::new`.
+        const M: u64 = 4_611_686_018_427_322_369;
+        let modulus = BarrettModulus::<u64>::new(M);
+        let distr = rand::distr::Uniform::new(0, M).unwrap();
+        let mut rng = rng();
+
+        for &n in &[0usize, 1, 8, 15, 16, 17, 31, 32, 33, 127, 128, 129, 1000] {
+            let a: Vec<u64> = (0..n).map(|_| distr.sample(&mut rng)).collect();
+            let b: Vec<u64> = (0..n).map(|_| distr.sample(&mut rng)).collect();
+
+            let got = modulus.reduce_dot_product(&a, &b);
+            let expected = a
+                .iter()
+                .zip(&b)
+                .fold(0u128, |acc, (&x, &y)| (acc + x as u128 * y as u128) % M as u128)
+                as u64;
+            assert_eq!(got, expected, "len={n}");
+
+            let got_iter = modulus.reduce_dot_product_iter(a.iter().copied(), b.iter().copied());
+            assert_eq!(got_iter, expected, "iter len={n}");
         }
     }
 }
