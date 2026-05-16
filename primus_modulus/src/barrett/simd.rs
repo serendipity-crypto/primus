@@ -10,6 +10,22 @@ use primus_reduce::{ReduceAdd, lazy_ops::*};
 
 use super::BarrettModulus;
 
+// Number of `Simd<T, N>` lane-wide chunks processed per outer loop iteration
+// in the mul-heavy kernels (`*_mul_*`, `*_mul_add_*`, `*_sub_mul_*`).
+//
+// On AVX-512 the Barrett `lazy_reduce_mul` critical path runs ~20 cycles
+// per chunk while AVX-512 mul throughput is 1/cycle (5–8 cycle latency),
+// so two interleaved dependency chains keep the mul/add ports busy.
+//
+// On narrower ISAs (AVX2, NEON, SSE2) `portable_simd` lowers a single
+// `Simd<u64, 8>` into multiple narrower native vectors, already saturating
+// the available registers — adding a 2× source-level unroll would spill to
+// the stack. Keep UNROLL = 1 there.
+#[cfg(target_feature = "avx512f")]
+const MUL_UNROLL: usize = 2;
+#[cfg(not(target_feature = "avx512f"))]
+const MUL_UNROLL: usize = 1;
+
 /// A modulus, using barrett reduction algorithm.
 ///
 /// The struct stores the modulus number and some precomputed
@@ -396,7 +412,16 @@ pub fn lazy_reduce_mul_slice_assign<T: SimdUnsignedInteger, const N: usize>(
     let sm = SimdBarrettModulus::<T, N>::from(modulus);
     let (a_chunks, a_rem) = a.as_chunks_mut::<N>();
     let (b_chunks, b_rem) = b.as_chunks::<N>();
-    for (ac, bc) in a_chunks.iter_mut().zip(b_chunks) {
+    let (a_groups, a_group_tail) = a_chunks.as_chunks_mut::<MUL_UNROLL>();
+    let (b_groups, b_group_tail) = b_chunks.as_chunks::<MUL_UNROLL>();
+    for (ag, bg) in a_groups.iter_mut().zip(b_groups) {
+        for u in 0..MUL_UNROLL {
+            let av = Simd::from_array(ag[u]);
+            let bv = Simd::from_array(bg[u]);
+            ag[u] = sm.lazy_reduce_mul(av, bv).to_array();
+        }
+    }
+    for (ac, bc) in a_group_tail.iter_mut().zip(b_group_tail) {
         let av = Simd::from_array(*ac);
         let bv = Simd::from_array(*bc);
         *ac = sm.lazy_reduce_mul(av, bv).to_array();
@@ -419,7 +444,17 @@ pub fn lazy_reduce_mul_slice_to<T: SimdUnsignedInteger, const N: usize>(
     let (a_chunks, a_rem) = a.as_chunks::<N>();
     let (b_chunks, b_rem) = b.as_chunks::<N>();
     let (o_chunks, o_rem) = output.as_chunks_mut::<N>();
-    for ((ac, bc), oc) in a_chunks.iter().zip(b_chunks).zip(o_chunks) {
+    let (a_groups, a_group_tail) = a_chunks.as_chunks::<MUL_UNROLL>();
+    let (b_groups, b_group_tail) = b_chunks.as_chunks::<MUL_UNROLL>();
+    let (o_groups, o_group_tail) = o_chunks.as_chunks_mut::<MUL_UNROLL>();
+    for ((ag, bg), og) in a_groups.iter().zip(b_groups).zip(o_groups) {
+        for u in 0..MUL_UNROLL {
+            let av = Simd::from_array(ag[u]);
+            let bv = Simd::from_array(bg[u]);
+            og[u] = sm.lazy_reduce_mul(av, bv).to_array();
+        }
+    }
+    for ((ac, bc), oc) in a_group_tail.iter().zip(b_group_tail).zip(o_group_tail) {
         let av = Simd::from_array(*ac);
         let bv = Simd::from_array(*bc);
         *oc = sm.lazy_reduce_mul(av, bv).to_array();
@@ -440,7 +475,17 @@ pub fn reduce_mul_slice_assign<T: SimdUnsignedInteger, const N: usize>(
     let m = Simd::splat(modulus.value());
     let (a_chunks, a_rem) = a.as_chunks_mut::<N>();
     let (b_chunks, b_rem) = b.as_chunks::<N>();
-    for (ac, bc) in a_chunks.iter_mut().zip(b_chunks) {
+    let (a_groups, a_group_tail) = a_chunks.as_chunks_mut::<MUL_UNROLL>();
+    let (b_groups, b_group_tail) = b_chunks.as_chunks::<MUL_UNROLL>();
+    for (ag, bg) in a_groups.iter_mut().zip(b_groups) {
+        for u in 0..MUL_UNROLL {
+            let av = Simd::from_array(ag[u]);
+            let bv = Simd::from_array(bg[u]);
+            let lazy = sm.lazy_reduce_mul(av, bv);
+            ag[u] = simd_reduce_once(lazy, m).to_array();
+        }
+    }
+    for (ac, bc) in a_group_tail.iter_mut().zip(b_group_tail) {
         let av = Simd::from_array(*ac);
         let bv = Simd::from_array(*bc);
         let lazy = sm.lazy_reduce_mul(av, bv);
@@ -465,7 +510,18 @@ pub fn reduce_mul_slice_to<T: SimdUnsignedInteger, const N: usize>(
     let (a_chunks, a_rem) = a.as_chunks::<N>();
     let (b_chunks, b_rem) = b.as_chunks::<N>();
     let (o_chunks, o_rem) = output.as_chunks_mut::<N>();
-    for ((ac, bc), oc) in a_chunks.iter().zip(b_chunks).zip(o_chunks) {
+    let (a_groups, a_group_tail) = a_chunks.as_chunks::<MUL_UNROLL>();
+    let (b_groups, b_group_tail) = b_chunks.as_chunks::<MUL_UNROLL>();
+    let (o_groups, o_group_tail) = o_chunks.as_chunks_mut::<MUL_UNROLL>();
+    for ((ag, bg), og) in a_groups.iter().zip(b_groups).zip(o_groups) {
+        for u in 0..MUL_UNROLL {
+            let av = Simd::from_array(ag[u]);
+            let bv = Simd::from_array(bg[u]);
+            let lazy = sm.lazy_reduce_mul(av, bv);
+            og[u] = simd_reduce_once(lazy, m).to_array();
+        }
+    }
+    for ((ac, bc), oc) in a_group_tail.iter().zip(b_group_tail).zip(o_group_tail) {
         let av = Simd::from_array(*ac);
         let bv = Simd::from_array(*bc);
         let lazy = sm.lazy_reduce_mul(av, bv);
@@ -490,11 +546,27 @@ pub fn reduce_add_mul_slice_assign<T: SimdUnsignedInteger, const N: usize>(
     let (acc_chunks, acc_rem) = acc.as_chunks_mut::<N>();
     let (a_chunks, a_rem) = a.as_chunks::<N>();
     let (b_chunks, b_rem) = b.as_chunks::<N>();
-    for ((accc, ac), bc) in acc_chunks.iter_mut().zip(a_chunks).zip(b_chunks) {
+    let (acc_groups, acc_group_tail) = acc_chunks.as_chunks_mut::<MUL_UNROLL>();
+    let (a_groups, a_group_tail) = a_chunks.as_chunks::<MUL_UNROLL>();
+    let (b_groups, b_group_tail) = b_chunks.as_chunks::<MUL_UNROLL>();
+    for ((accg, ag), bg) in acc_groups.iter_mut().zip(a_groups).zip(b_groups) {
+        for u in 0..MUL_UNROLL {
+            let accv = Simd::from_array(accg[u]);
+            let av = Simd::from_array(ag[u]);
+            let bv = Simd::from_array(bg[u]);
+            // (a*b + acc) mod 2m is in [0, 2m); fold once to canonical.
+            let lazy = sm.lazy_reduce_mul_add(av, bv, accv);
+            accg[u] = simd_reduce_once(lazy, m).to_array();
+        }
+    }
+    for ((accc, ac), bc) in acc_group_tail
+        .iter_mut()
+        .zip(a_group_tail)
+        .zip(b_group_tail)
+    {
         let accv = Simd::from_array(*accc);
         let av = Simd::from_array(*ac);
         let bv = Simd::from_array(*bc);
-        // (a*b + acc) mod 2m is in [0, 2m); fold once to canonical.
         let lazy = sm.lazy_reduce_mul_add(av, bv, accv);
         *accc = simd_reduce_once(lazy, m).to_array();
     }
@@ -517,7 +589,24 @@ pub fn reduce_sub_mul_slice_assign<T: SimdUnsignedInteger, const N: usize>(
     let (acc_chunks, acc_rem) = acc.as_chunks_mut::<N>();
     let (a_chunks, a_rem) = a.as_chunks::<N>();
     let (b_chunks, b_rem) = b.as_chunks::<N>();
-    for ((accc, ac), bc) in acc_chunks.iter_mut().zip(a_chunks).zip(b_chunks) {
+    let (acc_groups, acc_group_tail) = acc_chunks.as_chunks_mut::<MUL_UNROLL>();
+    let (a_groups, a_group_tail) = a_chunks.as_chunks::<MUL_UNROLL>();
+    let (b_groups, b_group_tail) = b_chunks.as_chunks::<MUL_UNROLL>();
+    for ((accg, ag), bg) in acc_groups.iter_mut().zip(a_groups).zip(b_groups) {
+        for u in 0..MUL_UNROLL {
+            let accv = Simd::from_array(accg[u]);
+            let av = Simd::from_array(ag[u]);
+            let bv = Simd::from_array(bg[u]);
+            let prod_lazy = sm.lazy_reduce_mul(av, bv);
+            let prod = simd_reduce_once(prod_lazy, m);
+            accg[u] = simd_reduce_sub(accv, prod, m).to_array();
+        }
+    }
+    for ((accc, ac), bc) in acc_group_tail
+        .iter_mut()
+        .zip(a_group_tail)
+        .zip(b_group_tail)
+    {
         let accv = Simd::from_array(*accc);
         let av = Simd::from_array(*ac);
         let bv = Simd::from_array(*bc);
@@ -547,7 +636,25 @@ pub fn reduce_mul_add_slice_to<T: SimdUnsignedInteger, const N: usize>(
     let (b_chunks, b_rem) = b.as_chunks::<N>();
     let (c_chunks, c_rem) = c.as_chunks::<N>();
     let (o_chunks, o_rem) = output.as_chunks_mut::<N>();
-    for (((ac, bc), cc), oc) in a_chunks.iter().zip(b_chunks).zip(c_chunks).zip(o_chunks) {
+    let (a_groups, a_group_tail) = a_chunks.as_chunks::<MUL_UNROLL>();
+    let (b_groups, b_group_tail) = b_chunks.as_chunks::<MUL_UNROLL>();
+    let (c_groups, c_group_tail) = c_chunks.as_chunks::<MUL_UNROLL>();
+    let (o_groups, o_group_tail) = o_chunks.as_chunks_mut::<MUL_UNROLL>();
+    for (((ag, bg), cg), og) in a_groups.iter().zip(b_groups).zip(c_groups).zip(o_groups) {
+        for u in 0..MUL_UNROLL {
+            let av = Simd::from_array(ag[u]);
+            let bv = Simd::from_array(bg[u]);
+            let cv = Simd::from_array(cg[u]);
+            let lazy = sm.lazy_reduce_mul_add(av, bv, cv);
+            og[u] = simd_reduce_once(lazy, m).to_array();
+        }
+    }
+    for (((ac, bc), cc), oc) in a_group_tail
+        .iter()
+        .zip(b_group_tail)
+        .zip(c_group_tail)
+        .zip(o_group_tail)
+    {
         let av = Simd::from_array(*ac);
         let bv = Simd::from_array(*bc);
         let cv = Simd::from_array(*cc);
@@ -575,7 +682,18 @@ pub fn reduce_scalar_mul_add_slice_to<T: SimdUnsignedInteger, const N: usize>(
     let (b_chunks, b_rem) = b.as_chunks::<N>();
     let (c_chunks, c_rem) = c.as_chunks::<N>();
     let (o_chunks, o_rem) = output.as_chunks_mut::<N>();
-    for ((bc, cc), oc) in b_chunks.iter().zip(c_chunks).zip(o_chunks) {
+    let (b_groups, b_group_tail) = b_chunks.as_chunks::<MUL_UNROLL>();
+    let (c_groups, c_group_tail) = c_chunks.as_chunks::<MUL_UNROLL>();
+    let (o_groups, o_group_tail) = o_chunks.as_chunks_mut::<MUL_UNROLL>();
+    for ((bg, cg), og) in b_groups.iter().zip(c_groups).zip(o_groups) {
+        for u in 0..MUL_UNROLL {
+            let bv = Simd::from_array(bg[u]);
+            let cv = Simd::from_array(cg[u]);
+            let lazy = sm.lazy_reduce_mul_add(sv, bv, cv);
+            og[u] = simd_reduce_once(lazy, m).to_array();
+        }
+    }
+    for ((bc, cc), oc) in b_group_tail.iter().zip(c_group_tail).zip(o_group_tail) {
         let bv = Simd::from_array(*bc);
         let cv = Simd::from_array(*cc);
         let lazy = sm.lazy_reduce_mul_add(sv, bv, cv);
@@ -599,7 +717,22 @@ pub fn lazy_reduce_add_mul_slice_assign<T: SimdUnsignedInteger, const N: usize>(
     let (acc_chunks, acc_rem) = acc.as_chunks_mut::<N>();
     let (a_chunks, a_rem) = a.as_chunks::<N>();
     let (b_chunks, b_rem) = b.as_chunks::<N>();
-    for ((accc, ac), bc) in acc_chunks.iter_mut().zip(a_chunks).zip(b_chunks) {
+    let (acc_groups, acc_group_tail) = acc_chunks.as_chunks_mut::<MUL_UNROLL>();
+    let (a_groups, a_group_tail) = a_chunks.as_chunks::<MUL_UNROLL>();
+    let (b_groups, b_group_tail) = b_chunks.as_chunks::<MUL_UNROLL>();
+    for ((accg, ag), bg) in acc_groups.iter_mut().zip(a_groups).zip(b_groups) {
+        for u in 0..MUL_UNROLL {
+            let accv = Simd::from_array(accg[u]);
+            let av = Simd::from_array(ag[u]);
+            let bv = Simd::from_array(bg[u]);
+            accg[u] = sm.lazy_reduce_mul_add(av, bv, accv).to_array();
+        }
+    }
+    for ((accc, ac), bc) in acc_group_tail
+        .iter_mut()
+        .zip(a_group_tail)
+        .zip(b_group_tail)
+    {
         let accv = Simd::from_array(*accc);
         let av = Simd::from_array(*ac);
         let bv = Simd::from_array(*bc);
@@ -634,7 +767,27 @@ pub fn lazy_reduce_sub_mul_slice_assign<T: SimdUnsignedInteger, const N: usize>(
     let (acc_chunks, acc_rem) = acc.as_chunks_mut::<N>();
     let (a_chunks, a_rem) = a.as_chunks::<N>();
     let (b_chunks, b_rem) = b.as_chunks::<N>();
-    for ((accc, ac), bc) in acc_chunks.iter_mut().zip(a_chunks).zip(b_chunks) {
+    let (acc_groups, acc_group_tail) = acc_chunks.as_chunks_mut::<MUL_UNROLL>();
+    let (a_groups, a_group_tail) = a_chunks.as_chunks::<MUL_UNROLL>();
+    let (b_groups, b_group_tail) = b_chunks.as_chunks::<MUL_UNROLL>();
+    for ((accg, ag), bg) in acc_groups.iter_mut().zip(a_groups).zip(b_groups) {
+        for u in 0..MUL_UNROLL {
+            let accv = Simd::from_array(accg[u]);
+            let av = Simd::from_array(ag[u]);
+            let bv = Simd::from_array(bg[u]);
+            let prod_lazy = sm.lazy_reduce_mul(av, bv);
+            let diff = accv - prod_lazy;
+            accg[u] = accv
+                .simd_lt(prod_lazy)
+                .select(diff + two_m, diff)
+                .to_array();
+        }
+    }
+    for ((accc, ac), bc) in acc_group_tail
+        .iter_mut()
+        .zip(a_group_tail)
+        .zip(b_group_tail)
+    {
         let accv = Simd::from_array(*accc);
         let av = Simd::from_array(*ac);
         let bv = Simd::from_array(*bc);
@@ -666,7 +819,24 @@ pub fn lazy_reduce_mul_add_slice_to<T: SimdUnsignedInteger, const N: usize>(
     let (b_chunks, b_rem) = b.as_chunks::<N>();
     let (c_chunks, c_rem) = c.as_chunks::<N>();
     let (o_chunks, o_rem) = output.as_chunks_mut::<N>();
-    for (((ac, bc), cc), oc) in a_chunks.iter().zip(b_chunks).zip(c_chunks).zip(o_chunks) {
+    let (a_groups, a_group_tail) = a_chunks.as_chunks::<MUL_UNROLL>();
+    let (b_groups, b_group_tail) = b_chunks.as_chunks::<MUL_UNROLL>();
+    let (c_groups, c_group_tail) = c_chunks.as_chunks::<MUL_UNROLL>();
+    let (o_groups, o_group_tail) = o_chunks.as_chunks_mut::<MUL_UNROLL>();
+    for (((ag, bg), cg), og) in a_groups.iter().zip(b_groups).zip(c_groups).zip(o_groups) {
+        for u in 0..MUL_UNROLL {
+            let av = Simd::from_array(ag[u]);
+            let bv = Simd::from_array(bg[u]);
+            let cv = Simd::from_array(cg[u]);
+            og[u] = sm.lazy_reduce_mul_add(av, bv, cv).to_array();
+        }
+    }
+    for (((ac, bc), cc), oc) in a_group_tail
+        .iter()
+        .zip(b_group_tail)
+        .zip(c_group_tail)
+        .zip(o_group_tail)
+    {
         let av = Simd::from_array(*ac);
         let bv = Simd::from_array(*bc);
         let cv = Simd::from_array(*cc);
@@ -692,7 +862,17 @@ pub fn lazy_reduce_scalar_mul_add_slice_to<T: SimdUnsignedInteger, const N: usiz
     let (b_chunks, b_rem) = b.as_chunks::<N>();
     let (c_chunks, c_rem) = c.as_chunks::<N>();
     let (o_chunks, o_rem) = output.as_chunks_mut::<N>();
-    for ((bc, cc), oc) in b_chunks.iter().zip(c_chunks).zip(o_chunks) {
+    let (b_groups, b_group_tail) = b_chunks.as_chunks::<MUL_UNROLL>();
+    let (c_groups, c_group_tail) = c_chunks.as_chunks::<MUL_UNROLL>();
+    let (o_groups, o_group_tail) = o_chunks.as_chunks_mut::<MUL_UNROLL>();
+    for ((bg, cg), og) in b_groups.iter().zip(c_groups).zip(o_groups) {
+        for u in 0..MUL_UNROLL {
+            let bv = Simd::from_array(bg[u]);
+            let cv = Simd::from_array(cg[u]);
+            og[u] = sm.lazy_reduce_mul_add(sv, bv, cv).to_array();
+        }
+    }
+    for ((bc, cc), oc) in b_group_tail.iter().zip(c_group_tail).zip(o_group_tail) {
         let bv = Simd::from_array(*bc);
         let cv = Simd::from_array(*cc);
         *oc = sm.lazy_reduce_mul_add(sv, bv, cv).to_array();
