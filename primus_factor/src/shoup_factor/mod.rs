@@ -316,13 +316,7 @@ macro_rules! impl_shoup_factor_slice_ops_simd {
             }
 
             #[inline]
-            fn factor_mul_add_slice_to(
-                self,
-                b: &[$t],
-                c: &[$t],
-                output: &mut [$t],
-                modulus: $t,
-            ) {
+            fn factor_mul_add_slice_to(self, b: &[$t], c: &[$t], output: &mut [$t], modulus: $t) {
                 simd::factor_mul_add_slice_to::<$t, { $lanes }>(self, b, c, output, modulus);
             }
         }

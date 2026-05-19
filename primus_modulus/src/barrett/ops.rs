@@ -573,11 +573,9 @@ mod tests {
             let b: Vec<u64> = (0..n).map(|_| distr.sample(&mut rng)).collect();
 
             let got = modulus.reduce_dot_product(&a, &b);
-            let expected = a
-                .iter()
-                .zip(&b)
-                .fold(0u128, |acc, (&x, &y)| (acc + x as u128 * y as u128) % M as u128)
-                as u64;
+            let expected = a.iter().zip(&b).fold(0u128, |acc, (&x, &y)| {
+                (acc + x as u128 * y as u128) % M as u128
+            }) as u64;
             assert_eq!(got, expected, "len={n}");
 
             let got_iter = modulus.reduce_dot_product_iter(a.iter().copied(), b.iter().copied());

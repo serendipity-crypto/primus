@@ -720,11 +720,7 @@ macro_rules! impl_barrett_slice_simd {
             type Output = $t;
 
             #[inline]
-            fn reduce_dot_product(
-                self,
-                a: impl AsRef<[$t]>,
-                b: impl AsRef<[$t]>,
-            ) -> $t {
+            fn reduce_dot_product(self, a: impl AsRef<[$t]>, b: impl AsRef<[$t]>) -> $t {
                 super::simd::reduce_dot_product::<$t, { $lanes }>(self, a.as_ref(), b.as_ref())
             }
 

@@ -44,13 +44,7 @@ impl<T: UnsignedInteger> ReduceMulAddSlice<T> for PowOf2Modulus<T> {
     }
 
     #[inline]
-    fn reduce_scalar_mul_add_slice_to(
-        self,
-        scalar: T,
-        b: &[T],
-        c: &[T],
-        output: &mut [T],
-    ) {
+    fn reduce_scalar_mul_add_slice_to(self, scalar: T, b: &[T], c: &[T], output: &mut [T]) {
         debug_assert_eq!(b.len(), c.len());
         debug_assert_eq!(b.len(), output.len());
         b.iter()

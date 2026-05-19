@@ -24,6 +24,10 @@ harness = false
 name = "barrett_slice"
 harness = false
 
+[[bench]]
+name = "barrett50_slice"
+harness = false
+
 [features]
 default = ["derive"]
 nightly = ["primus_integer/nightly"]
