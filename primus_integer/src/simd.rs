@@ -41,6 +41,31 @@ pub mod default_lanes {
     pub const fn lanes_for_bits(bits: usize) -> usize {
         VECTOR_BITS / bits
     }
+
+    /// 2× of [`VECTOR_BITS`]: forces `portable_simd` to emit two native
+    /// vectors per chunk. Use it on hot paths whose kernels are mul-heavy
+    /// or have long dependency chains, where the extra register pressure
+    /// buys instruction-level parallelism (measured 10–11 % on u64 Barrett
+    /// `reduce_mul_slice_to` / `lazy_reduce_mul_slice_to` /
+    /// `reduce_mul_add_slice_to`, ~4 % on `reduce_dot_product`, AVX-512
+    /// host — see `benches/barrett_lane_width.rs`).
+    ///
+    /// Do **not** flip this on indiscriminately:
+    ///
+    /// - small slice lengths (well under `LARGE_VECTOR_BITS / bits`)
+    ///   spend more time in the scalar tail than they save in the
+    ///   vector body;
+    /// - non-mul kernels (add/sub/once/neg) were not measured and are
+    ///   unlikely to win;
+    /// - unverified on non-AVX-512 targets — bench before flipping.
+    pub const LARGE_VECTOR_BITS: usize = 2 * VECTOR_BITS;
+
+    /// Like [`lanes_for_bits`] but for the wider [`LARGE_VECTOR_BITS`].
+    #[inline]
+    #[must_use]
+    pub const fn large_lanes_for_bits(bits: usize) -> usize {
+        LARGE_VECTOR_BITS / bits
+    }
 }
 
 use core::{

@@ -28,6 +28,11 @@ harness = false
 name = "barrett50_slice"
 harness = false
 
+[[bench]]
+name = "barrett_lane_width"
+harness = false
+required-features = ["nightly", "simd"]
+
 [features]
 default = ["derive"]
 nightly = ["primus_integer/nightly"]
